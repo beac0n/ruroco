@@ -140,7 +140,8 @@ fn validate_decrypted_data(decrypted_data: &mut Vec<u8>, count: usize) {
             error!("Invalid content {timestamp} is older than now {now} - 5 = {}", now - 5)
         }
         Ok(now) => {
-            info!("Successfully validated data")
+            // TODO: execute command executor
+            info!("Successfully validated data - {timestamp} is not too old/new")
         }
         Err(e) => error!("Could not get current time: {e}"),
     };
