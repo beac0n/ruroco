@@ -113,6 +113,7 @@ fn run_server(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> 
 
 fn run_server_iteration(rsa: &Rsa<Private>, address: &str, socket: &UdpSocket) {
     let expected_read_count = 1024;
+    // make sure encrypted_data size == expected_read_count
     let mut encrypted_data = [0; 1024];
     return match socket.recv_from(&mut encrypted_data) {
         Ok((read_count, src)) if read_count < expected_read_count => {
