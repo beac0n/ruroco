@@ -16,9 +16,9 @@ use regex::Regex;
 struct Cli {
     #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
     address: String,
-    #[arg(short = 'v', long, default_value = get_default_pem_paths().0.into_os_string())]
+    #[arg(short = 'v', long, default_value = get_default_pem_private().into_os_string())]
     pem_path_private: PathBuf,
-    #[arg(short, long, default_value = get_default_pem_paths().1.into_os_string())]
+    #[arg(short, long, default_value = get_default_pem_public().into_os_string())]
     pem_path_public: PathBuf,
     #[arg(short, long, default_value_t = false)]
     gen: bool,
@@ -33,8 +33,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     return match Cli::parse() {
         args if args.gen => gen_pem(),
-        args if args.server && is_addr(&args.address) => run_server(args.pem_path_public, args.address),
-        args if !args.server && is_addr(&args.address) => run_client(args.pem_path_private, args.address),
+        args if args.server && is_addr(&args.address) => {
+            run_server(args.pem_path_public, args.address)
+        }
+        args if !args.server && is_addr(&args.address) => {
+            run_client(args.pem_path_private, args.address)
+        }
         _ => Err("Invalid arguments combination".into()),
     };
 }
@@ -46,7 +50,7 @@ fn is_addr(addr: &str) -> bool {
 
 fn gen_pem() -> Result<(), Box<dyn Error>> {
     let key_size = 8192;
-    return match get_default_pem_paths() {
+    return match (get_default_pem_private(), get_default_pem_public()) {
         (pem_path_private, pem_path_public)
             if pem_path_private.exists() || pem_path_public.exists() =>
         {
@@ -67,8 +71,12 @@ fn gen_pem() -> Result<(), Box<dyn Error>> {
     };
 }
 
-fn get_default_pem_paths() -> (PathBuf, PathBuf) {
-    return (get_default_pem_path("ruroco_private.pem"), get_default_pem_path("ruroco_public.pem"));
+fn get_default_pem_public() -> PathBuf {
+    get_default_pem_path("ruroco_public.pem")
+}
+
+fn get_default_pem_private() -> PathBuf {
+    get_default_pem_path("ruroco_private.pem")
 }
 
 fn get_default_pem_path(pem_name: &str) -> PathBuf {
