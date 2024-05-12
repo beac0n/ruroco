@@ -8,6 +8,5 @@ edition = "2021"
 [dependencies]
 openssl = { version = "0.10.64", features = ["vendored"] }
 clap = { version = "4.5.4", features = ["derive", "string"] }
-regex = "1.10.4"
 log = "0.4.21"
 env_logger = "0.11.3"

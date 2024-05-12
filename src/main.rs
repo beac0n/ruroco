@@ -5,25 +5,33 @@ use std::path::PathBuf;
 use std::str;
 use std::time::SystemTime;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use log::{debug, error, info};
 use openssl::pkey::{Private, Public};
 use openssl::rsa::{Padding, Rsa};
-use regex::Regex;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
-    address: String,
-    #[arg(short = 'v', long, default_value = get_default_pem_private().into_os_string())]
-    pem_path_private: PathBuf,
-    #[arg(short, long, default_value = get_default_pem_public().into_os_string())]
-    pem_path_public: PathBuf,
-    #[arg(short, long, default_value_t = false)]
-    gen: bool,
-    #[arg(short, long, default_value_t = false)]
-    server: bool,
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    Gen {},
+    Server {
+        #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+        address: String,
+        #[arg(short, long, default_value = get_default_pem_public().into_os_string())]
+        pem_path: PathBuf,
+    },
+    Client {
+        #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+        address: String,
+        #[arg(short, long, default_value = get_default_pem_private().into_os_string())]
+        pem_path: PathBuf,
+    },
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -31,21 +39,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    return match Cli::parse() {
-        args if args.gen => gen_pem(),
-        args if args.server && is_addr(&args.address) => {
-            run_server(args.pem_path_public, args.address)
-        }
-        args if !args.server && is_addr(&args.address) => {
-            run_client(args.pem_path_private, args.address)
-        }
-        _ => Err("Invalid arguments combination".into()),
+    let args = Cli::parse();
+    return match args.command {
+        Commands::Gen {} => gen_pem(),
+        Commands::Server { address, pem_path } => run_server(pem_path, address),
+        Commands::Client { address, pem_path } => run_client(pem_path, address),
     };
-}
-
-fn is_addr(addr: &str) -> bool {
-    let regex = r"^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}:[1-9][0-9]*$";
-    return Regex::new(regex).unwrap().is_match(addr);
 }
 
 fn gen_pem() -> Result<(), Box<dyn Error>> {
