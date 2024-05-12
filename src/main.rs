@@ -1,13 +1,13 @@
+use std::{env, fs};
 use std::error::Error;
 use std::net::UdpSocket;
 use std::path::PathBuf;
 use std::str;
 use std::time::SystemTime;
-use std::{env, fs};
 
 use clap::Parser;
 use log::{debug, error, info};
-use openssl::pkey::Private;
+use openssl::pkey::{Private, Public};
 use openssl::rsa::{Padding, Rsa};
 use regex::Regex;
 
@@ -16,8 +16,10 @@ use regex::Regex;
 struct Cli {
     #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
     address: String,
-    #[arg(short, long, default_value = get_default_pem_path().into_os_string())]
-    pem_path: PathBuf,
+    #[arg(short = 'v', long, default_value = get_default_pem_paths().0.into_os_string())]
+    pem_path_private: PathBuf,
+    #[arg(short, long, default_value = get_default_pem_paths().1.into_os_string())]
+    pem_path_public: PathBuf,
     #[arg(short, long, default_value_t = false)]
     gen: bool,
     #[arg(short, long, default_value_t = false)]
@@ -31,9 +33,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     return match Cli::parse() {
         args if args.gen => gen_pem(),
-        args if args.server && is_addr(&args.address) => run_server(args.pem_path, args.address),
-        args if !args.server && is_addr(&args.address) => run_client(args.pem_path, args.address),
-        _ => Err("invalid arguments combination".into()),
+        args if args.server && is_addr(&args.address) => run_server(args.pem_path_public, args.address),
+        args if !args.server && is_addr(&args.address) => run_client(args.pem_path_private, args.address),
+        _ => Err("Invalid arguments combination".into()),
     };
 }
 
@@ -44,27 +46,32 @@ fn is_addr(addr: &str) -> bool {
 
 fn gen_pem() -> Result<(), Box<dyn Error>> {
     let key_size = 8192;
-    return match get_default_pem_path() {
-        pem_path if pem_path.exists() => {
+    return match get_default_pem_paths() {
+        (pem_path_private, pem_path_public)
+            if pem_path_private.exists() || pem_path_public.exists() =>
+        {
             let msg = format!(
-                "Could not generate new rsa key with {key_size} bits, because {:?} already exists",
-                &pem_path
+                "Could not generate new rsa key with {key_size} bits, because {pem_path_private:?} or {pem_path_public:?} already exists"
             );
             Err(msg.into())
         }
-        pem_path => {
+        (pem_path_private, pem_path_public) => {
             debug!(
-                "Generating new rsa key with {key_size} bits and saving it to {:?}. This might take a while...",
-                &pem_path
+                "Generating new rsa key with {key_size} bits and saving it to {pem_path_private:?} and {pem_path_public:?}. This might take a while...",
             );
-            fs::write(&pem_path, Rsa::generate(key_size)?.private_key_to_pem()?)?;
+            let rsa = Rsa::generate(key_size)?;
+            fs::write(&pem_path_private, rsa.private_key_to_pem()?)?;
+            fs::write(&pem_path_public, rsa.public_key_to_pem()?)?;
             Ok(())
         }
     };
 }
 
-fn get_default_pem_path() -> PathBuf {
-    let pem_name = "ruroco.pem";
+fn get_default_pem_paths() -> (PathBuf, PathBuf) {
+    return (get_default_pem_path("ruroco_private.pem"), get_default_pem_path("ruroco_public.pem"));
+}
+
+fn get_default_pem_path(pem_name: &str) -> PathBuf {
     return match env::current_dir() {
         Ok(dir) => dir.join(pem_name),
         Err(_) => PathBuf::from(pem_name),
@@ -103,7 +110,7 @@ fn time() -> Result<u64, Box<dyn Error>> {
 fn run_server(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> {
     info!("Starting server on udp://{address}, loading PEM from {} ...", pem_path.display());
     let pem_data = fs::read(pem_path)?;
-    let rsa: Rsa<Private> = Rsa::private_key_from_pem(&pem_data)?;
+    let rsa: Rsa<Public> = Rsa::public_key_from_pem(&pem_data)?;
     let socket = UdpSocket::bind(&address)?;
 
     loop {
@@ -111,7 +118,7 @@ fn run_server(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> 
     }
 }
 
-fn run_server_iteration(rsa: &Rsa<Private>, address: &str, socket: &UdpSocket) {
+fn run_server_iteration(rsa: &Rsa<Public>, address: &str, socket: &UdpSocket) {
     let expected_read_count = 1024;
     // make sure encrypted_data size == expected_read_count
     let mut encrypted_data = [0; 1024];
@@ -124,7 +131,7 @@ fn run_server_iteration(rsa: &Rsa<Private>, address: &str, socket: &UdpSocket) {
     };
 }
 
-fn validate_data(rsa: &Rsa<Private>, encrypted_data: &[u8; 1024]) {
+fn validate_data(rsa: &Rsa<Public>, encrypted_data: &[u8; 1024]) {
     let mut decrypted_data = vec![0; rsa.size() as usize];
     return match rsa.public_decrypt(encrypted_data, &mut decrypted_data, Padding::PKCS1) {
         Ok(count) => validate_decrypted_data(&mut decrypted_data, count),
