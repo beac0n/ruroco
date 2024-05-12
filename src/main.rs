@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 mod client;
 mod server;
 mod util;
+mod commander;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -30,6 +31,14 @@ enum Commands {
         #[arg(short, long, default_value = util::get_default_pem_private().into_os_string())]
         pem_path: PathBuf,
     },
+    Commander {
+        #[arg(short, long)]
+        start: String,
+        #[arg(short, long)]
+        stop: String,
+        #[arg(short, long, default_value_t = 5)]
+        sleep: u8,
+    },
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -42,5 +51,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Gen {} => util::gen_pem(),
         Commands::Server { address, pem_path } => server::run(pem_path, address),
         Commands::Client { address, pem_path } => client::run(pem_path, address),
+        Commands::Commander {start, stop, sleep} => commander::run(start, stop, sleep),
     };
 }
