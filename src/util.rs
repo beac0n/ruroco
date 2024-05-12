@@ -1,7 +1,8 @@
-use std::error::Error;
-use std::time::SystemTime;
 use std::{env, fs, str};
+use std::error::Error;
 use std::path::PathBuf;
+use std::time::SystemTime;
+
 use log::debug;
 use openssl::rsa::Rsa;
 

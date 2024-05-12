@@ -1,12 +1,13 @@
-use std::path::PathBuf;
-use std::error::Error;
-use log::{error, info};
 use std::{fs, str};
-use openssl::rsa::{Padding, Rsa};
-use openssl::pkey::Public;
+use std::error::Error;
 use std::net::UdpSocket;
-use crate::util;
+use std::path::PathBuf;
 
+use log::{error, info};
+use openssl::pkey::Public;
+use openssl::rsa::{Padding, Rsa};
+
+use crate::util;
 
 pub fn run(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> {
     info!("Starting server on udp://{address}, loading PEM from {} ...", pem_path.display());

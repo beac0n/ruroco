@@ -1,10 +1,12 @@
-use std::path::PathBuf;
 use std::error::Error;
-use log::info;
 use std::fs;
-use openssl::rsa::{Padding, Rsa};
-use openssl::pkey::Private;
 use std::net::UdpSocket;
+use std::path::PathBuf;
+
+use log::info;
+use openssl::pkey::Private;
+use openssl::rsa::{Padding, Rsa};
+
 use crate::util;
 
 pub fn run(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> {
