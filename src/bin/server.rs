@@ -1,22 +1,35 @@
-use std::{fs, str};
 use std::error::Error;
 use std::net::UdpSocket;
 use std::path::PathBuf;
+use std::{fs, str};
 
+use clap::Parser;
 use log::{error, info};
 use openssl::pkey::Public;
 use openssl::rsa::{Padding, Rsa};
 
-use crate::util;
+use ruroco::lib;
 
-pub fn run(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> {
-    info!("Starting server on udp://{address}, loading PEM from {} ...", pem_path.display());
-    let pem_data = fs::read(pem_path)?;
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+    address: String,
+    #[arg(short, long, default_value = lib::get_default_pem_public().into_os_string())]
+    pem_path: PathBuf,
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    lib::init_logger();
+    let args = Cli::parse();
+
+    info!("Starting server on udp://{address}, loading PEM from {} ...", args.pem_path.display());
+    let pem_data = fs::read(args.pem_path)?;
     let rsa: Rsa<Public> = Rsa::public_key_from_pem(&pem_data)?;
-    let socket = UdpSocket::bind(&address)?;
+    let socket = UdpSocket::bind(&args.address)?;
 
     loop {
-        iteration(&rsa, &address, &socket);
+        iteration(&rsa, &args.address, &socket);
     }
 }
 
@@ -44,7 +57,7 @@ fn validate_encrypted(rsa: &Rsa<Public>, encrypted_data: &[u8; 1024]) {
 fn validate_decrypted(decrypted_data: &mut Vec<u8>, count: usize) {
     decrypted_data.truncate(count);
     let timestamp = vec_u8_to_u64(&decrypted_data);
-    return match util::time() {
+    return match lib::time() {
         Ok(now) if timestamp > now => error!("Invalid content {timestamp} is newer than now {now}"),
         Ok(now) if timestamp < now - 5 => {
             error!("Invalid content {timestamp} is older than now {now} - 5 = {}", now - 5)
