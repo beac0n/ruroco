@@ -10,14 +10,14 @@ use log::{error, info};
 use openssl::pkey::Public;
 use openssl::rsa::{Padding, Rsa};
 
-use ruroco::lib::{get_default_pem_public, init_logger, SOCKET_FILE_PATH, time};
+use ruroco::lib::{get_path, init_logger, SOCKET_FILE_PATH, time};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
     #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
     address: String,
-    #[arg(short, long, default_value = get_default_pem_public().into_os_string())]
+    #[arg(short, long, default_value = get_path("ruroco_public.pem").into_os_string())]
     pem_path: PathBuf,
 }
 
