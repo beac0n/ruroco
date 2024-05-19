@@ -27,10 +27,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     init_logger();
     let args = Cli::parse();
 
-    info!("Creating ruroco socket dir {}", SOCKET_DIR);
+    info!("Creating ruroco socket dir {SOCKET_DIR}");
     fs::create_dir_all(SOCKET_DIR)?;
 
-    info!("Removing already existing socket file {}", SOCKET_FILE_PATH);
+    info!("Removing already existing socket file {SOCKET_FILE_PATH}");
     let _ = fs::remove_file(SOCKET_FILE_PATH);
 
     let mode = 0o600;
