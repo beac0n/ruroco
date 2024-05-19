@@ -10,7 +10,7 @@ use log::info;
 use openssl::pkey::Private;
 use openssl::rsa::{Padding, Rsa};
 
-use ruroco::lib::{get_path, init_logger, PEM_DIR_ERR_PREFIX, time};
+use ruroco::lib::{get_path, init_logger, time};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -22,8 +22,10 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     Gen {
-        #[arg(short, long, default_value = env::current_dir().unwrap().into_os_string())]
-        pem_dir: PathBuf,
+        #[arg(short = 'r', long, default_value = env::current_dir().unwrap().join("ruroco_private.pem").into_os_string())]
+        private_pem_path: PathBuf,
+        #[arg(short = 'u', long, default_value = env::current_dir().unwrap().join("ruroco_public.pem").into_os_string())]
+        public_pem_path: PathBuf,
         #[arg(short, long, default_value_t = 8192)]
         key_size: u32,
     },
@@ -40,12 +42,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     init_logger();
 
     return match Cli::parse().command {
-        Commands::Gen { pem_dir, key_size } => gen_pem(pem_dir, key_size),
-        Commands::Send { pem_path, address } => run(pem_path, address),
+        Commands::Gen {
+            private_pem_path,
+            public_pem_path,
+            key_size,
+        } => gen(private_pem_path, public_pem_path, key_size),
+        Commands::Send { pem_path, address } => send(pem_path, address),
     };
 }
 
-fn run(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> {
+fn send(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> {
     info!(
         "Running client, connecting to udp://{address}, loading PEM from {} ...",
         pem_path.display()
@@ -68,24 +74,35 @@ fn run(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> {
     };
 }
 
-fn gen_pem(pem_dir: PathBuf, key_size: u32) -> Result<(), Box<dyn Error>> {
-    let pem_dir_display = pem_dir.display();
+fn gen(private: PathBuf, public: PathBuf, key_size: u32) -> Result<(), Box<dyn Error>> {
+    let public_string = public.to_string_lossy().into_owned();
+    let private_string = private.to_string_lossy().into_owned();
 
-    if !pem_dir.is_dir() {
-        return Err(format!("{PEM_DIR_ERR_PREFIX} {pem_dir_display} is not a directory").into());
-    }
-
-    if !pem_dir.exists() {
-        return Err(format!("{PEM_DIR_ERR_PREFIX} {pem_dir_display} does not exist").into());
-    }
-
-    let private = pem_dir.join("ruroco_private.pem");
-    let public = pem_dir.join("ruroco_public.pem");
-
-    if private.exists() || public.exists() {
+    if !private_string.ends_with(".pem") {
         return Err(format!(
-            "Could not generate new rsa key with {key_size} bits, because {private:?} or {public:?} already exists"
-        ).into());
+            "Could not generate private PEM file: {private_string} does not end with .pem"
+        )
+        .into());
+    }
+
+    if !public_string.ends_with(".pem") {
+        return Err(format!(
+            "Could not generate private PEM file: {public_string} does not end with .pem"
+        )
+        .into());
+    }
+
+    if private.exists() {
+        return Err(format!(
+            "Could not generate private PEM file: {private_string} already exists"
+        )
+        .into());
+    }
+
+    if public.exists() {
+        return Err(
+            format!("Could not generate public PEM file: {public_string} already exists").into()
+        );
     }
 
     info!("Generating new rsa key with {key_size} bits and saving it to {private:?} and {public:?}. This might take a while...");
