@@ -6,7 +6,6 @@ pub mod lib {
 
     pub const SOCKET_DIR: &str = "/tmp/ruroco/";
     pub const SOCKET_FILE_PATH: &str = "/tmp/ruroco/ruroco.socket";
-    pub const PEM_DIR_ERR_PREFIX: &str = "Could not generate public and private PEM files:";
 
     pub fn init_logger() {
         env_logger::builder()
