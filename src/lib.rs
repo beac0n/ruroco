@@ -1,11 +1,14 @@
 pub mod lib {
+    use std::{env, fs};
     use std::error::Error;
     use std::path::PathBuf;
     use std::time::SystemTime;
-    use std::{env, fs};
 
     use log::debug;
     use openssl::rsa::Rsa;
+
+    pub const SOCKET_DIR: &str = "/tmp/ruroco/";
+    pub const SOCKET_FILE_PATH: &str = "/tmp/ruroco/ruroco.socket";
 
     pub fn init_logger() {
         env_logger::builder()
