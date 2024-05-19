@@ -1,8 +1,7 @@
 pub mod lib {
     use std::env;
-    use std::error::Error;
     use std::path::PathBuf;
-    use std::time::SystemTime;
+    use std::time::{SystemTime, SystemTimeError};
 
     pub const SOCKET_DIR: &str = "/tmp/ruroco/";
     pub const SOCKET_FILE_PATH: &str = "/tmp/ruroco/ruroco.socket";
@@ -13,10 +12,10 @@ pub mod lib {
             .init();
     }
 
-    pub fn time() -> Result<u64, Box<dyn Error>> {
+    pub fn time() -> Result<u128, SystemTimeError> {
         Ok(SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs())
+            .as_nanos())
     }
 
     pub fn get_path(file_name: &str) -> PathBuf {

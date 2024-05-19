@@ -7,7 +7,6 @@ use std::str;
 
 use clap::{Parser, Subcommand};
 use log::info;
-use openssl::pkey::Private;
 use openssl::rsa::{Padding, Rsa};
 
 use ruroco::lib::{get_path, init_logger, time};
@@ -34,7 +33,9 @@ enum Commands {
         #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
         address: String,
         #[arg(short, long, default_value = get_path("ruroco_private.pem").into_os_string())]
-        pem_path: PathBuf,
+        private_pem_path: PathBuf,
+        #[arg(short, long, default_value = "default")]
+        command: String,
     },
 }
 
@@ -47,31 +48,30 @@ fn main() -> Result<(), Box<dyn Error>> {
             public_pem_path,
             key_size,
         } => gen(private_pem_path, public_pem_path, key_size),
-        Commands::Send { pem_path, address } => send(pem_path, address),
+        Commands::Send {
+            private_pem_path,
+            address,
+            command,
+        } => send(private_pem_path, address, command),
     };
 }
 
-fn send(pem_path: PathBuf, address: String) -> Result<(), Box<dyn Error>> {
-    info!(
-        "Running client, connecting to udp://{address}, loading PEM from {} ...",
-        pem_path.display()
-    );
+fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), Box<dyn Error>> {
+    info!("Running client, connecting to udp://{address}, loading PEM from {pem_path:?} ...");
     let pem_data = fs::read(pem_path)?;
-    let rsa: Rsa<Private> = Rsa::private_key_from_pem(&pem_data)?;
+    let rsa = Rsa::private_key_from_pem(&pem_data)?;
     let socket = UdpSocket::bind("127.0.0.1:0")?;
+
     let now = time()?;
-    let now_bytes = now.to_le_bytes().to_vec();
+    let mut now_bytes_and_command_bytes = now.to_le_bytes().to_vec();
+    now_bytes_and_command_bytes.extend(command.as_bytes().to_vec());
 
     let mut encrypted_data = vec![0; rsa.size() as usize];
-    return match rsa.private_encrypt(&now_bytes, &mut encrypted_data, Padding::PKCS1) {
-        Ok(_) => {
-            socket.connect(&address)?;
-            socket.send(&encrypted_data)?;
-            info!("Successfully encrypted {now_bytes:X?}, {now} and sent to udp://{address}");
-            Ok(())
-        }
-        Err(e) => Err(format!("Could not private_encrypt {encrypted_data:X?}: {e}").into()),
-    };
+    rsa.private_encrypt(&now_bytes_and_command_bytes, &mut encrypted_data, Padding::PKCS1)?;
+    socket.connect(&address)?;
+    socket.send(&encrypted_data)?;
+    info!("Sent command {command} and timestamp {now} to udp://{address}");
+    Ok(())
 }
 
 fn gen(private: PathBuf, public: PathBuf, key_size: u32) -> Result<(), Box<dyn Error>> {
