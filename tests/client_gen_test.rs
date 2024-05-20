@@ -23,7 +23,7 @@ mod tests {
         let private_path = PathBuf::from(&private_file_name);
         let public_path = PathBuf::from(&public_file_name);
 
-        let result = gen(&private_path, &public_path, 8192);
+        let result = gen(private_path, public_path, 8192);
 
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -41,7 +41,7 @@ mod tests {
         let private_path = PathBuf::from(&private_file_name);
         let public_path = PathBuf::from(&public_file_name);
 
-        let result = gen(&private_path, &public_path, 8192);
+        let result = gen(private_path, public_path, 8192);
 
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -61,7 +61,7 @@ mod tests {
         let private_path = PathBuf::from(&private_file_name);
         let public_path = PathBuf::from(&public_file_name);
 
-        let result = gen(&private_path, &public_path, 8192);
+        let result = gen(private_path, public_path, 8192);
 
         let _ = fs::remove_file(&private_file_name);
 
@@ -80,7 +80,7 @@ mod tests {
 
         let private_path = PathBuf::from(&private_file_name);
         let public_path = PathBuf::from(&public_file_name);
-        let result = gen(&private_path, &public_path, 8192);
+        let result = gen(private_path, public_path, 8192);
 
         let _ = fs::remove_file(&public_file_name);
 
@@ -97,7 +97,7 @@ mod tests {
 
         let private_path = PathBuf::from(&private_file_name);
         let public_path = PathBuf::from(&public_file_name);
-        let result = gen(&private_path, &public_path, 1024);
+        let result = gen(private_path, public_path, 1024);
 
         let _ = fs::remove_file(&private_file_name);
         let _ = fs::remove_file(&public_file_name);

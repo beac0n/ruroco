@@ -17,7 +17,7 @@ pub struct Server {
     socket: UdpSocket,
     address: String,
     max_delay: u128,
-    encrypted_data: [u8; 1024],
+    encrypted_data: Vec<u8>,
     decrypted_data: Vec<u8>,
 }
 
@@ -34,7 +34,9 @@ impl Server {
         let pem_data = fs::read(pem_path).unwrap();
         let rsa = Rsa::public_key_from_pem(&pem_data).unwrap();
         let socket = UdpSocket::bind(&address).unwrap();
-        let decrypted_data = vec![0; rsa.size() as usize];
+        let rsa_size = rsa.size() as usize;
+        let decrypted_data = vec![0; rsa_size];
+        let encrypted_data = vec![0; rsa_size];
 
         Server {
             rsa,
@@ -42,13 +44,13 @@ impl Server {
             max_delay,
             socket,
             decrypted_data,
-            encrypted_data: [0; 1024],
+            encrypted_data,
         }
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         info!("Running server on udp://{}", self.address);
-        let expected_count = self.encrypted_data.len();
+        let expected_count = self.rsa.size() as usize;
         loop {
             match self.receive() {
                 Ok((count, src)) if count != expected_count => {
@@ -71,8 +73,7 @@ impl Server {
     }
 
     fn decrypt(&mut self) -> Result<usize, ErrorStack> {
-        self.rsa
-            .public_decrypt(&self.encrypted_data, &mut self.decrypted_data, Padding::PKCS1)
+        self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, Padding::PKCS1)
     }
 
     fn validate(&mut self, count: usize) {

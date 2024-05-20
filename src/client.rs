@@ -21,7 +21,7 @@ fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
     format!("Could not connect/send data to {val:?}: {err}")
 }
 
-pub fn send(pem_path: &PathBuf, address: &String, command: &String) -> Result<(), Box<dyn Error>> {
+pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), Box<dyn Error>> {
     info!("Running client, connecting to udp://{address}, loading PEM from {pem_path:?} ...");
 
     // collect data to encrypt: now-timestamp + command -> all as bytes
@@ -30,22 +30,22 @@ pub fn send(pem_path: &PathBuf, address: &String, command: &String) -> Result<()
     data_to_encrypt.extend(command.as_bytes().to_vec());
 
     // encrypt data we want to send - load RSA private key from PEM file for that
-    let pem_data = fs::read(pem_path).map_err(|e| pem_load_err(e, pem_path))?;
-    let rsa = Rsa::private_key_from_pem(&pem_data).map_err(|e| pem_load_err(e, pem_path))?;
+    let pem_data = fs::read(&pem_path).map_err(|e| pem_load_err(e, &pem_path))?;
+    let rsa = Rsa::private_key_from_pem(&pem_data).map_err(|e| pem_load_err(e, &pem_path))?;
     let mut encrypted_data = vec![0; rsa.size() as usize];
     rsa.private_encrypt(&data_to_encrypt, &mut encrypted_data, Padding::PKCS1)
         .map_err(|e| encrypt_err(e, &data_to_encrypt))?;
 
     // create UDP socket and send the encrypted data to the specified address
-    let socket = UdpSocket::bind("127.0.0.1:0").map_err(|e| socket_err(e, address))?;
-    socket.connect(address).map_err(|e| socket_err(e, address))?;
-    socket.send(&encrypted_data).map_err(|e| socket_err(e, address))?;
+    let socket = UdpSocket::bind("127.0.0.1:0").map_err(|e| socket_err(e, &address))?;
+    socket.connect(&address).map_err(|e| socket_err(e, &address))?;
+    socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
 
     info!("Sent command {command} and timestamp {now} to udp://{address}");
     Ok(())
 }
 
-pub fn gen(private: &PathBuf, public: &PathBuf, key_size: u32) -> Result<(), Box<dyn Error>> {
+pub fn gen(private: PathBuf, public: PathBuf, key_size: u32) -> Result<(), Box<dyn Error>> {
     let public_string = public.to_str().expect("Could not convert provided public PEM path");
     let private_string = private.to_str().expect("Could not convert provided private PEM path");
 
