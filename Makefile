@@ -3,3 +3,6 @@ build:
 
 release:
 	cargo build --color=always --release --package ruroco
+
+test:
+	cargo test -- --test-threads=1
