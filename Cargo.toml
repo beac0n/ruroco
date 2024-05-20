@@ -9,9 +9,12 @@ clap = { version = "4.5.4", features = ["derive", "string"] }
 log = "0.4.21"
 env_logger = "0.11.3"
 
+[dev-dependencies]
+rand = "0.8.5"
+
 [profile.release]
 opt-level = 3         # Optimize for maximum speed
-debug = true          # No debug information
+debug = true          # debug information
 lto = true            # Enable Link Time Optimization
 codegen-units = 1     # Optimize for single codegen unit (better performance)
 panic = 'abort'       # Abort on panic (smaller binary size)

@@ -44,11 +44,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             private_pem_path,
             public_pem_path,
             key_size,
-        } => gen(private_pem_path, public_pem_path, key_size),
+        } => gen(&private_pem_path, &public_pem_path, key_size),
         Commands::Send {
             private_pem_path,
             address,
             command,
-        } => send(private_pem_path, address, command),
+        } => send(&private_pem_path, &address, &command),
     };
 }
