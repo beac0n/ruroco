@@ -1,0 +1,9 @@
+[Unit]
+Description=ruroco socket
+PartOf=ruroco.service
+
+[Socket]
+ListenDatagram=0.0.0.0:80
+
+[Install]
+WantedBy=sockets.target

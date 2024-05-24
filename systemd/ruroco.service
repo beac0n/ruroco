@@ -1,0 +1,56 @@
+[Unit]
+Description=ruroco service
+Requires=network-online.target ruroco.socket ruroco-command.service
+After=network-online.target ruroco.socket ruroco-command.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ruroco-server --address 127.0.0.1:80 -pem-path '</path/to/public.pem>' --max-delay 5000000000
+Restart=always
+User=ruroco
+Group=ruroco
+
+RemoveIPC=true
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+DeviceAllow=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateUsers=true
+ProcSubset=pid
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=noaccess
+ProtectSystem=strict
+ReadWritePaths=/etc/go-remote
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+SystemCallErrorNumber=EPERM
+SystemCallFilter=@system-service
+SystemCallFilter=~@chown
+SystemCallFilter=~@clock
+SystemCallFilter=~@cpu-emulation
+SystemCallFilter=~@debug
+SystemCallFilter=~@keyring
+SystemCallFilter=~@memlock
+SystemCallFilter=~@module
+SystemCallFilter=~@mount
+SystemCallFilter=~@obsolete
+SystemCallFilter=~@privileged
+SystemCallFilter=~@raw-io
+SystemCallFilter=~@reboot
+SystemCallFilter=~@resources
+SystemCallFilter=~@setuid
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
