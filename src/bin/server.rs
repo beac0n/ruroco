@@ -21,5 +21,5 @@ struct Cli {
 fn main() -> Result<(), Box<dyn Error>> {
     init_logger();
     let args = Cli::parse();
-    Server::create(args.pem_path, args.address, args.max_delay).run()
+    Server::create(args.pem_path, args.address, args.max_delay)?.run()
 }

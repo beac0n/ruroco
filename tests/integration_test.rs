@@ -40,7 +40,7 @@ mod tests {
     fn run_end_to_end(key_size: u32) {
         init_logger();
 
-        let server_address = format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024 .. 65535));
+        let server_address = format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535));
 
         let start_test_filename = gen_file_name("_start.test");
         let stop_test_filename = gen_file_name("_stop.test");
@@ -56,6 +56,7 @@ mod tests {
 
         thread::spawn(move || {
             Server::create(public_pem_path, server_address_for_server, 1_000_000_000)
+                .expect("could not create server")
                 .run()
                 .expect("server terminated")
         });

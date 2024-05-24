@@ -9,6 +9,7 @@ use log::{error, info};
 use openssl::error::ErrorStack;
 use openssl::pkey::Public;
 use openssl::rsa::{Padding, Rsa};
+use openssl::version::version;
 
 use crate::common::{SOCKET_FILE_PATH, time};
 
@@ -28,24 +29,28 @@ struct DecodedData {
 }
 
 impl Server {
-    pub fn create(pem_path: PathBuf, address: String, max_delay: u128) -> Server {
-        info!("Creating server, loading public PEM from {pem_path:?} ...");
+    pub fn create(
+        pem_path: PathBuf,
+        address: String,
+        max_delay: u128,
+    ) -> Result<Server, Box<dyn Error>> {
+        info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
 
-        let pem_data = fs::read(pem_path).unwrap();
-        let rsa = Rsa::public_key_from_pem(&pem_data).unwrap();
-        let socket = UdpSocket::bind(&address).unwrap();
+        let pem_data = fs::read(pem_path)?;
+        let rsa = Rsa::public_key_from_pem(&pem_data)?;
+        let socket = UdpSocket::bind(&address)?;
         let rsa_size = rsa.size() as usize;
         let decrypted_data = vec![0; rsa_size];
         let encrypted_data = vec![0; rsa_size];
 
-        Server {
+        Ok(Server {
             rsa,
             address,
             max_delay,
             socket,
             decrypted_data,
             encrypted_data,
-        }
+        })
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {

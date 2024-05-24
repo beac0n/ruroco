@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use log::info;
 use openssl::rsa::{Padding, Rsa};
+use openssl::version::version;
 
 use crate::common::time;
 
@@ -22,7 +23,7 @@ fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
 }
 
 pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), Box<dyn Error>> {
-    info!("Running client, connecting to udp://{address}, loading PEM from {pem_path:?} ...");
+    info!("Running client, connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...", version());
 
     // collect data to encrypt: now-timestamp + command -> all as bytes
     let now = time()?;
