@@ -18,26 +18,26 @@ mod tests {
     }
 
     #[test]
-    fn test_end_to_end_key_size_1024() {
-        run_end_to_end(1024);
+    fn test_integration_key_size_1024() {
+        run_integration_test(1024);
     }
 
     #[test]
-    fn test_end_to_end_key_size_2048() {
-        run_end_to_end(2048);
+    fn test_integration_key_size_2048() {
+        run_integration_test(2048);
     }
 
     #[test]
-    fn test_end_to_end_key_size_4096() {
-        run_end_to_end(4096);
+    fn test_integration_key_size_4096() {
+        run_integration_test(4096);
     }
 
     #[test]
-    fn test_end_to_end_key_size_8192() {
-        run_end_to_end(8192);
+    fn test_integration_key_size_8192() {
+        run_integration_test(8192);
     }
 
-    fn run_end_to_end(key_size: u32) {
+    fn run_integration_test(key_size: u32) {
         init_logger();
 
         let server_address = format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535));
