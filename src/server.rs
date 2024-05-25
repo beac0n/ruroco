@@ -1,7 +1,8 @@
-use std::{fs, str};
+use std::{env, fs, str};
 use std::error::Error;
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
+use std::os::fd::{FromRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
@@ -38,7 +39,25 @@ impl Server {
 
         let pem_data = fs::read(pem_path)?;
         let rsa = Rsa::public_key_from_pem(&pem_data)?;
-        let socket = UdpSocket::bind(&address)?;
+
+        let pid = std::process::id().to_string();
+        let socket = match env::var("LISTEN_PID") {
+            Ok(listen_pid) if listen_pid == pid => {
+                info!("env var LISTEN_PID was set to our PID, creating socket from raw fd ...");
+                let fd: RawFd = 3;
+                let socket = unsafe { UdpSocket::from_raw_fd(fd) };
+                socket
+            }
+            Ok(_) => {
+                info!("env var LISTEN_PID was set, but not to our PID, binding to {address}");
+                UdpSocket::bind(&address)?
+            }
+            Err(_) => {
+                info!("env var LISTEN_PID was not set, binding to {address}");
+                UdpSocket::bind(&address)?
+            }
+        };
+
         let rsa_size = rsa.size() as usize;
         let decrypted_data = vec![0; rsa_size];
         let encrypted_data = vec![0; rsa_size];
