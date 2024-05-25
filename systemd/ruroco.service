@@ -1,11 +1,11 @@
 [Unit]
 Description=ruroco service
-Requires=network-online.target ruroco.socket ruroco-command.service
-After=network-online.target ruroco.socket ruroco-command.service
+Requires=network-online.target ruroco.socket ruroco-commander.service
+After=network-online.target ruroco.socket ruroco-commander.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ruroco-server --address 127.0.0.1:80 -pem-path '</path/to/public.pem>' --max-delay 5000000000
+ExecStart=/usr/local/bin/ruroco-server --pem-path /etc/ruroco/ruroco_public.pem --max-delay 5000000000
 Restart=always
 User=ruroco
 Group=ruroco
@@ -28,7 +28,7 @@ ProtectKernelModules=true
 ProtectKernelTunables=true
 ProtectProc=noaccess
 ProtectSystem=strict
-ReadWritePaths=/etc/go-remote
+ReadWritePaths=/etc/ruroco
 RestrictAddressFamilies=AF_UNIX
 RestrictNamespaces=true
 RestrictRealtime=true

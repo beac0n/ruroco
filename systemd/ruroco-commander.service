@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ruroco-commander --start '<start-command>' --end '<end-command>' --sleep 5
+ExecStart=/usr/local/bin/ruroco-commander --start 'echo "start"' --stop 'echo "stop"' --sleep 5
 Restart=always
 User=ruroco
 Group=ruroco
