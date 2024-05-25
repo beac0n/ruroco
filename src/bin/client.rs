@@ -22,7 +22,7 @@ enum Commands {
         private_pem_path: PathBuf,
         #[arg(short = 'u', long, default_value = env::current_dir().unwrap().join("ruroco_public.pem").into_os_string())]
         public_pem_path: PathBuf,
-        #[arg(short, long, default_value_t = 8192)]
+        #[arg(short = 'k', long, default_value_t = 8192)]
         key_size: u32,
     },
 

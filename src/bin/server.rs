@@ -10,11 +10,11 @@ use ruroco::server::Server;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+    #[arg(short = 'a', long, default_value_t = String::from("127.0.0.1:8080"))]
     address: String,
-    #[arg(short, long, default_value = PathBuf::from("ruroco_public.pem").into_os_string())]
+    #[arg(short = 'p', long, default_value = PathBuf::from("ruroco_public.pem").into_os_string())]
     pem_path: PathBuf,
-    #[arg(short, long, default_value_t = 5_000_000_000)]
+    #[arg(short = 'd', long, default_value_t = 5_000_000_000)]
     max_delay: u128,
 }
 
