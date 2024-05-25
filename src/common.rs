@@ -1,7 +1,7 @@
 use std::time::{SystemTime, SystemTimeError};
 
-pub const SOCKET_DIR: &str = "/tmp/ruroco/";
-pub const SOCKET_FILE_PATH: &str = "/tmp/ruroco/ruroco.socket";
+pub const SOCKET_DIR: &str = "/etc/ruroco/";
+pub const SOCKET_FILE_PATH: &str = "/etc/ruroco/ruroco.socket";
 
 pub fn init_logger() {
     let _ = env_logger::builder().filter_level(log::LevelFilter::Info).try_init();
