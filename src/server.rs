@@ -9,10 +9,10 @@ use std::path::PathBuf;
 use log::{error, info};
 use openssl::error::ErrorStack;
 use openssl::pkey::Public;
-use openssl::rsa::{Padding, Rsa};
+use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use crate::common::{SOCKET_FILE_PATH, time};
+use crate::common::{RSA_PADDING, SOCKET_FILE_PATH, time};
 
 pub struct Server {
     rsa: Rsa<Public>,
@@ -97,7 +97,7 @@ impl Server {
     }
 
     fn decrypt(&mut self) -> Result<usize, ErrorStack> {
-        self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, Padding::PKCS1)
+        self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, RSA_PADDING)
     }
 
     fn validate(&mut self, count: usize) {

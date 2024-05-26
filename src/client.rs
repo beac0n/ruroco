@@ -5,17 +5,13 @@ use std::net::UdpSocket;
 use std::path::PathBuf;
 
 use log::info;
-use openssl::rsa::{Padding, Rsa};
+use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use crate::common::time;
+use crate::common::{RSA_PADDING, time};
 
 fn pem_load_err<I: Display, E: Debug>(err: I, val: E) -> String {
     format!("Could not load {val:?}: {err}")
-}
-
-fn encrypt_err<I: Display, E: Debug>(err: I, val: E) -> String {
-    format!("Could not encrypt {val:?}: {err}")
 }
 
 fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
@@ -34,8 +30,8 @@ pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), B
     let pem_data = fs::read(&pem_path).map_err(|e| pem_load_err(e, &pem_path))?;
     let rsa = Rsa::private_key_from_pem(&pem_data).map_err(|e| pem_load_err(e, &pem_path))?;
     let mut encrypted_data = vec![0; rsa.size() as usize];
-    rsa.private_encrypt(&data_to_encrypt, &mut encrypted_data, Padding::PKCS1)
-        .map_err(|e| encrypt_err(e, &data_to_encrypt))?;
+    rsa.private_encrypt(&data_to_encrypt, &mut encrypted_data, RSA_PADDING)
+        .map_err(|e| format!("Could not encrypt {data_to_encrypt:?}: {e}"))?;
 
     // create UDP socket and send the encrypted data to the specified address
     let socket = UdpSocket::bind("127.0.0.1:0").map_err(|e| socket_err(e, &address))?;
