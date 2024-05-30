@@ -22,7 +22,7 @@ enum Commands {
         private_pem_path: PathBuf,
         #[arg(short = 'u', long, default_value = env::current_dir().unwrap().join("ruroco_public.pem").into_os_string())]
         public_pem_path: PathBuf,
-        #[arg(short = 'k', long, default_value_t = 8192)]
+        #[arg(short = 'k', long, default_value_t = 8192, value_parser = validate_key_size)]
         key_size: u32,
     },
 
@@ -34,6 +34,15 @@ enum Commands {
         #[arg(short, long, default_value = "default")]
         command: String,
     },
+}
+
+fn validate_key_size(val: &str) -> Result<u32, String> {
+    let size: u32 = val.parse().map_err(|_| format!("'{}' is not a valid u32 value", val))?;
+    if size >= 4096 {
+        Ok(size)
+    } else {
+        Err(format!("Key size must be at least 4096, but '{}' was provided", size))
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
