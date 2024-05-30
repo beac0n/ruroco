@@ -1,24 +1,30 @@
+use std::{fs, str};
+use std::collections::HashMap;
 use std::error::Error;
-use std::str;
+use std::path::PathBuf;
 
 use clap::Parser;
+use serde::Deserialize;
 
-use ruroco::commander::Commander;
+use ruroco::commander::{Commander, CommanderCommand};
 use ruroco::common::init_logger;
+
+#[derive(Debug, Deserialize)]
+struct Config {
+    #[serde(flatten)]
+    commands: HashMap<String, CommanderCommand>,
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short = 'a', long, default_value_t = String::from("/usr/bin/echo -n 'start'"))]
-    start: String,
-    #[arg(short = 'o', long, default_value_t = String::from("/usr/bin/echo -n 'stop'"))]
-    stop: String,
-    #[arg(short = 'e', long, default_value_t = 5)]
-    sleep: u64,
+    #[arg(short = 'c', long, default_value = PathBuf::from("/etc/ruroco-commander/config.toml").into_os_string())]
+    config_path: PathBuf,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     init_logger();
     let args = Cli::parse();
-    Commander::create(args.start, args.stop, args.sleep).run()
+    let config: Config = toml::from_str(&fs::read_to_string(args.config_path)?)?;
+    Commander::create(config.commands).run()
 }

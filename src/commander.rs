@@ -1,4 +1,5 @@
 use std::{fs, io, str, thread};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs::Permissions;
 use std::io::Read;
@@ -8,26 +9,52 @@ use std::process::{Command, Output};
 use std::time::Duration;
 
 use log::{error, info, warn};
+use serde::Deserialize;
 
 use crate::common::{SOCKET_DIR, SOCKET_FILE_PATH};
 
-pub struct Commander {
+#[derive(Debug, Deserialize)]
+pub struct CommanderCommand {
+    #[serde(default = "default_start")]
     start: String,
+    #[serde(default = "default_stop")]
     stop: String,
+    #[serde(default = "default_sleep")]
     sleep: u64,
 }
 
+fn default_start() -> String {
+    String::from("echo 'start'")
+}
+
+fn default_stop() -> String {
+    String::from("echo 'stop'")
+}
+
+fn default_sleep() -> u64 {
+    5
+}
+
+impl CommanderCommand {
+    pub fn create(start: String, stop: String, sleep: u64) -> CommanderCommand {
+        CommanderCommand { start, stop, sleep }
+    }
+}
+
+pub struct Commander {
+    config: HashMap<String, CommanderCommand>,
+}
+
 impl Commander {
-    pub fn create(start: String, stop: String, sleep: u64) -> Commander {
-        Commander { start, stop, sleep }
+    pub fn create(config: HashMap<String, CommanderCommand>) -> Commander {
+        Commander { config }
     }
 
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         for stream in Self::create_listener()?.incoming() {
             match stream {
                 Ok(mut stream) => match Self::read_string(&mut stream) {
-                    Ok(msg) if msg == "default" => self.run_cycle(),
-                    Ok(msg) => warn!("Unknown command message {msg}"),
+                    Ok(msg) => self.run_cycle(msg),
                     Err(e) => error!("Failed to read command message: {e}"),
                 },
                 Err(e) => error!("Connection for {SOCKET_FILE_PATH} failed: {e}"),
@@ -58,13 +85,18 @@ impl Commander {
         return Ok(buffer);
     }
 
-    fn run_cycle(&self) {
-        info!("Starting cycle");
-        self.run_command(&self.start);
-        info!("Sleeping for {} seconds", self.sleep);
-        thread::sleep(Duration::from_secs(self.sleep));
-        self.run_command(&self.stop);
-        info!("Finished cycle");
+    fn run_cycle(&self, msg: String) {
+        match self.config.get(&msg) {
+            Some(config) => {
+                info!("Starting cycle");
+                self.run_command(&config.start);
+                info!("Sleeping for {} seconds", config.sleep);
+                thread::sleep(Duration::from_secs(config.sleep));
+                self.run_command(&config.stop);
+                info!("Finished cycle");
+            }
+            _ => warn!("Unknown command message {msg}"),
+        }
     }
 
     fn run_command(&self, command: &str) {
