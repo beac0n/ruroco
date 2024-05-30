@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use std::{fs, thread};
+    use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
 
@@ -8,7 +9,7 @@ mod tests {
     use rand::Rng;
 
     use ruroco::client::{gen, send};
-    use ruroco::commander::Commander;
+    use ruroco::commander::{Commander, CommanderCommand};
     use ruroco::common::init_logger;
     use ruroco::server::Server;
 
@@ -64,9 +65,10 @@ mod tests {
         let start = format!("touch {}", &start_test_filename);
         let stop = format!("touch {}", &stop_test_filename);
 
-        thread::spawn(move || {
-            Commander::create(start, stop, 0).run().expect("commander terminated");
-        });
+        let mut config = HashMap::new();
+        config.insert("default".to_string(), CommanderCommand::create(start, stop, 0));
+
+        thread::spawn(move || Commander::create(config).run().expect("commander terminated"));
 
         send(private_pem_path, server_address.to_string(), "default".to_string()).unwrap();
 
