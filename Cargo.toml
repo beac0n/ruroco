@@ -13,7 +13,8 @@ env_logger = "0.11.3"
 rand = "0.8.5"
 
 [profile.release]
-opt-level = 3         # Optimize for maximum speed
+opt-level = "z"       # Optimize for binary size
+strip = true          # Automatically strip symbols from the binary
 debug = true          # debug information
 lto = true            # Enable Link Time Optimization
 codegen-units = 1     # Optimize for single codegen unit (better performance)
