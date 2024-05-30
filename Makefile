@@ -2,6 +2,7 @@ build:
 	RUROCO_SOCKET_DIR="/tmp/ruroco/" RUROCO_SOCKET_FILE_PATH="/tmp/ruroco/ruroco.socket" cargo build --color=always --package ruroco
 
 release:
+	# see https://github.com/johnthagen/min-sized-rust
 	RUROCO_SOCKET_DIR="/etc/ruroco/" RUROCO_SOCKET_FILE_PATH="/etc/ruroco/ruroco.socket" cargo build --color=always --release --package ruroco
 	upx --best --lzma target/release/client
 	upx --best --lzma target/release/server
