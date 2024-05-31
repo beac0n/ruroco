@@ -1,0 +1,4 @@
+[default]
+start = "touch /tmp/ruroco_test/start.test"
+stop = "touch /tmp/ruroco_test/stop.test"
+sleep = 0

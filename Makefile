@@ -23,7 +23,7 @@ install: release
 	echo "Please check ruroco.service, ruroco.socket and ruroco-commander.service and configure them accordingly"
 
 test_end_to_end: release
-	./target/release/client gen -k 1024
+	./target/release/client gen -k 4096
 
 	mkdir /tmp/ruroco_test
 	cp ./target/release/server /tmp/ruroco_test/server
@@ -40,12 +40,14 @@ test_end_to_end: release
 
 	sudo cp ./systemd/* /run/systemd/system
 
-	sudo sed -i "s@/usr/local/bin/ruroco-server@/tmp/ruroco_test/server@g" /run/systemd/system/ruroco.service
+	sudo cp "$$(pwd)/tests/server_config.toml" "/etc/ruroco/server_config.toml"
+	sudo cp "$$(pwd)/tests/commander_config.toml" "/etc/ruroco/commander_config.toml"
 
+	sudo chown ruroco:ruroco "/etc/ruroco/server_config.toml"
+	sudo chown ruroco:ruroco "/etc/ruroco/commander_config.toml"
+
+	sudo sed -i "s@/usr/local/bin/ruroco-server@/tmp/ruroco_test/server@g" /run/systemd/system/ruroco.service
 	sudo sed -i "s@/usr/local/bin/ruroco-commander@/tmp/ruroco_test/commander@g" /run/systemd/system/ruroco-commander.service
-	sudo sed -i 's@echo "start"@touch /tmp/ruroco_test/start.test@g' /run/systemd/system/ruroco-commander.service
-	sudo sed -i 's@echo "stop"@touch /tmp/ruroco_test/stop.test@g' /run/systemd/system/ruroco-commander.service
-	sudo sed -i "s@--sleep 5@--sleep 1@g" /run/systemd/system/ruroco-commander.service
 
 	sudo systemctl daemon-reload
 	sudo systemctl start ruroco-commander.service
@@ -58,6 +60,9 @@ test_end_to_end: release
 	test -f "/tmp/ruroco_test/start.test"
 	test -f "/tmp/ruroco_test/stop.test"
 
+	$(MAKE) clean_test_end_to_end
+
+clean_test_end_to_end:
 	sudo systemctl stop ruroco-commander.service
 	sudo systemctl stop ruroco.service
 	sudo systemctl daemon-reload

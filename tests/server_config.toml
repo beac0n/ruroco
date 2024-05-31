@@ -1,0 +1,3 @@
+address = "127.0.0.1:8080"
+pem_path = "/etc/ruroco/ruroco_public.pem"
+max_delay_sec = 5

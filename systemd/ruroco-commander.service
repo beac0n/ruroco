@@ -5,12 +5,13 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ruroco-commander --start 'echo "start"' --stop 'echo "stop"' --sleep 5
+ExecStart=/usr/local/bin/ruroco-commander --config /etc/ruroco/commander_config.toml
 Restart=always
+User=ruroco
+Group=ruroco
 
 DeviceAllow=
 LockPersonality=true
-MemoryDenyWriteExecute=true
 NoNewPrivileges=true
 ProtectClock=true
 ProtectHostname=true
