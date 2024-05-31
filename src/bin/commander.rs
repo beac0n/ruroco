@@ -19,12 +19,14 @@ struct Config {
 #[command(version, about, long_about = None)]
 struct Cli {
     #[arg(short = 'c', long, default_value = PathBuf::from("/etc/ruroco-commander/config.toml").into_os_string())]
-    config_path: PathBuf,
+    config: PathBuf,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     init_logger();
     let args = Cli::parse();
-    let config: Config = toml::from_str(&fs::read_to_string(args.config_path)?)?;
+    let config_path = args.config;
+    let config_str = fs::read_to_string(&config_path).map_err(|e| format!("Could not read {config_path:?}: {e}"))?;
+    let config: Config = toml::from_str(&config_str).map_err(|e| format!("Could not create TOML from {config_path:?}: {e}"))?;
     Commander::create(config.commands).run()
 }
