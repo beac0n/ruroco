@@ -11,7 +11,7 @@ use std::time::Duration;
 use log::{error, info, warn};
 use serde::Deserialize;
 
-use crate::common::{SOCKET_DIR, SOCKET_FILE_PATH};
+use crate::common::{SOCKET_DIR, socket_file_path};
 
 #[derive(Debug, Deserialize)]
 pub struct CommanderCommand {
@@ -57,11 +57,11 @@ impl Commander {
                     Ok(msg) => self.run_cycle(msg),
                     Err(e) => error!("Failed to read command message: {e}"),
                 },
-                Err(e) => error!("Connection for {SOCKET_FILE_PATH} failed: {e}"),
+                Err(e) => error!("Connection for {} failed: {e}", socket_file_path()),
             }
         }
 
-        let _ = fs::remove_file(SOCKET_FILE_PATH);
+        let _ = fs::remove_file(socket_file_path());
         Ok(())
     }
 
@@ -69,13 +69,14 @@ impl Commander {
         info!("Creating ruroco socket dir {SOCKET_DIR}");
         fs::create_dir_all(SOCKET_DIR)?;
 
-        info!("Removing already existing socket file {SOCKET_FILE_PATH}");
-        let _ = fs::remove_file(SOCKET_FILE_PATH);
+        info!("Removing already existing socket file {}", socket_file_path());
+        let socket_file_path = socket_file_path();
+        let _ = fs::remove_file(&socket_file_path);
 
         let mode = 0o600;
-        info!("Listing Unix Listener on {SOCKET_FILE_PATH} with permissions {mode:o}");
-        let listener = UnixListener::bind(SOCKET_FILE_PATH)?;
-        fs::set_permissions(SOCKET_FILE_PATH, Permissions::from_mode(mode))?;
+        info!("Listing Unix Listener on {socket_file_path} with permissions {mode:o}");
+        let listener = UnixListener::bind(&socket_file_path)?;
+        fs::set_permissions(&socket_file_path, Permissions::from_mode(mode))?;
         Ok(listener)
     }
 

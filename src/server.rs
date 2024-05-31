@@ -12,7 +12,7 @@ use openssl::pkey::Public;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use crate::common::{RSA_PADDING, SOCKET_FILE_PATH, time};
+use crate::common::{RSA_PADDING, socket_file_path, time};
 
 pub struct Server {
     rsa: Rsa<Public>,
@@ -133,7 +133,7 @@ impl Server {
     }
 
     fn write_to_socket(&self, command_name: &str) -> Result<(), Box<dyn Error>> {
-        let mut stream = UnixStream::connect(SOCKET_FILE_PATH)?;
+        let mut stream = UnixStream::connect(socket_file_path())?;
         stream.write_all(command_name.as_bytes())?;
         stream.flush()?;
         Ok(())
