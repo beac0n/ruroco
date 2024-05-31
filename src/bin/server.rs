@@ -14,8 +14,8 @@ struct Config {
     address: String,
     #[serde(default = "default_pem_path")]
     pem_path: PathBuf,
-    #[serde(default = "default_max_delay")]
-    max_delay: u128,
+    #[serde(default = "default_max_delay_sec")]
+    max_delay_sec: u16,
 }
 
 fn default_address() -> String {
@@ -26,20 +26,22 @@ fn default_pem_path() -> PathBuf {
     PathBuf::from("ruroco_public.pem")
 }
 
-fn default_max_delay() -> u128 {
-    5_000_000_000
+fn default_max_delay_sec() -> u16 {
+    5
 }
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short = 'c', long, default_value = PathBuf::from("/etc/ruroco-server/config.toml").into_os_string())]
-    config_path: PathBuf,
+    #[arg(short, long, default_value = PathBuf::from("/etc/ruroco-server/config.toml").into_os_string())]
+    config: PathBuf,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     init_logger();
     let args = Cli::parse();
-    let config: Config = toml::from_str(&fs::read_to_string(args.config_path)?)?;
-    Server::create(config.pem_path, config.address, config.max_delay)?.run()
+    let config_path = args.config;
+    let config_str = fs::read_to_string(&config_path).map_err(|e| format!("Could not read {config_path:?}: {e}"))?;
+    let config: Config = toml::from_str(&config_str).map_err(|e| format!("Could not create TOML from {config_path:?}: {e}"))?;
+    Server::create(config.pem_path, config.address, config.max_delay_sec)?.run()
 }
