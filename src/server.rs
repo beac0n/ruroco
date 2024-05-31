@@ -33,12 +33,14 @@ impl Server {
     pub fn create(
         pem_path: PathBuf,
         address: String,
-        max_delay: u128,
+        max_delay_sec: u16,
     ) -> Result<Server, Box<dyn Error>> {
         info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
 
-        let pem_data = fs::read(pem_path)?;
-        let rsa = Rsa::public_key_from_pem(&pem_data)?;
+        let pem_data =
+            fs::read(&pem_path).map_err(|e| format!("Could not read {pem_path:?}: {e}"))?;
+        let rsa = Rsa::public_key_from_pem(&pem_data)
+            .map_err(|e| format!("Could not load public key from {pem_path:?}: {e}"))?;
 
         let pid = std::process::id().to_string();
         let socket = match env::var("LISTEN_PID") {
@@ -65,7 +67,7 @@ impl Server {
         Ok(Server {
             rsa,
             address,
-            max_delay,
+            max_delay: u128::from(max_delay_sec) * 1_000_000_000,
             socket,
             decrypted_data,
             encrypted_data,
