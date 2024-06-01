@@ -10,7 +10,10 @@ pub fn init_logger() {
 }
 
 pub fn time() -> Result<u128, SystemTimeError> {
-    Ok(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_nanos())
+    Ok(SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_err(|e| format!("Could not get duration since {:?}: {e}", SystemTime::UNIX_EPOCH))?
+        .as_nanos())
 }
 
 pub fn socket_file_path() -> String {
