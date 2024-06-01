@@ -7,8 +7,6 @@ After=network-online.target
 Type=simple
 ExecStart=/usr/local/bin/ruroco-commander --config /etc/ruroco/commander_config.toml
 Restart=always
-User=ruroco
-Group=ruroco
 
 DeviceAllow=
 LockPersonality=true
