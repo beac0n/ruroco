@@ -56,7 +56,7 @@ mod tests {
         let server_address_for_server = server_address.clone();
 
         thread::spawn(move || {
-            Server::create(public_pem_path, server_address_for_server, 1_000_000_000)
+            Server::create(public_pem_path, server_address_for_server, 1)
                 .expect("could not create server")
                 .run()
                 .expect("server terminated")

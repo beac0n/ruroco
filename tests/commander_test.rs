@@ -8,7 +8,7 @@ mod tests {
     use rand::distributions::{Alphanumeric, DistString};
 
     use ruroco::commander::{Commander, CommanderCommand};
-    use ruroco::common::{init_logger, SOCKET_FILE_PATH};
+    use ruroco::common::{init_logger, socket_file_path};
 
     fn gen_file_name(suffix: &str) -> String {
         let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
@@ -18,16 +18,16 @@ mod tests {
     #[test]
     fn test_run() {
         init_logger();
-        let _ = fs::remove_file(SOCKET_FILE_PATH);
+        let _ = fs::remove_file(socket_file_path());
 
         let start_test_filename = gen_file_name("_start.test");
         let stop_test_filename = gen_file_name("_stop.test");
 
         let start = format!("touch {}", &start_test_filename);
         let stop = format!("touch {}", &stop_test_filename);
-        println!("{}", SOCKET_FILE_PATH);
+        println!("{}", socket_file_path());
 
-        assert!(!Path::new(SOCKET_FILE_PATH).exists());
+        assert!(!Path::new(&socket_file_path()).exists());
 
         let mut config = HashMap::new();
         config.insert("default".to_string(), CommanderCommand::create(start, stop, 0));
@@ -35,6 +35,6 @@ mod tests {
 
         thread::sleep(Duration::from_secs(1));
 
-        assert!(Path::new(SOCKET_FILE_PATH).exists())
+        assert!(Path::new(&socket_file_path()).exists())
     }
 }

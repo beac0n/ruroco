@@ -25,6 +25,7 @@ pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), B
     let now = time()?;
     let mut data_to_encrypt = now.to_le_bytes().to_vec();
     data_to_encrypt.extend(command.as_bytes().to_vec());
+    // TODO: extend data_to_encrypt - add delimiter __ruroco__
 
     // encrypt data we want to send - load RSA private key from PEM file for that
     let pem_data = fs::read(&pem_path).map_err(|e| pem_load_err(e, &pem_path))?;
