@@ -3,13 +3,15 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::Permissions;
 use std::io::Read;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{chown, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
+use std::path::Path;
 use std::process::{Command, Output};
 use std::time::Duration;
 
 use log::{error, info, warn};
 use serde::Deserialize;
+use users::{get_group_by_name, get_user_by_name};
 
 use crate::common::{SOCKET_DIR, socket_file_path};
 
@@ -73,10 +75,26 @@ impl Commander {
         let socket_file_path = socket_file_path();
         let _ = fs::remove_file(&socket_file_path);
 
-        let mode = 0o600;
-        info!("Listing Unix Listener on {socket_file_path} with permissions {mode:o}");
+        let mode = 0o204; // only server should be able to write, everyone else can read
+        info!("Binding Unix Listener on {socket_file_path} with permissions {mode:o}");
         let listener = UnixListener::bind(&socket_file_path)?;
+
+        let path = Path::new(&socket_file_path);
+
+        let user = match get_user_by_name("ruroco") {
+            Some(user) => user,
+            _ => return Err("Could not find user ruroco".to_string().into()),
+        };
+
+        let group = match get_group_by_name("ruroco") {
+            Some(group) => group,
+            _ => return Err("Could not find group ruroco".to_string().into()),
+        };
+
         fs::set_permissions(&socket_file_path, Permissions::from_mode(mode))?;
+
+        chown(path, Some(user.uid()), Some(group.gid()))?;
+
         Ok(listener)
     }
 
