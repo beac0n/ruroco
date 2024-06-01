@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ruroco-commander --config /etc/ruroco/commander_config.toml
+ExecStart=/usr/local/bin/ruroco-commander --config /etc/ruroco/config.toml
 Restart=always
 
 DeviceAllow=

@@ -5,7 +5,7 @@ After=network-online.target ruroco.socket ruroco-commander.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ruroco-server --config /etc/ruroco/server_config.toml
+ExecStart=/usr/local/bin/ruroco-server --config /etc/ruroco/config.toml
 Restart=always
 User=ruroco
 Group=ruroco

@@ -12,7 +12,7 @@ use openssl::pkey::Public;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use crate::common::{RSA_PADDING, socket_file_path, time};
+use crate::common::{RSA_PADDING, time};
 
 pub struct Server {
     rsa: Rsa<Public>,
@@ -21,6 +21,7 @@ pub struct Server {
     max_delay: u128,
     encrypted_data: Vec<u8>,
     decrypted_data: Vec<u8>,
+    socket_path: PathBuf,
 }
 
 struct DecodedData {
@@ -34,6 +35,7 @@ impl Server {
         pem_path: PathBuf,
         address: String,
         max_delay_sec: u16,
+        socket_file_path: PathBuf,
     ) -> Result<Server, Box<dyn Error>> {
         info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
 
@@ -71,6 +73,7 @@ impl Server {
             socket,
             decrypted_data,
             encrypted_data,
+            socket_path: socket_file_path,
         })
     }
 
@@ -128,12 +131,14 @@ impl Server {
     fn send_command(&self, command_name: &str) {
         match self.write_to_socket(command_name) {
             Ok(_) => info!("Successfully sent data to commander"),
-            Err(e) => error!("Could not send data to commander: {e}"),
+            Err(e) => {
+                error!("Could not send data to commander via socket {:?}: {e}", &self.socket_path)
+            }
         }
     }
 
     fn write_to_socket(&self, command_name: &str) -> Result<(), Box<dyn Error>> {
-        let mut stream = UnixStream::connect(socket_file_path())?;
+        let mut stream = UnixStream::connect(&self.socket_path)?;
         stream.write_all(command_name.as_bytes())?;
         stream.flush()?;
         Ok(())

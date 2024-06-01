@@ -22,7 +22,7 @@ mod tests {
     fn test_send_no_such_file() {
         let pem_file_name = gen_file_name(".pem");
         let pem_path = PathBuf::from(&pem_file_name);
-        let result = send(pem_path, "127.0.0.1:1234".to_string(), "default".to_string());
+        let result = send(pem_path, String::from("127.0.0.1:1234"), String::from("default"));
 
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -36,7 +36,7 @@ mod tests {
         File::create(&pem_file_name).unwrap();
 
         let pem_path = PathBuf::from(&pem_file_name);
-        let result = send(pem_path, "127.0.0.1:1234".to_string(), "default".to_string());
+        let result = send(pem_path, String::from("127.0.0.1:1234"), String::from("default"));
 
         let _ = fs::remove_file(&pem_file_name);
 
@@ -59,8 +59,8 @@ mod tests {
         let public_pem_path = PathBuf::from(&public_file);
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
-        let address = "127.0.0.1:asd".to_string();
-        let result = send(private_pem_path, address.clone(), "default".to_string());
+        let address = String::from("127.0.0.1:asd");
+        let result = send(private_pem_path, address.clone(), String::from("default"));
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
@@ -80,8 +80,8 @@ mod tests {
         let public_pem_path = PathBuf::from(&public_file);
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
-        let address = "999.999.999.999:9999".to_string();
-        let result = send(private_pem_path, address.clone(), "default".to_string());
+        let address = String::from("999.999.999.999:9999");
+        let result = send(private_pem_path, address.clone(), String::from("default"));
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
@@ -104,7 +104,7 @@ mod tests {
         let public_pem_path = PathBuf::from(&public_file);
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
-        let result = send(private_pem_path, "127.0.0.1:1234".to_string(), "default".to_string());
+        let result = send(private_pem_path, String::from("127.0.0.1:1234"), String::from("default"));
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);

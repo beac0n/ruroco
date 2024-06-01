@@ -1,16 +1,17 @@
 #[cfg(test)]
 mod tests {
-    use std::{fs, thread};
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
+    use std::{fs, thread};
 
     use rand::distributions::{Alphanumeric, DistString};
     use rand::Rng;
 
     use ruroco::client::{gen, send};
-    use ruroco::commander::{Commander, CommanderCommand};
+    use ruroco::commander::Commander;
     use ruroco::common::init_logger;
+    use ruroco::config::CommanderCommand;
     use ruroco::server::Server;
 
     fn gen_file_name(suffix: &str) -> String {
@@ -56,21 +57,35 @@ mod tests {
         let server_address_for_server = server_address.clone();
 
         thread::spawn(move || {
-            Server::create(public_pem_path, server_address_for_server, 1)
-                .expect("could not create server")
-                .run()
-                .expect("server terminated")
+            Server::create(
+                public_pem_path,
+                server_address_for_server,
+                1,
+                PathBuf::from("/tmp/ruroco/ruroco.socket"),
+            )
+            .expect("could not create server")
+            .run()
+            .expect("server terminated")
         });
 
         let start = format!("touch {}", &start_test_filename);
         let stop = format!("touch {}", &stop_test_filename);
 
         let mut config = HashMap::new();
-        config.insert("default".to_string(), CommanderCommand::create(start, stop, 0));
+        config.insert(String::from("default"), CommanderCommand::create(start, stop, 0));
 
-        thread::spawn(move || Commander::create(config).run().expect("commander terminated"));
+        thread::spawn(move || {
+            Commander::create(
+                config,
+                String::from(""),
+                String::from(""),
+                PathBuf::from("/tmp/ruroco/ruroco.socket"),
+            )
+            .run()
+            .expect("commander terminated")
+        });
 
-        send(private_pem_path, server_address.to_string(), "default".to_string()).unwrap();
+        send(private_pem_path, server_address.to_string(), String::from("default")).unwrap();
 
         thread::sleep(Duration::from_secs(1)); // wait for commands to be executed
 
