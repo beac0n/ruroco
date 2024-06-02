@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fmt::{Debug, Display};
 use std::fs;
 use std::net::UdpSocket;
@@ -18,8 +17,8 @@ fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
     format!("Could not connect/send data to {val:?}: {err}")
 }
 
-pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), Box<dyn Error>> {
-    info!("Running client, connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...", version());
+pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), String> {
+    info!("Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...", version());
 
     // collect data to encrypt: now-timestamp + command -> all as bytes
     let now = time()?;
@@ -39,15 +38,11 @@ pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), B
     socket.connect(&address).map_err(|e| socket_err(e, &address))?;
     socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
 
-    info!("Sent command {command} and timestamp {now} to udp://{address}");
+    info!("Sent command {command} to udp://{address}");
     Ok(())
 }
 
-pub fn gen(
-    private_path: PathBuf,
-    public_path: PathBuf,
-    key_size: u32,
-) -> Result<(), Box<dyn Error>> {
+pub fn gen(private_path: PathBuf, public_path: PathBuf, key_size: u32) -> Result<(), String> {
     validate_pem_path(&public_path)?;
     validate_pem_path(&private_path)?;
 
@@ -69,7 +64,7 @@ pub fn gen(
     Ok(())
 }
 
-fn validate_pem_path(path: &PathBuf) -> Result<(), Box<dyn Error>> {
+fn validate_pem_path(path: &PathBuf) -> Result<(), String> {
     match path.to_str() {
         Some(s) if s.ends_with(".pem") && !path.exists() => Ok(()),
         Some(s) if path.exists() => {

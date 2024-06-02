@@ -1,5 +1,4 @@
 use std::{env, fs, str};
-use std::error::Error;
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
 use std::os::fd::{FromRawFd, RawFd};
@@ -36,7 +35,7 @@ impl Server {
         address: String,
         max_delay_sec: u16,
         socket_file_path: PathBuf,
-    ) -> Result<Server, Box<dyn Error>> {
+    ) -> Result<Server, String> {
         info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
 
         let pem_data =
@@ -54,11 +53,13 @@ impl Server {
             }
             Ok(_) => {
                 info!("env var LISTEN_PID was set, but not to our PID, binding to {address}");
-                UdpSocket::bind(&address).map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
+                UdpSocket::bind(&address)
+                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
             }
             Err(_) => {
                 info!("env var LISTEN_PID was not set, binding to {address}");
-                UdpSocket::bind(&address).map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
+                UdpSocket::bind(&address)
+                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
             }
         };
 
@@ -77,7 +78,7 @@ impl Server {
         })
     }
 
-    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn run(&mut self) -> Result<(), String> {
         info!("Running server on udp://{}", self.address);
         let expected_count = self.rsa.size() as usize;
         loop {
@@ -137,21 +138,28 @@ impl Server {
         }
     }
 
-    fn write_to_socket(&self, command_name: &str) -> Result<(), Box<dyn Error>> {
-        let mut stream = UnixStream::connect(&self.socket_path)?;
-        stream.write_all(command_name.as_bytes())?;
-        stream.flush()?;
+    fn write_to_socket(&self, command_name: &str) -> Result<(), String> {
+        let mut stream = UnixStream::connect(&self.socket_path)
+            .map_err(|e| format!("Could not connect to socket {:?}: {e}", self.socket_path))?;
+        stream.write_all(command_name.as_bytes()).map_err(|e| {
+            format!("Could not write {command_name} to socket {:?}: {e}", self.socket_path)
+        })?;
+        stream
+            .flush()
+            .map_err(|e| format!("Could not flush stream for {:?}: {e}", self.socket_path))?;
         Ok(())
     }
 
-    fn decode(&self) -> Result<DecodedData, Box<dyn Error>> {
+    fn decode(&self) -> Result<DecodedData, String> {
         let mut buffer = [0u8; 16];
         buffer.copy_from_slice(&self.decrypted_data[..16]);
 
+        let decoded_data = str::from_utf8(&self.decrypted_data[16..])
+            .map_err(|e| format!("Could not decode decrypted data to str: {e}"))?;
         Ok(DecodedData {
             timestamp_ns: u128::from_le_bytes(buffer),
             now_ns: time()?,
-            command_name: str::from_utf8(&self.decrypted_data[16..])?.to_string(),
+            command_name: decoded_data.to_string(),
         })
     }
 }

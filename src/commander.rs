@@ -1,6 +1,5 @@
 use std::{fs, io, str, thread};
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs::Permissions;
 use std::io::Read;
 use std::os::unix::fs::{chown, PermissionsExt};
@@ -36,12 +35,12 @@ impl Commander {
         }
     }
 
-    pub fn run(&self) -> Result<(), Box<dyn Error>> {
+    pub fn run(&self) -> Result<(), String> {
         for stream in self.create_listener()?.incoming() {
             match stream {
                 Ok(mut stream) => match Self::read_string(&mut stream) {
                     Ok(msg) => self.run_cycle(msg),
-                    Err(e) => error!("Failed to read command message: {e}"),
+                    Err(e) => error!("{e}"),
                 },
                 Err(e) => error!("Connection for {:?} failed: {e}", &self.socket_path),
             }
@@ -51,28 +50,30 @@ impl Commander {
         Ok(())
     }
 
-    fn create_listener(&self) -> Result<UnixListener, Box<dyn Error>> {
+    fn create_listener(&self) -> Result<UnixListener, String> {
         let socket_dir = match self.socket_path.parent() {
             Some(socket_dir) => socket_dir,
             _ => return Err(format!("Could not get parent dir for {:?}", &self.socket_path).into()),
         };
-        info!("Creating ruroco socket dir {socket_dir:?}");
-        fs::create_dir_all(socket_dir)?;
+        fs::create_dir_all(&socket_dir)
+            .map_err(|e| format!("Could not create parents for {socket_dir:?}: {e}"))?;
 
-        info!("Removing already existing socket file {:?}", &self.socket_path);
         let _ = fs::remove_file(&self.socket_path);
 
         let mode = 0o204; // only server should be able to write, everyone else can read
         info!("Binding Unix Listener on {:?} with permissions {mode:o}", &self.socket_path);
-        let listener = UnixListener::bind(&self.socket_path)?;
+        let listener = UnixListener::bind(&self.socket_path)
+            .map_err(|e| format!("Could not bind to socket {:?}: {e}", self.socket_path))?;
 
-        fs::set_permissions(&self.socket_path, Permissions::from_mode(mode))?;
+        fs::set_permissions(&self.socket_path, Permissions::from_mode(mode)).map_err(|e| {
+            format!("Could not set permissions {mode:o} for {:?}: {e}", self.socket_path)
+        })?;
         self.change_socket_ownership()?;
 
         Ok(listener)
     }
 
-    fn change_socket_ownership(&self) -> Result<(), Box<dyn Error>> {
+    fn change_socket_ownership(&self) -> Result<(), String> {
         let user_name = self.socket_user.trim();
         let group_name = self.socket_group.trim();
 
@@ -88,13 +89,20 @@ impl Commander {
             _ => return Err(format!("Could not find group {group_name}").into()),
         };
 
-        chown(&self.socket_path, user_id, group_id)?;
+        chown(&self.socket_path, user_id, group_id).map_err(|e| {
+            format!(
+                "Could not change ownership of {:?} to {user_id:?}:{group_id:?}: {e}",
+                self.socket_path
+            )
+        })?;
         Ok(())
     }
 
-    fn read_string(stream: &mut UnixStream) -> Result<String, Box<dyn Error>> {
+    fn read_string(stream: &mut UnixStream) -> Result<String, String> {
         let mut buffer = String::new();
-        stream.read_to_string(&mut buffer)?;
+        stream
+            .read_to_string(&mut buffer)
+            .map_err(|e| format!("Could not read command from Unix Stream to string: {e}"))?;
         return Ok(buffer);
     }
 

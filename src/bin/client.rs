@@ -1,5 +1,4 @@
 use std::env;
-use std::error::Error;
 use std::path::PathBuf;
 use std::str;
 
@@ -36,16 +35,18 @@ enum Commands {
     },
 }
 
-fn validate_key_size(val: &str) -> Result<u32, String> {
-    let size: u32 = val.parse().map_err(|_| format!("'{}' is not a valid u32 value", val))?;
-    if size >= 4096 {
-        Ok(size)
-    } else {
-        Err(format!("Key size must be at least 4096, but '{}' was provided", size))
-    }
+fn validate_key_size(key_str: &str) -> Result<u32, String> {
+    let min_key_size = 4096;
+    return match key_str.parse() {
+        Ok(size) if size >= min_key_size => Ok(size),
+        Ok(size) => {
+            Err(format!("Key size must be at least {min_key_size}, but {size} was provided").into())
+        }
+        Err(e) => Err(format!("Could not parse {key_str} to u32: {e}").into()),
+    };
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), String> {
     init_logger();
 
     return match Cli::parse().command {

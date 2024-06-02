@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fs;
 
 use clap::Parser;
@@ -7,7 +6,7 @@ use ruroco::common::init_logger;
 use ruroco::config::{Cli, Config};
 use ruroco::server::Server;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), String> {
     init_logger();
     let args = Cli::parse();
     let config_path = args.config;
