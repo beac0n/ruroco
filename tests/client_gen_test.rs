@@ -28,7 +28,7 @@ mod tests {
         assert_eq!(
             result.unwrap_err().to_string(),
             format!(
-                "Could not generate private PEM file: {private_file_name} does not end with .pem"
+                "Could not read PEM file: {private_file_name} does not end with .pem"
             )
         );
     }
@@ -46,7 +46,7 @@ mod tests {
         assert_eq!(
             result.unwrap_err().to_string(),
             format!(
-                "Could not generate public PEM file: {public_file_name} does not end with .pem"
+                "Could not read PEM file: {public_file_name} does not end with .pem"
             )
         );
     }
@@ -67,7 +67,7 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("Could not generate private PEM file: {private_file_name} already exists")
+            format!("Could not create PEM file: {private_file_name} already exists")
         );
     }
 
@@ -86,7 +86,7 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("Could not generate public PEM file: {public_file_name} already exists")
+            format!("Could not create PEM file: {public_file_name} already exists")
         );
     }
 

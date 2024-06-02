@@ -121,9 +121,7 @@ impl Commander {
                     Self::vec_to_str(&result.stderr)
                 )
             }
-            Err(e) => {
-                error!("Error executing {command} - {e}")
-            }
+            Err(e) => error!("Error executing {command}: {e}"),
         };
     }
 

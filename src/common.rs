@@ -1,4 +1,4 @@
-use std::time::{SystemTime, SystemTimeError};
+use std::time::SystemTime;
 
 use openssl::rsa::Padding;
 
@@ -8,6 +8,9 @@ pub fn init_logger() {
     let _ = env_logger::builder().filter_level(log::LevelFilter::Info).try_init();
 }
 
-pub fn time() -> Result<u128, SystemTimeError> {
-    Ok(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_nanos())
+pub fn time() -> Result<u128, String> {
+    let duration = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_err(|e| format!("Could not get duration since: {e}"))?;
+    Ok(duration.as_nanos())
 }

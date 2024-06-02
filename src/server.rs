@@ -54,11 +54,11 @@ impl Server {
             }
             Ok(_) => {
                 info!("env var LISTEN_PID was set, but not to our PID, binding to {address}");
-                UdpSocket::bind(&address)?
+                UdpSocket::bind(&address).map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
             }
             Err(_) => {
                 info!("env var LISTEN_PID was not set, binding to {address}");
-                UdpSocket::bind(&address)?
+                UdpSocket::bind(&address).map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
             }
         };
 

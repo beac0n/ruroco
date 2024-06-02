@@ -43,40 +43,39 @@ pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), B
     Ok(())
 }
 
-pub fn gen(private: PathBuf, public: PathBuf, key_size: u32) -> Result<(), Box<dyn Error>> {
-    let public_string = public.to_str().expect("Could not convert provided public PEM path");
-    let private_string = private.to_str().expect("Could not convert provided private PEM path");
+pub fn gen(
+    private_path: PathBuf,
+    public_path: PathBuf,
+    key_size: u32,
+) -> Result<(), Box<dyn Error>> {
+    validate_pem_path(&public_path)?;
+    validate_pem_path(&private_path)?;
 
-    if !private_string.ends_with(".pem") {
-        return Err(format!(
-            "Could not generate private PEM file: {private_string} does not end with .pem"
-        )
-        .into());
-    }
+    info!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while...");
+    let rsa = Rsa::generate(key_size)
+        .map_err(|e| format!("Could not generate rsa for key size {key_size}: {e}"))?;
 
-    if !public_string.ends_with(".pem") {
-        return Err(format!(
-            "Could not generate public PEM file: {public_string} does not end with .pem"
-        )
-        .into());
-    }
+    let private_key_pem =
+        rsa.private_key_to_pem().map_err(|e| format!("Could not create private key pem: {e}"))?;
 
-    if private.exists() {
-        return Err(format!(
-            "Could not generate private PEM file: {private_string} already exists"
-        )
-        .into());
-    }
+    let public_key_pem =
+        rsa.public_key_to_pem().map_err(|e| format!("Could not create public key pem: {e}"))?;
 
-    if public.exists() {
-        return Err(
-            format!("Could not generate public PEM file: {public_string} already exists").into()
-        );
-    }
+    fs::write(&private_path, private_key_pem)
+        .map_err(|e| format!("Could not write private key to {private_path:?}: {e}"))?;
 
-    info!("Generating new rsa key with {key_size} bits and saving it to {private:?} and {public:?}. This might take a while...");
-    let rsa = Rsa::generate(key_size)?;
-    fs::write(private, rsa.private_key_to_pem()?)?;
-    fs::write(public, rsa.public_key_to_pem()?)?;
+    fs::write(&public_path, public_key_pem)
+        .map_err(|e| format!("Could not write public key to {public_path:?}: {e}"))?;
     Ok(())
+}
+
+fn validate_pem_path(path: &PathBuf) -> Result<(), Box<dyn Error>> {
+    match path.to_str() {
+        Some(s) if s.ends_with(".pem") && !path.exists() => Ok(()),
+        Some(s) if path.exists() => {
+            Err(format!("Could not create PEM file: {s} already exists").into())
+        }
+        Some(s) => Err(format!("Could not read PEM file: {s} does not end with .pem").into()),
+        None => Err(format!("Could not convert PEM path {path:?} to string").into()),
+    }
 }
