@@ -154,12 +154,10 @@ impl Server {
         let mut buffer = [0u8; 16];
         buffer.copy_from_slice(&self.decrypted_data[..16]);
 
-        let decoded_data = str::from_utf8(&self.decrypted_data[16..])
-            .map_err(|e| format!("Could not decode decrypted data to str: {e}"))?;
         Ok(DecodedData {
             timestamp_ns: u128::from_le_bytes(buffer),
             now_ns: time()?,
-            command_name: decoded_data.to_string(),
+            command_name: String::from_utf8_lossy(&self.decrypted_data[16..]).to_string(),
         })
     }
 }

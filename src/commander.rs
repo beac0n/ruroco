@@ -53,7 +53,9 @@ impl Commander {
     fn create_listener(&self) -> Result<UnixListener, String> {
         let socket_dir = match self.socket_path.parent() {
             Some(socket_dir) => socket_dir,
-            _ => return Err(format!("Could not get parent dir for {:?}", &self.socket_path).into()),
+            None => {
+                return Err(format!("Could not get parent dir for {:?}", &self.socket_path).into())
+            }
         };
         fs::create_dir_all(&socket_dir)
             .map_err(|e| format!("Could not create parents for {socket_dir:?}: {e}"))?;
@@ -79,14 +81,14 @@ impl Commander {
 
         let user_id = match get_user_by_name(user_name) {
             Some(user) => Some(user.uid()),
-            _ if user_name == "" => None,
-            _ => return Err(format!("Could not find user {user_name}").into()),
+            None if user_name == "" => None,
+            None => return Err(format!("Could not find user {user_name}").into()),
         };
 
         let group_id = match get_group_by_name(group_name) {
             Some(group) => Some(group.gid()),
-            _ if group_name == "" => None,
-            _ => return Err(format!("Could not find group {group_name}").into()),
+            None if group_name == "" => None,
+            None => return Err(format!("Could not find group {group_name}").into()),
         };
 
         chown(&self.socket_path, user_id, group_id).map_err(|e| {
@@ -116,7 +118,7 @@ impl Commander {
                 self.run_command(&config.stop);
                 info!("Finished cycle");
             }
-            _ => warn!("Unknown command message {msg}"),
+            None => warn!("Unknown command {msg}"),
         }
     }
 
