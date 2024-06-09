@@ -96,6 +96,26 @@ mod tests {
     }
 
     #[test]
+    fn test_send_command_too_long() {
+        let private_file = gen_file_name(".pem");
+        let public_file = gen_file_name(".pem");
+
+        let private_pem_path = PathBuf::from(&private_file);
+        let public_pem_path = PathBuf::from(&public_file);
+        gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
+
+        let result = send(private_pem_path, String::from("127.0.0.1:1234"), "default".repeat(24));
+
+        let _ = fs::remove_file(&private_file);
+        let _ = fs::remove_file(&public_file);
+
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            String::from("Command too long, must be at most 101 bytes")
+        );
+    }
+
+    #[test]
     fn test_send() {
         let private_file = gen_file_name(".pem");
         let public_file = gen_file_name(".pem");
@@ -104,7 +124,8 @@ mod tests {
         let public_pem_path = PathBuf::from(&public_file);
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
-        let result = send(private_pem_path, String::from("127.0.0.1:1234"), String::from("default"));
+        let result =
+            send(private_pem_path, String::from("127.0.0.1:1234"), String::from("default"));
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
