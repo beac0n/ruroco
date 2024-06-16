@@ -26,13 +26,29 @@ enum Commands {
     },
 
     Send {
-        #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+        #[arg(short, long)]
         address: String,
-        #[arg(short, long, default_value = PathBuf::from("ruroco_private.pem").into_os_string())]
+        #[arg(short, long, default_value = default_private_pem_path())]
         private_pem_path: PathBuf,
         #[arg(short, long, default_value = "default")]
         command: String,
     },
+}
+
+fn default_private_pem_path() -> std::ffi::OsString {
+    let private_pem_name = "ruroco_private.pem";
+    let private_pem_path = match env::var("HOME") {
+        Ok(home_dir) => {
+            let mut private_pem_path = PathBuf::from(home_dir);
+            private_pem_path.push(".config");
+            private_pem_path.push("ruroco");
+            private_pem_path.push(private_pem_name);
+            private_pem_path
+        }
+        Err(_) => PathBuf::from(private_pem_name),
+    };
+
+    return private_pem_path.into_os_string();
 }
 
 fn validate_key_size(key_str: &str) -> Result<u32, String> {
