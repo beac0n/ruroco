@@ -11,16 +11,39 @@ release:
 test:
 	cargo test -- --test-threads=1
 
-install: release
+install_client: release
+	sudo cp ./target/release/client /usr/local/bin/ruroco-client
+
+install_server: release
 	sudo cp ./target/release/server /usr/local/bin/ruroco-server
 	sudo cp ./target/release/commander /usr/local/bin/ruroco-commander
+	sudo cp ./target/release/client /usr/local/bin/ruroco-client
 
 	sudo useradd --system ruroco --shell /bin/false
 	sudo cp ./systemd/* /etc/systemd/system
+	sudo cp ./config/config.toml /etc/ruroco/config.toml
+
+	sudo chmod 400 /etc/ruroco/config.toml
+	sudo chmod 500 /usr/local/bin/ruroco-server
+	sudo chmod 100 /usr/local/bin/ruroco-commander
+	sudo chown ruroco:ruroco /usr/local/bin/ruroco-server
 
 	sudo systemctl daemon-reload
 
-	echo "Please check ruroco.service, ruroco.socket and ruroco-commander.service and configure them accordingly"
+	sudo systemctl enable ruroco.service
+	sudo systemctl enable ruroco-commander.service
+	sudo systemctl enable ruroco.socket
+
+	sudo systemctl start ruroco-commander.service
+	sudo systemctl start ruroco.socket
+	sudo systemctl start ruroco.service
+
+	echo "### installation complete"
+	echo "# gen pub and priv pem files with 'ruroco-client gen' on client"
+	echo "# move pub pem to /etc/ruroco/ruroco_public.pem on server"
+	echo "# save priv pem to ~/.config/ruroco/ruroco_private.pem on client"
+	echo "# update config /etc/ruroco/config.toml on server"
+	echo "# start service with sudo systemctl start ruroco.service on server"
 
 test_end_to_end: clean_test_end_to_end release
 	./target/release/client gen -k 4096
