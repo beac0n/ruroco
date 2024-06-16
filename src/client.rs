@@ -26,7 +26,7 @@ pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), S
     let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
-    let socket = UdpSocket::bind("127.0.0.1:0").map_err(|e| socket_err(e, &address))?;
+    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| socket_err(e, &address))?;
     socket.connect(&address).map_err(|e| socket_err(e, &address))?;
     socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
 
