@@ -85,8 +85,13 @@ mod tests {
             .expect("commander terminated")
         });
 
-        send(private_pem_path, server_address.to_string(), String::from("default")).unwrap();
+        send(private_pem_path.clone(), server_address.to_string(), String::from("default")).unwrap();
+        thread::sleep(Duration::from_secs(1)); // wait for commands to be executed
 
+        let _ = fs::remove_file(&start_test_filename);
+        let _ = fs::remove_file(&stop_test_filename);
+
+        send(private_pem_path.clone(), server_address.to_string(), String::from("default")).unwrap();
         thread::sleep(Duration::from_secs(1)); // wait for commands to be executed
 
         let start_test_exists = Path::new(&start_test_filename).exists();

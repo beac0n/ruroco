@@ -80,11 +80,11 @@ impl Server {
 
     pub fn run(&mut self) -> Result<(), String> {
         info!("Running server on udp://{}", self.address);
-        let expected_count = self.rsa.size() as usize;
+        let rsa_size = self.rsa.size() as usize;
         loop {
             match self.receive() {
-                Ok((count, src)) if count != expected_count => {
-                    error!("Invalid read count {count}, expected {expected_count} from {src}")
+                Ok((count, src)) if count != rsa_size => {
+                    error!("Invalid read count {count}, expected {rsa_size} from {src}")
                 }
                 Ok((count, src)) => {
                     info!("Successfully received {count} bytes from {src}");
@@ -95,6 +95,9 @@ impl Server {
                 }
                 Err(e) => error!("Could not recv_from socket from udp://{}: {e}", self.address),
             }
+
+            self.encrypted_data = vec![0; rsa_size];
+            self.decrypted_data = vec![0; rsa_size];
         }
     }
 
