@@ -11,6 +11,8 @@ pub struct Cli {
     pub config: PathBuf,
 }
 
+// TODO: replace start, stop, sleep with just command - if someone wants to do sleep they can on their own
+// TODO: add option to allow certain commands for certain public keys - use only names of public PEMs that are in the pem dir
 #[derive(Debug, Deserialize)]
 pub struct CommanderCommand {
     #[serde(default = "default_start")]
@@ -33,7 +35,7 @@ pub struct Config {
     #[serde(default = "default_address")]
     pub address: String,
     #[serde(default = "default_pem_path")]
-    pub pem_path: PathBuf,
+    pub pem_path: PathBuf, // TODO: add pem directory instead of path, so that multiple PEMs can be used
     #[serde(default = "default_max_delay_sec")]
     pub max_delay_sec: u16,
     #[serde(default = "default_socket_user")]

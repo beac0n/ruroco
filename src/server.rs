@@ -82,6 +82,7 @@ impl Server {
         info!("Running server on udp://{}", self.address);
         let rsa_size = self.rsa.size() as usize;
         loop {
+            // TODO: How to deal with DoS attacks?
             match self.receive() {
                 Ok((count, src)) if count != rsa_size => {
                     error!("Invalid read count {count}, expected {rsa_size} from {src}")
@@ -126,6 +127,8 @@ impl Server {
             }
             Ok(data) => {
                 info!("Successfully validated data - {} is not too old/new", data.timestamp_ns);
+                // TODO: blacklist data.timestamp_ns until data.timestamp_ns + self.max_delay
+                // TODO: remove all blacklisted timestamps that are now too old in the next validate call
                 self.send_command(&data.command_name)
             }
             Err(e) => error!("Could not decode data: {e}"),
