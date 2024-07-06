@@ -14,5 +14,5 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("Could not read {config_path:?}: {e}"))?;
     let config: Config = toml::from_str(&config_str)
         .map_err(|e| format!("Could not create TOML from {config_path:?}: {e}"))?;
-    Server::create(config.pem_path, config.address, config.max_delay_sec, config.socket_path)?.run()
+    Server::create(config.pem_path, config.address, config.socket_path)?.run()
 }

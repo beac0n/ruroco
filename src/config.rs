@@ -18,8 +18,6 @@ pub struct Config {
     pub address: String,
     #[serde(default = "default_pem_path")]
     pub pem_path: PathBuf, // TODO: add pem directory instead of path, so that multiple PEMs can be used
-    #[serde(default = "default_max_delay_sec")]
-    pub max_delay_sec: u16,
     #[serde(default = "default_socket_user")]
     pub socket_user: String,
     #[serde(default = "default_socket_group")]
@@ -42,10 +40,6 @@ fn default_address() -> String {
 
 fn default_pem_path() -> PathBuf {
     PathBuf::from("ruroco_public.pem")
-}
-
-fn default_max_delay_sec() -> u16 {
-    5
 }
 
 fn default_socket_path() -> PathBuf {

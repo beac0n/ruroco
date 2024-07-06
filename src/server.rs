@@ -17,14 +17,13 @@ pub struct Server {
     rsa: Rsa<Public>,
     socket: UdpSocket,
     address: String,
-    max_delay: u128,
     encrypted_data: Vec<u8>,
     decrypted_data: Vec<u8>,
     socket_path: PathBuf,
 }
 
 struct DecodedData {
-    timestamp_ns: u128,
+    deadline_ns: u128,
     now_ns: u128,
     command_name: String,
 }
@@ -33,7 +32,6 @@ impl Server {
     pub fn create(
         pem_path: PathBuf,
         address: String,
-        max_delay_sec: u16,
         socket_file_path: PathBuf,
     ) -> Result<Server, String> {
         info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
@@ -70,7 +68,6 @@ impl Server {
         Ok(Server {
             rsa,
             address,
-            max_delay: u128::from(max_delay_sec) * 1_000_000_000,
             socket,
             decrypted_data,
             encrypted_data,
@@ -113,21 +110,15 @@ impl Server {
     fn validate(&mut self, count: usize) {
         self.decrypted_data.truncate(count);
         return match self.decode() {
-            Ok(data) if data.timestamp_ns > data.now_ns => {
-                error!("Invalid content {} is newer than now {}", data.timestamp_ns, data.now_ns)
-            }
-            Ok(data) if data.timestamp_ns < data.now_ns - self.max_delay => {
-                error!(
-                    "Invalid content {} is older than now {} - {} = {}",
-                    data.timestamp_ns,
-                    data.now_ns,
-                    self.max_delay,
-                    data.now_ns - self.max_delay
-                )
+            Ok(data) if data.now_ns > data.deadline_ns => {
+                error!("Invalid data - now {} is after deadline {}", data.now_ns, data.deadline_ns)
             }
             Ok(data) => {
-                info!("Successfully validated data - {} is not too old/new", data.timestamp_ns);
-                // TODO: blacklist data.timestamp_ns until data.timestamp_ns + self.max_delay
+                info!(
+                    "Successfully validated data - now {} is before deadline {}",
+                    data.now_ns, data.deadline_ns
+                );
+                // TODO: blacklist data.deadline_ns until data.deadline_ns == data.now_ns
                 // TODO: remove all blacklisted timestamps that are now too old in the next validate call
                 self.send_command(&data.command_name)
             }
@@ -161,7 +152,7 @@ impl Server {
         buffer.copy_from_slice(&self.decrypted_data[..16]);
 
         Ok(DecodedData {
-            timestamp_ns: u128::from_le_bytes(buffer),
+            deadline_ns: u128::from_le_bytes(buffer),
             now_ns: time()?,
             command_name: String::from_utf8_lossy(&self.decrypted_data[16..]).to_string(),
         })

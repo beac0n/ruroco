@@ -58,7 +58,6 @@ mod tests {
             Server::create(
                 pub_pem_path,
                 server_address_for_server,
-                1,
                 PathBuf::from("/tmp/ruroco/ruroco.socket"),
             )
             .expect("could not create server")
@@ -80,12 +79,12 @@ mod tests {
             .expect("commander terminated")
         });
 
-        send(priv_pem_path.clone(), server_address.to_string(), String::from("default")).unwrap();
+        send(priv_pem_path.clone(), server_address.to_string(), String::from("default"), 5).unwrap();
         thread::sleep(Duration::from_secs(1)); // wait for commands to be executed
 
         let _ = fs::remove_file(&test_filename);
 
-        send(priv_pem_path.clone(), server_address.to_string(), String::from("default")).unwrap();
+        send(priv_pem_path.clone(), server_address.to_string(), String::from("default"), 5).unwrap();
         thread::sleep(Duration::from_secs(1)); // wait for commands to be executed
 
         let start_test_exists = Path::new(&test_filename).exists();

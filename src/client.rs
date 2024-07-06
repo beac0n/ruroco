@@ -18,11 +18,16 @@ fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
     format!("Could not connect/send data to {val:?}: {err}")
 }
 
-pub fn send(pem_path: PathBuf, address: String, command: String) -> Result<(), String> {
+pub fn send(
+    pem_path: PathBuf,
+    address: String,
+    command: String,
+    deadline: u16,
+) -> Result<(), String> {
     info!("Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...", version());
 
     let rsa = get_rsa_private(&pem_path)?;
-    let data_to_encrypt = get_data_to_encrypt(&command, &rsa)?;
+    let data_to_encrypt = get_data_to_encrypt(&command, &rsa, deadline)?;
     let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
@@ -48,11 +53,16 @@ fn get_rsa_private(pem_path: &PathBuf) -> Result<Rsa<Private>, String> {
     Ok(Rsa::private_key_from_pem(&pem_data).map_err(|e| pem_load_err(e, &pem_path))?)
 }
 
-fn get_data_to_encrypt(command: &str, rsa: &Rsa<Private>) -> Result<Vec<u8>, String> {
+fn get_data_to_encrypt(
+    command: &str,
+    rsa: &Rsa<Private>,
+    deadline: u16,
+) -> Result<Vec<u8>, String> {
     // collect data to encrypt: now-timestamp + command + random data -> all as bytes
     let mut data_to_encrypt = Vec::new();
 
-    let timestamp_bytes = time()?.to_le_bytes().to_vec();
+    let timestamp = time()? + (u128::from(deadline) * 1_000_000_000);
+    let timestamp_bytes = timestamp.to_le_bytes().to_vec();
     let timestamp_len = timestamp_bytes.len();
     data_to_encrypt.extend(timestamp_bytes);
 

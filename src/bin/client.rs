@@ -32,6 +32,8 @@ enum Commands {
         private_pem_path: PathBuf,
         #[arg(short, long, default_value = "default")]
         command: String,
+        #[arg(short, long, default_value = "5")]
+        deadline: u16,
     },
 }
 
@@ -75,6 +77,7 @@ fn main() -> Result<(), String> {
             private_pem_path,
             address,
             command,
-        } => send(private_pem_path, address, command),
+            deadline,
+        } => send(private_pem_path, address, command, deadline),
     };
 }
