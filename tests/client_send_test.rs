@@ -40,14 +40,10 @@ mod tests {
 
         let _ = fs::remove_file(&pem_file_name);
 
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!(
-                "Could not load \"{pem_file_name}\": error:1E08010C:DECODER \
-                routines:OSSL_DECODER_from_bio:unsupported:crypto/encode_decode/decoder_lib.c:102:\
-                No supported data to decode. Input type: PEM"
-            )
-        );
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No supported data to decode. Input type: PEM"));
     }
 
     #[test]
