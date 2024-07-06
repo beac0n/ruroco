@@ -1,20 +1,17 @@
-use std::{fs, io, str, thread};
+use std::{fs, str};
 use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
 use std::os::unix::fs::{chown, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
-use std::process::{Command, Output};
-use std::time::Duration;
+use std::process::Command;
 
 use log::{error, info, warn};
 use users::{get_group_by_name, get_user_by_name};
 
-use crate::config::CommanderCommand;
-
 pub struct Commander {
-    config: HashMap<String, CommanderCommand>,
+    config: HashMap<String, String>,
     socket_group: String,
     socket_user: String,
     socket_path: PathBuf,
@@ -22,7 +19,7 @@ pub struct Commander {
 
 impl Commander {
     pub fn create(
-        config: HashMap<String, CommanderCommand>,
+        config: HashMap<String, String>,
         socket_user: String,
         socket_group: String,
         socket_path: PathBuf,
@@ -110,20 +107,14 @@ impl Commander {
 
     fn run_cycle(&self, msg: String) {
         match self.config.get(&msg) {
-            Some(config) => {
-                info!("Starting cycle");
-                self.run_command(&config.start);
-                info!("Sleeping for {} seconds", config.sleep);
-                thread::sleep(Duration::from_secs(config.sleep));
-                self.run_command(&config.stop);
-                info!("Finished cycle");
-            }
+            Some(command) => self.run_command(command),
             None => warn!("Unknown command {msg}"),
         }
     }
 
     fn run_command(&self, command: &str) {
-        match Self::execute_command(command) {
+        info!("Running command {command}");
+        match Command::new("sh").arg("-c").arg(command).output() {
             Ok(result) => {
                 info!(
                     "Successfully executed {command}\nstdout: {}\nstderr: {}",
@@ -137,10 +128,5 @@ impl Commander {
 
     fn vec_to_str(stdout: &Vec<u8>) -> &str {
         return str::from_utf8(stdout).unwrap_or("");
-    }
-
-    fn execute_command(command: &str) -> io::Result<Output> {
-        let split = command.split(' ').collect::<Vec<_>>();
-        Command::new(&split[0]).args(&split[1..]).output()
     }
 }

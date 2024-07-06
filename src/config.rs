@@ -11,27 +11,9 @@ pub struct Cli {
     pub config: PathBuf,
 }
 
-// TODO: replace start, stop, sleep with just command - if someone wants to do sleep they can on their own
-// TODO: add option to allow certain commands for certain public keys - use only names of public PEMs that are in the pem dir
-#[derive(Debug, Deserialize)]
-pub struct CommanderCommand {
-    #[serde(default = "default_start")]
-    pub start: String,
-    #[serde(default = "default_stop")]
-    pub stop: String,
-    #[serde(default = "default_sleep")]
-    pub sleep: u64,
-}
-
-impl CommanderCommand {
-    pub fn create(start: String, stop: String, sleep: u64) -> CommanderCommand {
-        CommanderCommand { start, stop, sleep }
-    }
-}
-
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub commands: HashMap<String, CommanderCommand>,
+    pub commands: HashMap<String, String>,
     #[serde(default = "default_address")]
     pub address: String,
     #[serde(default = "default_pem_path")]
@@ -52,18 +34,6 @@ fn default_socket_user() -> String {
 
 fn default_socket_group() -> String {
     String::from("ruroco")
-}
-
-fn default_start() -> String {
-    String::from("echo 'start'")
-}
-
-fn default_stop() -> String {
-    String::from("echo 'stop'")
-}
-
-fn default_sleep() -> u64 {
-    5
 }
 
 fn default_address() -> String {
