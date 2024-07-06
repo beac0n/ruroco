@@ -1,7 +1,7 @@
 # ruroco - run remote command
 
 Ruroco is a tool to run pre-defined commands on a remote server, using the UDP protocol to hide the existence of the 
-service from adversaries, making the tool "invisible".
+service from adversaries, making the service on the server "invisible".
 
 ## use case
 
