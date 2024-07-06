@@ -60,8 +60,29 @@ limited from OS point of view.
 
 ## architecture
 
-### client
+The service consists of three parts:
+- `client` 
+  - binary that is executed on your local host
+- `server`
+  - service that runs on a remote host where you wish to execute the commands on
+  - exposed to the internet
+  - has minimal rights to receive and decrypt data and to communicate with the commander
+- `commander`
+  - daemon service that runs on the same host as the server
+  - not exposed to the internet
+  - has all the rights it needs to run the commands that are passed to it
 
-### server
-
-### commander
+<!-- created with https://asciiflow.com/#/ -->
+```text
+┌────────────────┐ ┌────────────────┐
+│                │ │                │
+│   ┌────────┐   │ │ ┌────────────┐ │
+│   │ Client ├───┼─┤►│   Server   │ │
+│   └────────┘   │ │ └─────┬──────┘ │
+│                │ │       │        │
+│                │ │ ┌─────▼──────┐ │
+│                │ │ │  Commander │ │
+│                │ │ └────────────┘ │
+│   Local Host   │ │   Remote Host  │
+└────────────────┘ └────────────────┘
+```
