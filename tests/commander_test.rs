@@ -18,12 +18,9 @@ mod tests {
     #[test]
     fn test_run() {
         init_logger();
-        let socket_file_path = "/tmp/ruroco/ruroco.socket";
+        let socket_file_path = Path::new("/tmp/ruroco/ruroco.socket");
         let _ = fs::remove_file(socket_file_path);
-
-        println!("{}", socket_file_path);
-
-        assert!(!Path::new(socket_file_path).exists());
+        assert!(!socket_file_path.exists());
 
         let mut config = HashMap::new();
         config.insert(String::from("default"), format!("touch {}", gen_file_name(".test")));
@@ -32,7 +29,7 @@ mod tests {
                 config,
                 String::from(""),
                 String::from(""),
-                PathBuf::from(socket_file_path),
+                PathBuf::from("/tmp/ruroco"),
             )
             .run()
             .expect("commander terminated")
@@ -40,6 +37,6 @@ mod tests {
 
         thread::sleep(Duration::from_secs(1));
 
-        assert!(Path::new(socket_file_path).exists());
+        assert!(socket_file_path.exists());
     }
 }

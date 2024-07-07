@@ -11,7 +11,7 @@ use openssl::pkey::Public;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use crate::common::{RSA_PADDING, time};
+use crate::common::{get_socket_path, RSA_PADDING, time};
 
 pub struct Server {
     rsa: Rsa<Public>,
@@ -29,11 +29,8 @@ struct DecodedData {
 }
 
 impl Server {
-    pub fn create(
-        pem_path: PathBuf,
-        address: String,
-        socket_file_path: PathBuf,
-    ) -> Result<Server, String> {
+    pub fn create(config_dir: PathBuf, address: String) -> Result<Server, String> {
+        let pem_path = Self::get_pem_path(&config_dir)?;
         info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
 
         let pem_data =
@@ -71,8 +68,45 @@ impl Server {
             socket,
             decrypted_data,
             encrypted_data,
-            socket_path: socket_file_path,
+            socket_path: get_socket_path(config_dir),
         })
+    }
+
+    fn get_pem_path(config_dir: &PathBuf) -> Result<PathBuf, String> {
+        let pem_files = Self::get_pem_files(&config_dir);
+
+        return match pem_files.len() {
+            0 => Err(format!("Could not find any .pem files in {config_dir:?}").into()),
+            1 => Ok(pem_files.first().unwrap().clone()),
+            other => Err(format!(
+                "Only one public PEM is supported at this point in time, found {other}"
+            )
+            .into()),
+        };
+    }
+
+    fn get_pem_files(config_dir: &PathBuf) -> Vec<PathBuf> {
+        let mut pem_paths = vec![];
+        match fs::read_dir(config_dir) {
+            Ok(entries) => {
+                for entry in entries {
+                    match entry {
+                        Ok(entry) => {
+                            let path = entry.path();
+                            match path.extension() {
+                                Some(extension) if path.is_file() && extension == "pem" => {
+                                    pem_paths.push(path)
+                                }
+                                _ => {}
+                            }
+                        }
+                        Err(e) => error!("Error reading entry: {e}"),
+                    }
+                }
+            }
+            Err(e) => error!("Error reading directory: {e}"),
+        }
+        pem_paths
     }
 
     pub fn run(&mut self) -> Result<(), String> {
@@ -120,10 +154,20 @@ impl Server {
                 );
                 // TODO: blacklist data.deadline_ns until data.deadline_ns == data.now_ns
                 // TODO: remove all blacklisted timestamps that are now too old in the next validate call
-                self.send_command(&data.command_name)
+                self.send_command(&data.command_name);
+                self.clean_block_list();
+                self.add_to_block_list(data);
             }
             Err(e) => error!("Could not decode data: {e}"),
         };
+    }
+
+    fn clean_block_list(&self) {
+        // TODO: implement
+    }
+
+    fn add_to_block_list(&self, data: DecodedData) {
+        // TODO: implement
     }
 
     fn send_command(&self, command_name: &str) {

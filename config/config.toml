@@ -1,4 +1,4 @@
 address = "127.0.0.1:8080"
-pem_path = "/etc/ruroco/ruroco_public.pem"
+config_dir = "/etc/ruroco/"
 
 [commands]

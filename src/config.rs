@@ -16,14 +16,12 @@ pub struct Config {
     pub commands: HashMap<String, String>,
     #[serde(default = "default_address")]
     pub address: String,
-    #[serde(default = "default_pem_path")]
-    pub pem_path: PathBuf, // TODO: add pem directory instead of path, so that multiple PEMs can be used
+    #[serde(default = "default_config_path")]
+    pub config_dir: PathBuf,
     #[serde(default = "default_socket_user")]
     pub socket_user: String,
     #[serde(default = "default_socket_group")]
     pub socket_group: String,
-    #[serde(default = "default_socket_path")]
-    pub socket_path: PathBuf,
 }
 
 fn default_socket_user() -> String {
@@ -38,10 +36,6 @@ fn default_address() -> String {
     String::from("127.0.0.1:8080")
 }
 
-fn default_pem_path() -> PathBuf {
-    PathBuf::from("ruroco_public.pem")
-}
-
-fn default_socket_path() -> PathBuf {
-    PathBuf::from("/etc/ruroco/ruroco.socket")
+fn default_config_path() -> PathBuf {
+    PathBuf::from("/etc/ruroco")
 }

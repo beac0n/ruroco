@@ -14,6 +14,6 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("Could not read {config_path:?}: {e}"))?;
     let config: Config = toml::from_str(&config_str)
         .map_err(|e| format!("Could not create TOML from {config_path:?}: {e}"))?;
-    Commander::create(config.commands, config.socket_user, config.socket_group, config.socket_path)
+    Commander::create(config.commands, config.socket_user, config.socket_group, config.config_dir)
         .run()
 }

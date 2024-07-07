@@ -10,6 +10,8 @@ use std::process::Command;
 use log::{error, info, warn};
 use users::{get_group_by_name, get_user_by_name};
 
+use crate::common::get_socket_path;
+
 pub struct Commander {
     config: HashMap<String, String>,
     socket_group: String,
@@ -22,13 +24,13 @@ impl Commander {
         config: HashMap<String, String>,
         socket_user: String,
         socket_group: String,
-        socket_path: PathBuf,
+        config_dir: PathBuf,
     ) -> Commander {
         Commander {
             config,
             socket_user,
             socket_group,
-            socket_path,
+            socket_path: get_socket_path(config_dir),
         }
     }
 

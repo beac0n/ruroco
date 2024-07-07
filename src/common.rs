@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::SystemTime;
 
 use openssl::rsa::Padding;
@@ -14,4 +15,10 @@ pub fn time() -> Result<u128, String> {
         .duration_since(SystemTime::UNIX_EPOCH)
         .map_err(|e| format!("Could not get duration since: {e}"))?;
     Ok(duration.as_nanos())
+}
+
+pub fn get_socket_path(config_dir: PathBuf) -> PathBuf {
+    let mut config_dir_clone = config_dir.clone();
+    config_dir_clone.push("ruroco.socket");
+    config_dir_clone
 }

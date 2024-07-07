@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+
 use ruroco::client::gen;
 
 #[cfg(test)]
@@ -27,9 +28,7 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!(
-                "Could not read PEM file: {private_file_name} does not end with .pem"
-            )
+            format!("Could not read PEM file: {private_file_name} does not end with .pem")
         );
     }
 
@@ -45,9 +44,7 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!(
-                "Could not read PEM file: {public_file_name} does not end with .pem"
-            )
+            format!("Could not read PEM file: {public_file_name} does not end with .pem")
         );
     }
 
