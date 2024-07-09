@@ -81,14 +81,16 @@ mod tests {
         send(private_pem_path.clone(), server_address.to_string(), String::from("default"), 1)
             .unwrap();
         thread::sleep(Duration::from_secs(1)); // wait for commands to be executed
-        let blocked_list_0 = Blocklist::create(curr_dir).get();
+        let blocklist = Blocklist::create(curr_dir);
+        let blocked_list_0 = blocklist.get();
 
         let _ = fs::remove_file(&test_filename);
 
         send(private_pem_path.clone(), server_address.to_string(), String::from("default"), 5)
             .unwrap();
         thread::sleep(Duration::from_secs(1)); // wait for commands to be executed
-        let blocked_list_1 = Blocklist::create(curr_dir).get();
+        let blocklist = Blocklist::create(curr_dir);
+        let blocked_list_1 = blocklist.get();
 
         let start_test_exists = Path::new(&test_filename).exists();
         let private_exists = private_pem_path.exists();

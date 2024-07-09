@@ -150,6 +150,9 @@ impl Server {
             Ok(data) if data.now_ns > data.deadline_ns => {
                 error!("Invalid data - now {} is after deadline {}", data.now_ns, data.deadline_ns)
             }
+            Ok(data) if self.blocklist.is_blocked(data.deadline_ns) => {
+                error!("Invalid data - deadline {} is on blocklist", data.deadline_ns)
+            }
             Ok(data) => {
                 info!(
                     "Successfully validated data - now {} is before deadline {}",
