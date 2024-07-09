@@ -17,8 +17,16 @@ pub fn time() -> Result<u128, String> {
     Ok(duration.as_nanos())
 }
 
-pub fn get_socket_path(config_dir: PathBuf) -> PathBuf {
+pub fn get_socket_path(config_dir: &PathBuf) -> PathBuf {
+    get_file_path(config_dir, "ruroco.socket")
+}
+
+pub fn get_blocklist_path(config_dir: &PathBuf) -> PathBuf {
+    get_file_path(config_dir, "blocklist.toml")
+}
+
+fn get_file_path(config_dir: &PathBuf, name: &str) -> PathBuf {
     let mut config_dir_clone = config_dir.clone();
-    config_dir_clone.push("ruroco.socket");
+    config_dir_clone.push(name);
     config_dir_clone
 }

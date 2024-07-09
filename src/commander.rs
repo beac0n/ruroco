@@ -30,7 +30,7 @@ impl Commander {
             config,
             socket_user,
             socket_group,
-            socket_path: get_socket_path(config_dir),
+            socket_path: get_socket_path(&config_dir),
         }
     }
 

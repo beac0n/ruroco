@@ -11,6 +11,7 @@ use openssl::pkey::Public;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
+use crate::blocklist::Blocklist;
 use crate::common::{get_socket_path, RSA_PADDING, time};
 
 pub struct Server {
@@ -20,6 +21,7 @@ pub struct Server {
     encrypted_data: Vec<u8>,
     decrypted_data: Vec<u8>,
     socket_path: PathBuf,
+    blocklist: Blocklist,
 }
 
 struct DecodedData {
@@ -68,7 +70,8 @@ impl Server {
             socket,
             decrypted_data,
             encrypted_data,
-            socket_path: get_socket_path(config_dir),
+            socket_path: get_socket_path(&config_dir),
+            blocklist: Blocklist::create(&config_dir),
         })
     }
 
@@ -155,19 +158,16 @@ impl Server {
                 // TODO: blacklist data.deadline_ns until data.deadline_ns == data.now_ns
                 // TODO: remove all blacklisted timestamps that are now too old in the next validate call
                 self.send_command(&data.command_name);
-                self.clean_block_list();
-                self.add_to_block_list(data);
+                self.update_block_list(&data);
             }
             Err(e) => error!("Could not decode data: {e}"),
         };
     }
 
-    fn clean_block_list(&self) {
-        // TODO: implement
-    }
-
-    fn add_to_block_list(&self, data: DecodedData) {
-        // TODO: implement
+    fn update_block_list(&mut self, data: &DecodedData) {
+        self.blocklist.clean(data.now_ns);
+        self.blocklist.add(data.deadline_ns);
+        self.blocklist.save();
     }
 
     fn send_command(&self, command_name: &str) {
