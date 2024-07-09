@@ -13,6 +13,6 @@ fn main() -> Result<(), String> {
     let config_str = fs::read_to_string(&config_path)
         .map_err(|e| format!("Could not read {config_path:?}: {e}"))?;
     let config: Config = toml::from_str(&config_str)
-        .map_err(|e| format!("Could not create TOML from {config_path:?}: {e}"))?;
+        .map_err(|e| format!("Could not parse TOML from {config_path:?}: {e}"))?;
     Server::create(config.config_dir, config.address)?.run()
 }
