@@ -5,7 +5,7 @@ use std::str;
 use clap::{Parser, Subcommand};
 
 use ruroco::client::{gen, send};
-use ruroco::common::init_logger;
+use ruroco::common::{init_logger, time};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -78,6 +78,6 @@ fn main() -> Result<(), String> {
             address,
             command,
             deadline,
-        } => send(private_pem_path, address, command, deadline),
+        } => send(private_pem_path, address, command, deadline, time()?),
     };
 }

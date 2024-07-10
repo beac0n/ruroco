@@ -2,8 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use log::error;
+use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
-use serde::ser::{Serializer, SerializeSeq};
 
 use crate::common::get_blocklist_path;
 

@@ -8,7 +8,7 @@ use openssl::pkey::Private;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use crate::common::{PADDING_SIZE, RSA_PADDING, time};
+use crate::common::{PADDING_SIZE, RSA_PADDING};
 
 fn pem_load_err<I: Display, E: Debug>(err: I, val: E) -> String {
     format!("Could not load {val:?}: {err}")
@@ -23,11 +23,12 @@ pub fn send(
     address: String,
     command: String,
     deadline: u16,
+    now: u128,
 ) -> Result<(), String> {
     info!("Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...", version());
 
     let rsa = get_rsa_private(&pem_path)?;
-    let data_to_encrypt = get_data_to_encrypt(&command, &rsa, deadline)?;
+    let data_to_encrypt = get_data_to_encrypt(&command, &rsa, deadline, now)?;
     let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
@@ -57,11 +58,12 @@ fn get_data_to_encrypt(
     command: &str,
     rsa: &Rsa<Private>,
     deadline: u16,
+    now: u128,
 ) -> Result<Vec<u8>, String> {
     // collect data to encrypt: now-timestamp + command + random data -> all as bytes
     let mut data_to_encrypt = Vec::new();
 
-    let timestamp = time()? + (u128::from(deadline) * 1_000_000_000);
+    let timestamp = now + (u128::from(deadline) * 1_000_000_000);
     let timestamp_bytes = timestamp.to_le_bytes().to_vec();
     let timestamp_len = timestamp_bytes.len();
     data_to_encrypt.extend(timestamp_bytes);
