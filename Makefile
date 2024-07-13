@@ -9,7 +9,7 @@ release:
 	upx --best --lzma target/release/commander
 
 test:
-	cargo test -- --test-threads=1
+	cargo test --verbose -- --test-threads=1
 
 install_client: release
 	sudo cp ./target/release/client /usr/local/bin/ruroco-client
