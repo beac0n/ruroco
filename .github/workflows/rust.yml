@@ -18,5 +18,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build
         run: make release
+      - name: Run tests end to end
+        run: make test_end_to_end;
       - name: Run tests
-        run: make test; make test_end_to_end
+        run: make test
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
