@@ -1,5 +1,4 @@
 ![build](https://github.com/beac0n/ruroco/actions/workflows/rust.yml/badge.svg)
-
 [![codecov](https://codecov.io/gh/beac0n/ruroco/graph/badge.svg?token=H7ABBHYYWT)](https://codecov.io/gh/beac0n/ruroco)
 
 
