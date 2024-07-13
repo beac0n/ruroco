@@ -1,3 +1,5 @@
+![build](https://github.com/beac0n/ruroco/actions/workflows/rust.yml/badge.svg)
+
 # ruroco - run remote command
 
 Ruroco is a tool to run pre-defined commands on a remote server, using the UDP protocol to hide the existence of the 
