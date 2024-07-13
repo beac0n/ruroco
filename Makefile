@@ -46,6 +46,7 @@ install_server: release
 	echo "# start service with sudo systemctl start ruroco.service on server"
 
 test_end_to_end: clean_test_end_to_end release
+	sudo useradd --system ruroco --shell /bin/false || true
 	./target/release/client gen -k 4096
 
 	mkdir /tmp/ruroco_test

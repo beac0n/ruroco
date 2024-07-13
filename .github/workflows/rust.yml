@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: make release
-    - name: Run tests
-      run: make test
+      - uses: actions/checkout@v4
+      - name: Build
+        run: make release
+      - name: Run tests
+        run: make test; make test_end_to_end
