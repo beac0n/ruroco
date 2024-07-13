@@ -1,5 +1,6 @@
 ![build](https://github.com/beac0n/ruroco/actions/workflows/rust.yml/badge.svg)
-![Known Vulnerabilities](https://snyk.io/test/github/beac0n/ruroco/badge.svg)
+[![Known Vulnerabilities](https://snyk.io/test/github/{username}/{repo}/badge.svg)](https://snyk.io/test/github/{username}/{repo})
+
 
 # ruroco - run remote command
 
