@@ -50,24 +50,24 @@ fn default_private_pem_path() -> std::ffi::OsString {
         Err(_) => PathBuf::from(private_pem_name),
     };
 
-    return private_pem_path.into_os_string();
+    private_pem_path.into_os_string()
 }
 
 fn validate_key_size(key_str: &str) -> Result<u32, String> {
     let min_key_size = 4096;
-    return match key_str.parse() {
+    match key_str.parse() {
         Ok(size) if size >= min_key_size => Ok(size),
         Ok(size) => {
-            Err(format!("Key size must be at least {min_key_size}, but {size} was provided").into())
+            Err(format!("Key size must be at least {min_key_size}, but {size} was provided"))
         }
-        Err(e) => Err(format!("Could not parse {key_str} to u32: {e}").into()),
-    };
+        Err(e) => Err(format!("Could not parse {key_str} to u32: {e}")),
+    }
 }
 
 fn main() -> Result<(), String> {
     init_logger();
 
-    return match Cli::parse().command {
+    match Cli::parse().command {
         Commands::Gen {
             private_pem_path,
             public_pem_path,
@@ -79,5 +79,5 @@ fn main() -> Result<(), String> {
             command,
             deadline,
         } => send(private_pem_path, address, command, deadline, time()?),
-    };
+    }
 }

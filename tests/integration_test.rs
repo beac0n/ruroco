@@ -122,7 +122,7 @@ mod tests {
 
     fn gen_file_name(suffix: &str) -> String {
         let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-        return format!("{rand_str}{suffix}");
+        format!("{rand_str}{suffix}")
     }
 
     fn get_blocked_list() -> Vec<u128> {

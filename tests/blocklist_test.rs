@@ -23,7 +23,7 @@ mod tests {
 
         blocklist.add(another_number);
         assert_eq!(blocklist.get().len(), 2);
-        assert_eq!(blocklist.get().get(0).unwrap().clone(), number);
+        assert_eq!(blocklist.get().first().unwrap().clone(), number);
         assert_eq!(blocklist.get().get(1).unwrap().clone(), another_number);
     }
 
@@ -41,7 +41,7 @@ mod tests {
 
         blocklist.clean(63);
         assert_eq!(blocklist.get().len(), 2);
-        assert_eq!(blocklist.get().get(0).unwrap().clone(), 84);
+        assert_eq!(blocklist.get().first().unwrap().clone(), 84);
         assert_eq!(blocklist.get().get(1).unwrap().clone(), 105);
     }
 

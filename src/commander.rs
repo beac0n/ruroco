@@ -1,4 +1,3 @@
-use std::{fs, str};
 use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
@@ -6,6 +5,7 @@ use std::os::unix::fs::{chown, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::process::Command;
+use std::{fs, str};
 
 use log::{error, info, warn};
 use users::{get_group_by_name, get_user_by_name};
@@ -52,11 +52,9 @@ impl Commander {
     fn create_listener(&self) -> Result<UnixListener, String> {
         let socket_dir = match self.socket_path.parent() {
             Some(socket_dir) => socket_dir,
-            None => {
-                return Err(format!("Could not get parent dir for {:?}", &self.socket_path).into())
-            }
+            None => return Err(format!("Could not get parent dir for {:?}", &self.socket_path)),
         };
-        fs::create_dir_all(&socket_dir)
+        fs::create_dir_all(socket_dir)
             .map_err(|e| format!("Could not create parents for {socket_dir:?}: {e}"))?;
 
         let _ = fs::remove_file(&self.socket_path);
@@ -80,14 +78,14 @@ impl Commander {
 
         let user_id = match get_user_by_name(user_name) {
             Some(user) => Some(user.uid()),
-            None if user_name == "" => None,
-            None => return Err(format!("Could not find user {user_name}").into()),
+            None if user_name.is_empty() => None,
+            None => return Err(format!("Could not find user {user_name}")),
         };
 
         let group_id = match get_group_by_name(group_name) {
             Some(group) => Some(group.gid()),
-            None if group_name == "" => None,
-            None => return Err(format!("Could not find group {group_name}").into()),
+            None if group_name.is_empty() => None,
+            None => return Err(format!("Could not find group {group_name}")),
         };
 
         chown(&self.socket_path, user_id, group_id).map_err(|e| {
@@ -104,7 +102,7 @@ impl Commander {
         stream
             .read_to_string(&mut buffer)
             .map_err(|e| format!("Could not read command from Unix Stream to string: {e}"))?;
-        return Ok(buffer);
+        Ok(buffer)
     }
 
     fn run_cycle(&self, msg: String) {

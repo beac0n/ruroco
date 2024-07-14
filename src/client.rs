@@ -42,7 +42,7 @@ pub fn send(
 
 fn encrypt_data(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec<u8>, String> {
     let mut encrypted_data = vec![0; rsa.size() as usize];
-    rsa.private_encrypt(&data_to_encrypt, &mut encrypted_data, RSA_PADDING).map_err(|e| {
+    rsa.private_encrypt(data_to_encrypt, &mut encrypted_data, RSA_PADDING).map_err(|e| {
         format!("Could not encrypt ({} bytes) {data_to_encrypt:?}: {e}", data_to_encrypt.len())
     })?;
     Ok(encrypted_data)
@@ -50,8 +50,8 @@ fn encrypt_data(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec<u8>
 
 fn get_rsa_private(pem_path: &PathBuf) -> Result<Rsa<Private>, String> {
     // encrypt data we want to send - load RSA private key from PEM file for that
-    let pem_data = fs::read(&pem_path).map_err(|e| pem_load_err(e, &pem_path))?;
-    Ok(Rsa::private_key_from_pem(&pem_data).map_err(|e| pem_load_err(e, &pem_path))?)
+    let pem_data = fs::read(pem_path).map_err(|e| pem_load_err(e, pem_path))?;
+    Rsa::private_key_from_pem(&pem_data).map_err(|e| pem_load_err(e, pem_path))
 }
 
 fn get_data_to_encrypt(
@@ -73,7 +73,7 @@ fn get_data_to_encrypt(
     let rsa_size = rsa.size() as usize;
     if data_to_encrypt.len() + PADDING_SIZE > rsa_size {
         let max_size = rsa_size - PADDING_SIZE - timestamp_len;
-        return Err(format!("Command too long, must be at most {max_size} bytes").into());
+        return Err(format!("Command too long, must be at most {max_size} bytes"));
     }
 
     Ok(data_to_encrypt)
@@ -100,24 +100,22 @@ fn get_pem_data(rsa: &Rsa<Private>, name: &str) -> Result<Vec<u8>, String> {
     let data = match name {
         "public" => rsa.public_key_to_pem(),
         "private" => rsa.private_key_to_pem(),
-        _ => return Err(format!("Invalid pem data name {name}").into()),
+        _ => return Err(format!("Invalid pem data name {name}")),
     };
 
-    Ok(data.map_err(|e| format!("Could not create {name} key pem: {e}"))?)
+    data.map_err(|e| format!("Could not create {name} key pem: {e}"))
 }
 
 fn write_pem_data(path: &PathBuf, data: Vec<u8>, name: &str) -> Result<(), String> {
-    fs::write(&path, data).map_err(|e| format!("Could not write {name} key to {path:?}: {e}"))?;
+    fs::write(path, data).map_err(|e| format!("Could not write {name} key to {path:?}: {e}"))?;
     Ok(())
 }
 
 fn validate_pem_path(path: &PathBuf) -> Result<(), String> {
     match path.to_str() {
         Some(s) if s.ends_with(".pem") && !path.exists() => Ok(()),
-        Some(s) if path.exists() => {
-            Err(format!("Could not create PEM file: {s} already exists").into())
-        }
-        Some(s) => Err(format!("Could not read PEM file: {s} does not end with .pem").into()),
-        None => Err(format!("Could not convert PEM path {path:?} to string").into()),
+        Some(s) if path.exists() => Err(format!("Could not create PEM file: {s} already exists")),
+        Some(s) => Err(format!("Could not read PEM file: {s} does not end with .pem")),
+        None => Err(format!("Could not convert PEM path {path:?} to string")),
     }
 }

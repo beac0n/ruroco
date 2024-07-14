@@ -5,7 +5,6 @@ use std::os::fd::{FromRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
-use clap::builder::Str;
 use log::{error, info};
 use openssl::error::ErrorStack;
 use openssl::pkey::Public;
@@ -46,8 +45,7 @@ impl Server {
             Ok(listen_pid) if listen_pid == pid => {
                 info!("env var LISTEN_PID was set to our PID, creating socket from raw fd ...");
                 let fd: RawFd = 3;
-                let socket = unsafe { UdpSocket::from_raw_fd(fd) };
-                socket
+                unsafe { UdpSocket::from_raw_fd(fd) }
             }
             Ok(_) => {
                 info!("env var LISTEN_PID was set, but not to our PID, binding to {address}");
@@ -77,15 +75,12 @@ impl Server {
     }
 
     fn get_pem_path(config_dir: &PathBuf) -> Result<PathBuf, String> {
-        let pem_files = Self::get_pem_files(&config_dir);
+        let pem_files = Self::get_pem_files(config_dir);
 
         return match pem_files.len() {
-            0 => Err(format!("Could not find any .pem files in {config_dir:?}").into()),
+            0 => Err(format!("Could not find any .pem files in {config_dir:?}")),
             1 => Ok(pem_files.first().unwrap().clone()),
-            other => Err(format!(
-                "Only one public PEM is supported at this point in time, found {other}"
-            )
-            .into()),
+            other => Err(format!("Only one public PEM is supported, found {other}")),
         };
     }
 
@@ -147,7 +142,7 @@ impl Server {
 
     fn validate(&mut self, count: usize, ip_str: String) {
         self.decrypted_data.truncate(count);
-        return match self.decode() {
+        match self.decode() {
             Ok(data) if data.now_ns > data.deadline_ns => {
                 error!("Invalid data - now {} is after deadline {}", data.now_ns, data.deadline_ns)
             }
@@ -163,7 +158,7 @@ impl Server {
                 self.update_block_list(&data);
             }
             Err(e) => error!("Could not decode data: {e}"),
-        };
+        }
     }
 
     fn update_block_list(&mut self, data: &DecodedData) {
