@@ -1,3 +1,4 @@
+use std::{fs, str};
 use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
@@ -5,7 +6,6 @@ use std::os::unix::fs::{chown, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::process::Command;
-use std::{fs, str};
 
 use log::{error, info, warn};
 use users::{get_group_by_name, get_user_by_name};
@@ -128,7 +128,7 @@ impl Commander {
         };
     }
 
-    fn vec_to_str(stdout: &Vec<u8>) -> &str {
+    fn vec_to_str(stdout: &[u8]) -> &str {
         return str::from_utf8(stdout).unwrap_or("");
     }
 }

@@ -1,10 +1,11 @@
+use std::{env, fs, str};
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
 use std::os::fd::{FromRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::{env, fs, str};
 
+use clap::builder::Str;
 use log::{error, info};
 use openssl::error::ErrorStack;
 use openssl::pkey::Public;
@@ -12,7 +13,7 @@ use openssl::rsa::Rsa;
 use openssl::version::version;
 
 use crate::blocklist::Blocklist;
-use crate::common::{get_socket_path, time, RSA_PADDING};
+use crate::common::{get_socket_path, RSA_PADDING, time};
 
 pub struct Server {
     rsa: Rsa<Public>,
@@ -124,7 +125,7 @@ impl Server {
                 Ok((count, src)) => {
                     info!("Successfully received {count} bytes from {src}");
                     match self.decrypt() {
-                        Ok(count) => self.validate(count),
+                        Ok(count) => self.validate(count, src.ip().to_string()),
                         Err(e) => error!("Could not decrypt {:X?}: {e}", self.encrypted_data),
                     }
                 }
@@ -144,7 +145,7 @@ impl Server {
         self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, RSA_PADDING)
     }
 
-    fn validate(&mut self, count: usize) {
+    fn validate(&mut self, count: usize, ip_str: String) {
         self.decrypted_data.truncate(count);
         return match self.decode() {
             Ok(data) if data.now_ns > data.deadline_ns => {
@@ -158,7 +159,7 @@ impl Server {
                     "Successfully validated data - now {} is before deadline {}",
                     data.now_ns, data.deadline_ns
                 );
-                self.send_command(&data.command_name);
+                self.send_command(&data.command_name, ip_str);
                 self.update_block_list(&data);
             }
             Err(e) => error!("Could not decode data: {e}"),
@@ -171,8 +172,8 @@ impl Server {
         self.blocklist.save();
     }
 
-    fn send_command(&self, command_name: &str) {
-        match self.write_to_socket(command_name) {
+    fn send_command(&self, command_name: &str, ip_str: String) {
+        match self.write_to_socket(command_name, ip_str) {
             Ok(_) => info!("Successfully sent data to commander"),
             Err(e) => {
                 error!("Could not send data to commander via socket {:?}: {e}", &self.socket_path)
@@ -180,9 +181,10 @@ impl Server {
         }
     }
 
-    fn write_to_socket(&self, command_name: &str) -> Result<(), String> {
+    fn write_to_socket(&self, command_name: &str, ip_str: String) -> Result<(), String> {
         let mut stream = UnixStream::connect(&self.socket_path)
             .map_err(|e| format!("Could not connect to socket {:?}: {e}", self.socket_path))?;
+        // TODO: send ip_str as well - use serde and toml to serialize the data
         stream.write_all(command_name.as_bytes()).map_err(|e| {
             format!("Could not write {command_name} to socket {:?}: {e}", self.socket_path)
         })?;
