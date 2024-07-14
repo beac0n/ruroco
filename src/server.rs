@@ -13,7 +13,9 @@ use openssl::version::version;
 
 use crate::blocklist::Blocklist;
 use crate::common::{get_socket_path, time, RSA_PADDING};
+use crate::config_server::ConfigServer;
 
+#[derive(Debug)]
 pub struct Server {
     rsa: Rsa<Public>,
     socket: UdpSocket,
@@ -24,6 +26,16 @@ pub struct Server {
     blocklist: Blocklist,
 }
 
+impl PartialEq for Server {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address
+            && self.encrypted_data == other.encrypted_data
+            && self.decrypted_data == other.decrypted_data
+            && self.socket_path == other.socket_path
+            && self.blocklist == other.blocklist
+    }
+}
+
 struct DecodedData {
     deadline_ns: u128,
     now_ns: u128,
@@ -31,7 +43,20 @@ struct DecodedData {
 }
 
 impl Server {
-    pub fn create(config_dir: PathBuf, address: String) -> Result<Server, String> {
+    pub fn create_from_path(path: PathBuf) -> Result<Server, String> {
+        match fs::read_to_string(&path) {
+            Err(e) => Err(format!("Could not read {path:?}: {e}")),
+            Ok(config) => match toml::from_str::<ConfigServer>(&config) {
+                Err(e) => Err(format!("Could not parse TOML from {path:?}: {e}")),
+                Ok(config) => Server::create(config),
+            },
+        }
+    }
+
+    pub fn create(config: ConfigServer) -> Result<Server, String> {
+        let address = config.address;
+        let config_dir = config.config_dir;
+
         let pem_path = Self::get_pem_path(&config_dir)?;
         info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
 

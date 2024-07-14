@@ -8,7 +8,9 @@ pub mod client;
 pub mod commander;
 /// common functionality used by client, server and commander
 pub mod common;
-/// data structures for loading the configuration file
-pub mod config;
+/// data structures for using CLI arguments for the client binary
+pub mod config_client;
+/// data structures for loading configuration files and using CLI arguments for server services
+pub mod config_server;
 /// responsible for receiving data from the client and sending that data to the commander
 pub mod server;

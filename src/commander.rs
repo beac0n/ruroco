@@ -11,7 +11,9 @@ use log::{error, info, warn};
 use users::{get_group_by_name, get_user_by_name};
 
 use crate::common::get_socket_path;
+use crate::config_server::ConfigServer;
 
+#[derive(Debug, PartialEq)]
 pub struct Commander {
     config: HashMap<String, String>,
     socket_group: String,
@@ -20,17 +22,22 @@ pub struct Commander {
 }
 
 impl Commander {
-    pub fn create(
-        config: HashMap<String, String>,
-        socket_user: String,
-        socket_group: String,
-        config_dir: PathBuf,
-    ) -> Commander {
+    pub fn create_from_path(path: PathBuf) -> Result<Commander, String> {
+        match fs::read_to_string(&path) {
+            Err(e) => Err(format!("Could not read {path:?}: {e}")),
+            Ok(config) => match toml::from_str::<ConfigServer>(&config) {
+                Err(e) => Err(format!("Could not create TOML from {path:?}: {e}")),
+                Ok(config) => Ok(Commander::create(config)),
+            },
+        }
+    }
+
+    pub fn create(config: ConfigServer) -> Commander {
         Commander {
-            config,
-            socket_user,
-            socket_group,
-            socket_path: get_socket_path(&config_dir),
+            config: config.commands,
+            socket_user: config.socket_user,
+            socket_group: config.socket_group,
+            socket_path: get_socket_path(&config.config_dir),
         }
     }
 

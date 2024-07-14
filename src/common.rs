@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use openssl::rsa::Padding;
@@ -17,16 +17,10 @@ pub fn time() -> Result<u128, String> {
     Ok(duration.as_nanos())
 }
 
-pub fn get_socket_path(config_dir: &PathBuf) -> PathBuf {
-    get_file_path(config_dir, "ruroco.socket")
+pub fn get_socket_path(config_dir: &Path) -> PathBuf {
+    config_dir.join("ruroco.socket")
 }
 
-pub fn get_blocklist_path(config_dir: &PathBuf) -> PathBuf {
-    get_file_path(config_dir, "blocklist.toml")
-}
-
-fn get_file_path(config_dir: &PathBuf, name: &str) -> PathBuf {
-    let mut config_dir_clone = config_dir.clone();
-    config_dir_clone.push(name);
-    config_dir_clone
+pub fn get_blocklist_path(config_dir: &Path) -> PathBuf {
+    config_dir.join("blocklist.toml")
 }

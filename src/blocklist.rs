@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::get_blocklist_path;
 
 /// contains a list of blocked deadlines and a path to where the blocklist is persisted
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct Blocklist {
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
     list: Vec<u128>,

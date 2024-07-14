@@ -6,9 +6,12 @@ mod tests {
     use ruroco::common::get_blocklist_path;
 
     fn create_blocklist() -> Blocklist {
-        let config_dir = &env::current_dir().unwrap();
-        let _ = fs::remove_file(get_blocklist_path(config_dir));
-        Blocklist::create(config_dir)
+        remove_blocklist();
+        Blocklist::create(&env::current_dir().unwrap())
+    }
+
+    fn remove_blocklist() {
+        let _ = fs::remove_file(get_blocklist_path(&env::current_dir().unwrap()));
     }
 
     #[test]
@@ -25,6 +28,8 @@ mod tests {
         assert_eq!(blocklist.get().len(), 2);
         assert_eq!(blocklist.get().first().unwrap().clone(), number);
         assert_eq!(blocklist.get().get(1).unwrap().clone(), another_number);
+
+        remove_blocklist();
     }
 
     #[test]
@@ -43,6 +48,8 @@ mod tests {
         assert_eq!(blocklist.get().len(), 2);
         assert_eq!(blocklist.get().first().unwrap().clone(), 84);
         assert_eq!(blocklist.get().get(1).unwrap().clone(), 105);
+
+        remove_blocklist();
     }
 
     #[test]
@@ -56,6 +63,8 @@ mod tests {
         let other_blocklist = Blocklist::create(&env::current_dir().unwrap());
         assert_eq!(other_blocklist.get().len(), 1);
         assert_eq!(other_blocklist.get().first().unwrap().clone(), 42);
+
+        remove_blocklist();
     }
 
     #[test]
@@ -66,5 +75,7 @@ mod tests {
 
         assert!(blocklist.is_blocked(42));
         assert!(!blocklist.is_blocked(1337));
+
+        remove_blocklist();
     }
 }

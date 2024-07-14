@@ -14,7 +14,7 @@ release:
 	upx --best --lzma target/release/commander
 
 test:
-	cargo test -- --test-threads=1
+	cargo test
 
 format:
 	cargo fmt && cargo clippy --fix
