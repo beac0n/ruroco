@@ -1,3 +1,5 @@
+//! This module is responsible for sending data to the server and for generating PEM files
+
 use std::fmt::{Debug, Display};
 use std::fs;
 use std::net::UdpSocket;
@@ -10,14 +12,13 @@ use openssl::version::version;
 
 use crate::common::{PADDING_SIZE, RSA_PADDING};
 
-fn pem_load_err<I: Display, E: Debug>(err: I, val: E) -> String {
-    format!("Could not load {val:?}: {err}")
-}
-
-fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
-    format!("Could not connect/send data to {val:?}: {err}")
-}
-
+/// Send data to the server to execute a predefined command
+///
+/// * `pem_path` - Path to the private PEM to encrypt the data with
+/// * `address` - IP address and port to send the data to
+/// * `command` - Which command the commander should execute
+/// * `deadline` - After how many seconds from now the commander has to start executing the command
+/// * `now` - current timestamp in ns
 pub fn send(
     pem_path: PathBuf,
     address: String,
@@ -38,6 +39,36 @@ pub fn send(
 
     info!("Sent command {command} to udp://{address}");
     Ok(())
+}
+
+/// Generate a public and private PEM file with the provided key_size
+///
+/// * `private_path` - Path to the private PEM file which needs to be created
+/// * `public_path` - Path to the public PEM file which needs to be created
+/// * `key_size` - key size
+pub fn gen(private_path: PathBuf, public_path: PathBuf, key_size: u32) -> Result<(), String> {
+    validate_pem_path(&public_path)?;
+    validate_pem_path(&private_path)?;
+
+    info!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while...");
+    let rsa = Rsa::generate(key_size)
+        .map_err(|e| format!("Could not generate rsa for key size {key_size}: {e}"))?;
+
+    let private_key_pem = get_pem_data(&rsa, "private")?;
+    let public_key_pem = get_pem_data(&rsa, "public")?;
+
+    write_pem_data(&private_path, private_key_pem, "private")?;
+    write_pem_data(&public_path, public_key_pem, "public")?;
+
+    Ok(())
+}
+
+fn pem_load_err<I: Display, E: Debug>(err: I, val: E) -> String {
+    format!("Could not load {val:?}: {err}")
+}
+
+fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
+    format!("Could not connect/send data to {val:?}: {err}")
 }
 
 fn encrypt_data(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec<u8>, String> {
@@ -77,23 +108,6 @@ fn get_data_to_encrypt(
     }
 
     Ok(data_to_encrypt)
-}
-
-pub fn gen(private_path: PathBuf, public_path: PathBuf, key_size: u32) -> Result<(), String> {
-    validate_pem_path(&public_path)?;
-    validate_pem_path(&private_path)?;
-
-    info!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while...");
-    let rsa = Rsa::generate(key_size)
-        .map_err(|e| format!("Could not generate rsa for key size {key_size}: {e}"))?;
-
-    let private_key_pem = get_pem_data(&rsa, "private")?;
-    let public_key_pem = get_pem_data(&rsa, "public")?;
-
-    write_pem_data(&private_path, private_key_pem, "private")?;
-    write_pem_data(&public_path, public_key_pem, "public")?;
-
-    Ok(())
 }
 
 fn get_pem_data(rsa: &Rsa<Private>, name: &str) -> Result<Vec<u8>, String> {
