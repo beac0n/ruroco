@@ -1,6 +1,7 @@
 hooks:
-	echo "cargo fmt && cargo clippy --fix" > .git/hooks/pre-push.sh
-	chmod +x .git/hooks/pre-push.sh
+	echo "#!/usr/bin/env bash" > .git/hooks/pre-push
+	echo "cargo fmt && cargo clippy --fix" >> .git/hooks/pre-push
+	chmod +x .git/hooks/pre-push
 
 build:
 	cargo build --color=always --package ruroco
