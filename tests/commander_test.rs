@@ -35,7 +35,6 @@ mod tests {
                 socket_user: String::from("ruroco"),
                 socket_group: String::from("ruroco"),
                 commands,
-                ..Default::default()
             }))
         );
     }
