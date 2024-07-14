@@ -9,7 +9,10 @@ release:
 	upx --best --lzma target/release/commander
 
 test:
-	cargo test --verbose -- --test-threads=1
+	cargo test -- --test-threads=1
+
+format:
+	cargo fmt && cargo clippy --fix
 
 install_client: release
 	sudo cp ./target/release/client /usr/local/bin/ruroco-client
@@ -19,7 +22,7 @@ install_server: release
 	sudo cp ./target/release/commander /usr/local/bin/ruroco-commander
 	sudo cp ./target/release/client /usr/local/bin/ruroco-client
 
-	sudo useradd --system ruroco --shell /bin/false
+	sudo useradd --system ruroco --shell /bin/false || true
 	sudo cp ./systemd/* /etc/systemd/system
 	sudo cp ./config/config.toml /etc/ruroco/config.toml
 
@@ -38,7 +41,7 @@ install_server: release
 	sudo systemctl start ruroco.socket
 	sudo systemctl start ruroco.service
 
-	echo "### installation complete"
+	echo "##### installation complete #####"
 	echo "# gen pub and priv pem files with 'ruroco-client gen' on client"
 	echo "# move pub pem to /etc/ruroco/ruroco_public.pem on server"
 	echo "# save priv pem to ~/.config/ruroco/ruroco_private.pem on client"
