@@ -1,9 +1,9 @@
-use std::{env, fs, str};
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
 use std::os::fd::{FromRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::{env, fs, str};
 
 use log::{error, info};
 use openssl::error::ErrorStack;
@@ -12,7 +12,7 @@ use openssl::rsa::Rsa;
 use openssl::version::version;
 
 use crate::blocklist::Blocklist;
-use crate::common::{get_socket_path, RSA_PADDING, time};
+use crate::common::{get_socket_path, time, RSA_PADDING};
 
 pub struct Server {
     rsa: Rsa<Public>,
