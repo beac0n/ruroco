@@ -1,4 +1,3 @@
-use std::{fs, str};
 use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
@@ -6,6 +5,7 @@ use std::os::unix::fs::{chown, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::process::Command;
+use std::{fs, str};
 
 use log::{error, info};
 use users::{get_group_by_name, get_user_by_name};

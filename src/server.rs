@@ -1,10 +1,10 @@
-use std::{env, fs};
 use std::fs::ReadDir;
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
 use std::os::fd::{FromRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::{env, fs};
 
 use log::{error, info};
 use openssl::error::ErrorStack;
@@ -14,7 +14,7 @@ use openssl::version::version;
 
 use crate::blocklist::Blocklist;
 use crate::commander_data::CommanderData;
-use crate::common::{get_socket_path, RSA_PADDING, time};
+use crate::common::{get_socket_path, time, RSA_PADDING};
 use crate::config_server::ConfigServer;
 
 #[derive(Debug)]
