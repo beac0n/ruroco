@@ -1,10 +1,10 @@
-use std::fs::{DirEntry, ReadDir};
+use std::{env, fs};
+use std::fs::ReadDir;
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
 use std::os::fd::{FromRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::{env, fs, str};
 
 use log::{error, info};
 use openssl::error::ErrorStack;
@@ -13,7 +13,8 @@ use openssl::rsa::Rsa;
 use openssl::version::version;
 
 use crate::blocklist::Blocklist;
-use crate::common::{get_socket_path, time, RSA_PADDING};
+use crate::commander_data::CommanderData;
+use crate::common::{get_socket_path, RSA_PADDING, time};
 use crate::config_server::ConfigServer;
 
 #[derive(Debug)]
@@ -174,7 +175,11 @@ impl Server {
                     "Successfully validated data - now {} is before deadline {}",
                     data.now_ns, data.deadline_ns
                 );
-                self.send_command(&data.command_name, ip_str);
+
+                self.send_command(CommanderData {
+                    command_name: String::from(&data.command_name),
+                    ip: ip_str,
+                });
                 self.update_block_list(&data);
             }
             Err(e) => error!("Could not decode data: {e}"),
@@ -187,8 +192,8 @@ impl Server {
         self.blocklist.save();
     }
 
-    fn send_command(&self, command_name: &str, ip_str: String) {
-        match self.write_to_socket(command_name, ip_str) {
+    fn send_command(&self, data: CommanderData) {
+        match self.write_to_socket(data) {
             Ok(_) => info!("Successfully sent data to commander"),
             Err(e) => {
                 error!("Could not send data to commander via socket {:?}: {e}", &self.socket_path)
@@ -196,13 +201,18 @@ impl Server {
         }
     }
 
-    fn write_to_socket(&self, command_name: &str, ip_str: String) -> Result<(), String> {
+    fn write_to_socket(&self, data: CommanderData) -> Result<(), String> {
         let mut stream = UnixStream::connect(&self.socket_path)
             .map_err(|e| format!("Could not connect to socket {:?}: {e}", self.socket_path))?;
-        // TODO: send ip_str as well - use serde and toml to serialize the data
-        stream.write_all(command_name.as_bytes()).map_err(|e| {
-            format!("Could not write {command_name} to socket {:?}: {e}", self.socket_path)
+
+        let data_to_send = toml::to_string(&data).map_err(|e| {
+            format!("Could not serialize commander data to socket {:?}: {e}", &data)
         })?;
+
+        stream.write_all(data_to_send.as_bytes()).map_err(|e| {
+            format!("Could not write {data_to_send} to socket {:?}: {e}", self.socket_path)
+        })?;
+
         stream
             .flush()
             .map_err(|e| format!("Could not flush stream for {:?}: {e}", self.socket_path))?;

@@ -1,3 +1,4 @@
+use std::{fs, str};
 use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
@@ -5,11 +6,11 @@ use std::os::unix::fs::{chown, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::process::Command;
-use std::{fs, str};
 
-use log::{error, info, warn};
+use log::{error, info};
 use users::{get_group_by_name, get_user_by_name};
 
+use crate::commander_data::CommanderData;
 use crate::common::get_socket_path;
 use crate::config_server::ConfigServer;
 
@@ -44,10 +45,11 @@ impl Commander {
     pub fn run(&self) -> Result<(), String> {
         for stream in self.create_listener()?.incoming() {
             match stream {
-                Ok(mut stream) => match Self::read_string(&mut stream) {
-                    Ok(msg) => self.run_cycle(msg),
-                    Err(e) => error!("{e}"),
-                },
+                Ok(mut stream) => {
+                    if let Err(e) = self.run_cycle(&mut stream) {
+                        error!("{e}")
+                    }
+                }
                 Err(e) => error!("Connection for {:?} failed: {e}", &self.socket_path),
             }
         }
@@ -104,7 +106,7 @@ impl Commander {
         Ok(())
     }
 
-    fn read_string(stream: &mut UnixStream) -> Result<String, String> {
+    fn read_string(&self, stream: &mut UnixStream) -> Result<String, String> {
         let mut buffer = String::new();
         stream
             .read_to_string(&mut buffer)
@@ -112,16 +114,25 @@ impl Commander {
         Ok(buffer)
     }
 
-    fn run_cycle(&self, msg: String) {
-        match self.config.get(&msg) {
-            Some(command) => self.run_command(command),
-            None => warn!("Unknown command {msg}"),
-        }
+    fn run_cycle(&self, stream: &mut UnixStream) -> Result<(), String> {
+        let msg = self.read_string(stream)?;
+
+        let commander_data: CommanderData = toml::from_str(&msg)
+            .map_err(|e| format!("Could not deserialize CommanderData: {e}"))?;
+
+        let command_name = &commander_data.command_name;
+        let command = self
+            .config
+            .get(command_name)
+            .ok_or(format!("Unknown command name: {}", command_name))?;
+
+        self.run_command(command, commander_data.ip);
+        Ok(())
     }
 
-    fn run_command(&self, command: &str) {
+    fn run_command(&self, command: &str, ip_str: String) {
         info!("Running command {command}");
-        match Command::new("sh").arg("-c").arg(command).output() {
+        match Command::new("sh").arg("-c").arg(command).env("RUROCO_IP", ip_str).output() {
             Ok(result) => {
                 info!(
                     "Successfully executed {command}\nstdout: {}\nstderr: {}",
