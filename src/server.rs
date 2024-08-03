@@ -1,3 +1,4 @@
+use std::fs::{DirEntry, ReadDir};
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
 use std::os::fd::{FromRawFd, RawFd};
@@ -110,27 +111,21 @@ impl Server {
     }
 
     fn get_pem_files(config_dir: &PathBuf) -> Vec<PathBuf> {
-        let mut pem_paths = vec![];
-        match fs::read_dir(config_dir) {
-            Ok(entries) => {
-                for entry in entries {
-                    match entry {
-                        Ok(entry) => {
-                            let path = entry.path();
-                            match path.extension() {
-                                Some(extension) if path.is_file() && extension == "pem" => {
-                                    pem_paths.push(path)
-                                }
-                                _ => {}
-                            }
-                        }
-                        Err(e) => error!("Error reading entry: {e}"),
-                    }
-                }
+        let entries: ReadDir = match fs::read_dir(config_dir) {
+            Ok(entries) => entries,
+            Err(e) => {
+                error!("Error reading directory: {e}");
+                return vec![];
             }
-            Err(e) => error!("Error reading directory: {e}"),
-        }
-        pem_paths
+        };
+
+        return entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.is_file() && path.extension().is_some() && path.extension().unwrap() == "pem"
+            })
+            .collect();
     }
 
     pub fn run(&mut self) -> Result<(), String> {
