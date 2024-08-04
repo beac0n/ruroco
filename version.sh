@@ -24,10 +24,14 @@ case "$1" in
 esac
 
 NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+NEW_VERSION_SEMVER=${NEW_VERSION#v}
+
+sed -i -E "s/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"$NEW_VERSION_SEMVER\"/" Cargo.toml
 printf "%s" "$NEW_VERSION" > VERSION
 printf "Updated version to %s\n" "$NEW_VERSION"
 
-git add VERSION
+git add VERSION Cargo.toml
 git commit -m "Bump version to ${NEW_VERSION}"
 git tag "$NEW_VERSION"
+
 printf "Created new commit and tag to %s - push with git push && git push --tags\n" "$NEW_VERSION"
