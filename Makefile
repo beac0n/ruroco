@@ -1,3 +1,6 @@
+print_commits:
+	git --no-pager log $$(git tag --sort=-version:refname | head -n 2 | tail -1)..$$(git tag --sort=-version:refname | head -n 1) --oneline
+
 hooks:
 	echo "#!/usr/bin/env bash" > .git/hooks/pre-push
 	echo "cargo fmt && cargo clippy --fix" >> .git/hooks/pre-push
