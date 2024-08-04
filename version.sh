@@ -26,3 +26,8 @@ esac
 NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
 printf "%s" "$NEW_VERSION" > VERSION
 printf "Updated version to %s\n" "$NEW_VERSION"
+
+git add VERSION
+git commit -m "Bump version to ${NEW_VERSION}"
+git tag "$NEW_VERSION"
+printf "Created new commit and tag to %s - push with git push --follow-tags\n" "$NEW_VERSION"
