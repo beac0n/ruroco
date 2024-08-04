@@ -30,6 +30,7 @@ sed -i -E "s/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"$NEW_VERSION_SEMV
 printf "%s" "$NEW_VERSION" > VERSION
 git cliff --unreleased --tag "$NEW_VERSION_SEMVER" --prepend CHANGELOG.md
 printf "Updated version to %s\n" "$NEW_VERSION"
+cargo update
 
 git add VERSION Cargo.toml Cargo.lock CHANGELOG.md
 git commit -m "Bump version to ${NEW_VERSION}"
