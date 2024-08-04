@@ -30,4 +30,4 @@ printf "Updated version to %s\n" "$NEW_VERSION"
 git add VERSION
 git commit -m "Bump version to ${NEW_VERSION}"
 git tag "$NEW_VERSION"
-printf "Created new commit and tag to %s - push with git push --follow-tags\n" "$NEW_VERSION"
+printf "Created new commit and tag to %s - push with git push && git push --tags\n" "$NEW_VERSION"
