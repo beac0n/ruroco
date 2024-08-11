@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Cargo.lock to git, since this a binary and not a library
-- Add Cargo.lock to files that are commited with a new version when version.sh is executed
+- Add Cargo.lock to files that are committed with a new version when version.sh is executed
 
 ## [0.2.1] - 2024-08-04
 
