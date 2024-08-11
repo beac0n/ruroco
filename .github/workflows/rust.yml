@@ -42,41 +42,31 @@ jobs:
         uses: crate-ci/typos@master
 
   test:
-    name: Test suite
+    name: Test
     runs-on: ubuntu-22.04
     steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
-      - name: Checkout
-        if: github.event_name != 'pull_request'
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
         with:
-          fetch-depth: 0
-      - name: Checkout
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-      - name: Setup cargo-tarpaulin
-        uses: taiki-e/install-action@cargo-tarpaulin
-      - name: Build Release
-        run: make release
+          toolchain: nightly
+          override: true
       - name: Run tests end to end
         run: make test_end_to_end
       - name: Run tests
-        run: make test
-      - name: Run Coverage
-        run: cargo tarpaulin --out xml --verbose
-      - name: Upload reports to codecov
+        run: cargo test --verbose
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+      - name: rust-grcov
+        uses: actions-rs/grcov@v0.1
+      - name: Codecov
         uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          name: code-coverage-report
-          file: cobertura.xml
-          flags: unit-tests
-          fail_ci_if_error: true
           verbose: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
 
   clippy:
     name: Lints
