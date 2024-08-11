@@ -1,7 +1,7 @@
 //! This module is responsible for persisting, holding and checking the blocklist for blocked items
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use log::error;
 use serde::ser::{SerializeSeq, Serializer};
@@ -43,7 +43,7 @@ where
 impl Blocklist {
     /// create an empty blocklist. Every entry will be saved to config_dir/blocklist.toml.
     /// If the blocklist.toml file already exists, its content will be loaded if possible.
-    pub fn create(config_dir: &Path) -> Blocklist {
+    pub fn create(config_dir: &PathBuf) -> Blocklist {
         let blocklist_path = get_blocklist_path(config_dir);
         let blocklist_str =
             fs::read_to_string(&blocklist_path).unwrap_or_else(|_| String::from(""));

@@ -1,3 +1,8 @@
+use log::{error, info};
+use openssl::error::ErrorStack;
+use openssl::pkey::Public;
+use openssl::rsa::Rsa;
+use openssl::version::version;
 use std::fs::ReadDir;
 use std::io::Write;
 use std::net::{SocketAddr, UdpSocket};
@@ -6,15 +11,9 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::{env, fs};
 
-use log::{error, info};
-use openssl::error::ErrorStack;
-use openssl::pkey::Public;
-use openssl::rsa::Rsa;
-use openssl::version::version;
-
 use crate::blocklist::Blocklist;
 use crate::commander_data::CommanderData;
-use crate::common::{get_socket_path, time, RSA_PADDING};
+use crate::common::{get_socket_path, resolve_path, time, RSA_PADDING};
 use crate::config_server::ConfigServer;
 
 #[derive(Debug)]
@@ -30,7 +29,9 @@ pub struct Server {
 
 impl PartialEq for Server {
     fn eq(&self, other: &Self) -> bool {
-        self.address == other.address
+        let self_address_split = self.address.split(':').next().unwrap_or("");
+        let other_address_split = other.address.split(':').next().unwrap_or("");
+        self_address_split == other_address_split
             && self.encrypted_data == other.encrypted_data
             && self.decrypted_data == other.decrypted_data
             && self.socket_path == other.socket_path
@@ -49,7 +50,7 @@ impl Server {
         match fs::read_to_string(&path) {
             Err(e) => Err(format!("Could not read {path:?}: {e}")),
             Ok(config) => match toml::from_str::<ConfigServer>(&config) {
-                Err(e) => Err(format!("Could not parse TOML from {path:?}: {e}")),
+                Err(e) => Err(format!("Could not create TOML from {path:?}: {e}")),
                 Ok(config) => Server::create(config),
             },
         }
@@ -57,7 +58,7 @@ impl Server {
 
     pub fn create(config: ConfigServer) -> Result<Server, String> {
         let address = config.address;
-        let config_dir = config.config_dir;
+        let config_dir = resolve_path(&config.config_dir);
 
         let pem_path = Self::get_pem_path(&config_dir)?;
         info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
@@ -104,11 +105,11 @@ impl Server {
     fn get_pem_path(config_dir: &PathBuf) -> Result<PathBuf, String> {
         let pem_files = Self::get_pem_files(config_dir);
 
-        return match pem_files.len() {
+        match pem_files.len() {
             0 => Err(format!("Could not find any .pem files in {config_dir:?}")),
             1 => Ok(pem_files.first().unwrap().clone()),
             other => Err(format!("Only one public PEM is supported, found {other}")),
-        };
+        }
     }
 
     fn get_pem_files(config_dir: &PathBuf) -> Vec<PathBuf> {
@@ -120,13 +121,13 @@ impl Server {
             }
         };
 
-        return entries
+        entries
             .flatten()
             .map(|entry| entry.path())
             .filter(|path| {
                 path.is_file() && path.extension().is_some() && path.extension().unwrap() == "pem"
             })
-            .collect();
+            .collect()
     }
 
     pub fn run(&mut self) -> Result<(), String> {

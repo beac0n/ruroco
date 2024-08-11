@@ -17,6 +17,38 @@ mod tests {
     }
 
     #[test]
+    fn test_create_from_invalid_path() {
+        let path = env::current_dir()
+            .unwrap_or(PathBuf::from("/tmp"))
+            .join("tests")
+            .join("config_invalid.toml");
+
+        let result = Commander::create_from_path(path);
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            r#"Could not create TOML from "/home/beac0n/dev/beac0n/ruroco/tests/config_invalid.toml": TOML parse error at line 1, column 1
+  |
+1 | foo = "bar"
+  | ^^^^^^^^^^^
+missing field `commands`
+"#
+        );
+    }
+
+    #[test]
+    fn test_create_from_invalid_toml_path() {
+        let result = Commander::create_from_path(PathBuf::from("/tmp/path/does/not/exist"));
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            r#"Could not read "/tmp/path/does/not/exist": No such file or directory (os error 2)"#
+        );
+    }
+
+    #[test]
     fn test_create_from_path() {
         let mut commands = HashMap::new();
         commands.insert(
@@ -31,7 +63,7 @@ mod tests {
             Commander::create_from_path(path),
             Ok(Commander::create(ConfigServer {
                 address: String::from("127.0.0.1:8080"),
-                config_dir: PathBuf::from("/etc/ruroco/"),
+                config_dir: PathBuf::from("tests/conf_dir"),
                 socket_user: String::from("ruroco"),
                 socket_group: String::from("ruroco"),
                 commands,

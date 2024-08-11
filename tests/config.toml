@@ -1,5 +1,5 @@
 address = "127.0.0.1:8080"
-config_dir = "/etc/ruroco/"
+config_dir = "tests/conf_dir"
 
 [commands]
 default = "touch /tmp/ruroco_test/start.test /tmp/ruroco_test/stop.test"
