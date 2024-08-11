@@ -1,4 +1,4 @@
-name: Test and Release
+name: Continuous Integration
 
 on:
   push:
@@ -12,38 +12,125 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build and Test
-    runs-on: ubuntu-latest
+
+  check:
+    name: Check
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check
+        uses: actions-rs/cargo@v1
         with:
-          toolchain: nightly
-          override: true
-      - name: Build
+          command: check
+          args: --locked --verbose
+      - name: Check without default features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --no-default-features --verbose
+
+  typos:
+    name: Typos
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check typos
+        uses: crate-ci/typos@master
+
+  test:
+    name: Test suite
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Checkout
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Setup cargo-tarpaulin
+        uses: taiki-e/install-action@cargo-tarpaulin
+      - name: Build Release
         run: make release
       - name: Run tests end to end
         run: make test_end_to_end
       - name: Run tests
-        run: cargo test --verbose
-        env:
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-      - name: rust-grcov
-        uses: actions-rs/grcov@v0.1
-      - name: Codecov
+        run: cargo test --no-default-features
+      - name: Run tests
+        run: cargo tarpaulin --out xml --verbose --all-features
+      - name: Upload reports to codecov
         uses: codecov/codecov-action@v4
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          verbose: true
+          name: code-coverage-report
+          file: cobertura.xml
+          flags: unit-tests
           fail_ci_if_error: true
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  clippy:
+    name: Lints
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check the lints
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --tests --verbose -- -D warnings
+
+  rustfmt:
+    name: Formatting
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check the formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check --verbose
+
+  msrv:
+    name: Check Rust version
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install cargo-binstall
+        uses: taiki-e/install-action@cargo-binstall
+      - name: Install cargo-msrv
+        run: cargo binstall -y cargo-msrv
+      - name: Run cargo-msrv
+        shell: bash
+        run: |
+          for package in "git-cliff" "git-cliff-core"; do
+            printf "Checking MSRV for $package..."
+            cargo msrv --output-format json --path "$package" verify | tail -n 1 | jq --exit-status '.success'
+          done
 
   release:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
