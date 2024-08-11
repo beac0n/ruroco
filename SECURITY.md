@@ -2,4 +2,5 @@
 
 ## Reporting a Vulnerability
 
-Please use the [GitHub Issues](https://github.com/beac0n/ruroco/issues/new) feature to report vulnerabilities.
+Please use the [Security Advisories](https://github.com/beac0n/ruroco/security/advisories/new) feature to report
+vulnerabilities.
