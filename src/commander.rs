@@ -106,11 +106,19 @@ impl Commander {
     }
 
     fn get_id_by_name_and_flag(&self, name: &str, flag: &str) -> Option<u32> {
+        if name.is_empty() {
+            return None;
+        }
+
         match Command::new("id").arg(flag).arg(name).output() {
             Ok(output) => match String::from_utf8_lossy(&output.stdout).trim().parse::<u32>() {
                 Ok(uid) => Some(uid),
                 Err(e) => {
-                    error!("Error parsing id from id command output: {e}");
+                    error!(
+                        "Error parsing id from id command output: {} {} {e}",
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    );
                     None
                 }
             },
