@@ -22,22 +22,29 @@ so that you can ssh into your server. Afterward ruruco closes the SSH port again
 ruroco, you have to use a configuration similar to the one shown below:
 
 ```toml
-address = "127.0.0.1:8080"
-config_dir = "/etc/ruroco/"
+address = "0.0.0.0:8080"  # address the ruroco serer listens on, if systemd/ruroco.socket is not used
+config_dir = "/etc/ruroco/"  # path where the configuration files are saved
 
 [commands]
-default = "ufw allow 22/tcp; sleep 5; ufw deny 22/tcp"
+# open ssh, but only for the IP address where the request came from
+open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 80"
+# close ssh, but only for the IP address where the request came from
+close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 80"
 ```
 
-If you have configured ruroco on server like that and execute the client side command
-`ruroco-client send --address host.domain:port --private-pem-path /path/to/ruroco_private.pem --command default --deadline 5`,
+If you have configured ruroco on server like that and execute the following client side command
+
+```shell
+ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command open_ssh --deadline 5
+```
+
 the server will validate that the client is authorized to execute that command by using public-key cryptography (RSA)
-and will then execute the command defined in the config above under "default". The `--deadline` argument means that the
+and will then execute the command defined in the config above under "open_ssh". The `--deadline` argument means that the
 command has to be started on the server within 5 seconds after executing the command.
 
-This gives you the ability to effectively only allow access to the SSH port, if you want to connect to your server.
-Of course, you should also do all the other security hardening tasks you would do if the SSH port would be exposed to
-the internet.
+This gives you the ability to effectively only allow access to the SSH port, for only the IP that the UDP packet was
+sent from, if you want to connect to your server. Of course, you should also do all the other security hardening tasks
+you would do if the SSH port would be exposed to the internet.
 
 You can define any number of commands you wish, by adding more commands to configuration file.
 
