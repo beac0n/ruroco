@@ -8,7 +8,6 @@ use std::process::Command;
 use std::{fs, str};
 
 use log::{error, info};
-use users::{get_group_by_name, get_user_by_name};
 
 use crate::commander_data::CommanderData;
 use crate::common::get_socket_path;
@@ -85,14 +84,14 @@ impl Commander {
         let user_name = self.socket_user.trim();
         let group_name = self.socket_group.trim();
 
-        let user_id = match get_user_by_name(user_name) {
-            Some(user) => Some(user.uid()),
+        let user_id = match self.get_id_by_name_and_flag(user_name, "-u") {
+            Some(id) => Some(id),
             None if user_name.is_empty() => None,
             None => return Err(format!("Could not find user {user_name}")),
         };
 
-        let group_id = match get_group_by_name(group_name) {
-            Some(group) => Some(group.gid()),
+        let group_id = match self.get_id_by_name_and_flag(group_name, "-g") {
+            Some(id) => Some(id),
             None if group_name.is_empty() => None,
             None => return Err(format!("Could not find group {group_name}")),
         };
@@ -104,6 +103,22 @@ impl Commander {
             )
         })?;
         Ok(())
+    }
+
+    fn get_id_by_name_and_flag(&self, name: &str, flag: &str) -> Option<u32> {
+        match Command::new("id").arg(flag).arg(name).output() {
+            Ok(output) => match String::from_utf8_lossy(&output.stdout).trim().parse::<u32>() {
+                Ok(uid) => Some(uid),
+                Err(e) => {
+                    error!("Error parsing id from id command output: {e}");
+                    None
+                }
+            },
+            Err(e) => {
+                error!("Error getting id via id command: {e}");
+                None
+            }
+        }
     }
 
     fn read_string(&self, stream: &mut UnixStream) -> Result<String, String> {
@@ -145,6 +160,6 @@ impl Commander {
     }
 
     fn vec_to_str(stdout: &[u8]) -> &str {
-        return str::from_utf8(stdout).unwrap_or("");
+        str::from_utf8(stdout).unwrap_or("")
     }
 }
