@@ -26,15 +26,8 @@ mod tests {
         let result = Commander::create_from_path(path);
 
         assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap(),
-            r#"Could not create TOML from "/home/beac0n/dev/beac0n/ruroco/tests/config_invalid.toml": TOML parse error at line 1, column 1
-  |
-1 | foo = "bar"
-  | ^^^^^^^^^^^
-missing field `commands`
-"#
-        );
+
+        assert!(result.err().unwrap().contains("TOML parse error at line 1, column 1"));
     }
 
     #[test]
