@@ -24,7 +24,7 @@ mod tests {
     #[test]
     fn test_create_from_path() {
         let tests_dir_path = env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests");
-        let conf_path = tests_dir_path.join("config.toml");
+        let conf_path = tests_dir_path.join("files").join("config.toml");
         let conf_dir_path = tests_dir_path.join("conf_dir");
 
         let res_path = Server::create_from_path(conf_path).unwrap();
@@ -43,6 +43,7 @@ mod tests {
         let path = env::current_dir()
             .unwrap_or(PathBuf::from("/tmp"))
             .join("tests")
+            .join("files")
             .join("config_invalid.toml");
 
         let result = Server::create_from_path(path);

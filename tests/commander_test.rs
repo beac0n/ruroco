@@ -21,6 +21,7 @@ mod tests {
         let path = env::current_dir()
             .unwrap_or(PathBuf::from("/tmp"))
             .join("tests")
+            .join("files")
             .join("config_invalid.toml");
 
         let result = Commander::create_from_path(path);
@@ -49,8 +50,11 @@ mod tests {
             String::from("touch /tmp/ruroco_test/start.test /tmp/ruroco_test/stop.test"),
         );
 
-        let path =
-            env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests").join("config.toml");
+        let path = env::current_dir()
+            .unwrap_or(PathBuf::from("/tmp"))
+            .join("tests")
+            .join("files")
+            .join("config.toml");
 
         assert_eq!(
             Commander::create_from_path(path),

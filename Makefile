@@ -68,7 +68,7 @@ test_end_to_end: clean_test_end_to_end release
 
 	sudo mkdir /etc/ruroco
 	sudo mv ./ruroco_public.pem /etc/ruroco
-	sudo cp ./tests/config_end_to_end.toml /etc/ruroco/config.toml
+	sudo cp ./tests/files/config_end_to_end.toml /etc/ruroco/config.toml
 	sudo chmod 400 /etc/ruroco/ruroco_public.pem
 
 	sudo chown -R ruroco:ruroco /tmp/ruroco_test
