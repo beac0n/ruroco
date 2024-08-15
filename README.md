@@ -49,6 +49,57 @@ you would do if the SSH port would be exposed to the internet.
 
 You can define any number of commands you wish, by adding more commands to configuration file.
 
+## setup
+
+download binaries from the [releases page](https://github.com/beac0n/ruroco/releases) or build them yourself by running
+
+```shell
+make release
+```
+
+you can find the binaries in `target/release/client`, `target/release/server` and `target/release/commander`
+
+### client
+
+See make goal `install_client`.
+
+This builds the project and copies the client binary to `/usr/local/bin/ruroco-client`
+
+### server
+
+See make goal `install_server`, which
+
+- Builds the project
+- Copies the binaries to `/usr/local/bin/`
+- Adds a `ruroco` user if it does not exist yet
+- Copies the systemd service files and config files to the right places
+- Assigns correct file permissions to the systemd and config files
+- Enables and starts the systemd services
+- After running the make goal, you have to
+    - generate a RSA key and copy it to the right place
+    - setup the `config.toml`
+
+#### generate and deploy rsa key
+
+- run `ruroco-client gen` to generate two files: `ruroco_private.pem` and `ruroco_public.pem`
+- move `ruroco_public.pem` to `/etc/ruroco/ruroco_public.pem` on server
+- save `ruroco_private.pem` to `~/.config/ruroco/ruroco_private.pem` on client
+
+#### update config
+
+Add commands to config `/etc/ruroco/config.toml` on server. The new config file **could** look like this:
+
+```toml
+address = "127.0.0.1:8080"  # address the ruroco serer listens on, if systemd/ruroco.socket is not used
+config_dir = "/etc/ruroco/"  # path where the configuration files are saved
+
+[commands]
+# open ssh, but only for the IP address where the request came from
+open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 80"
+# close ssh, but only for the IP address where the request came from
+close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 80"
+```
+
 ## security
 
 A lot of thought has gone into making this tool as secure as possible:
