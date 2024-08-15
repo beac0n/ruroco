@@ -59,3 +59,27 @@ fn validate_key_size(key_str: &str) -> Result<u32, String> {
         Err(e) => Err(format!("Could not parse {key_str} to u32: {e}")),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config_client::{default_private_pem_path, validate_key_size};
+    use std::env;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_validate_key_size() {
+        assert!(validate_key_size("invalid").is_err());
+        assert!(validate_key_size("1024").is_err());
+        assert!(validate_key_size("2048").is_err());
+        assert!(validate_key_size("4096").is_ok());
+        assert!(validate_key_size("8192").is_ok());
+    }
+
+    #[test]
+    fn test_default_private_pem_path() {
+        assert_eq!(
+            default_private_pem_path(),
+            PathBuf::from(env::var("HOME").unwrap()).join(".config/ruroco/ruroco_private.pem")
+        );
+    }
+}

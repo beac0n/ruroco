@@ -84,13 +84,13 @@ impl Commander {
         let user_name = self.socket_user.trim();
         let group_name = self.socket_group.trim();
 
-        let user_id = match self.get_id_by_name_and_flag(user_name, "-u") {
+        let user_id = match Commander::get_id_by_name_and_flag(user_name, "-u") {
             Some(id) => Some(id),
             None if user_name.is_empty() => None,
             None => return Err(format!("Could not find user {user_name}")),
         };
 
-        let group_id = match self.get_id_by_name_and_flag(group_name, "-g") {
+        let group_id = match Commander::get_id_by_name_and_flag(group_name, "-g") {
             Some(id) => Some(id),
             None if group_name.is_empty() => None,
             None => return Err(format!("Could not find group {group_name}")),
@@ -105,7 +105,37 @@ impl Commander {
         Ok(())
     }
 
-    fn get_id_by_name_and_flag(&self, name: &str, flag: &str) -> Option<u32> {
+    fn run_cycle(&self, stream: &mut UnixStream) -> Result<(), String> {
+        let msg = Commander::read_string(stream)?;
+
+        let commander_data: CommanderData = toml::from_str(&msg)
+            .map_err(|e| format!("Could not deserialize CommanderData: {e}"))?;
+
+        let command_name = &commander_data.command_name;
+        let command = self
+            .config
+            .get(command_name)
+            .ok_or(format!("Unknown command name: {}", command_name))?;
+
+        Commander::run_command(command, commander_data.ip);
+        Ok(())
+    }
+
+    fn run_command(command: &str, ip_str: String) {
+        info!("Running command {command}");
+        match Command::new("sh").arg("-c").arg(command).env("RUROCO_IP", ip_str).output() {
+            Ok(result) => {
+                info!(
+                    "Successfully executed {command}\nstdout: {}\nstderr: {}",
+                    Commander::vec_to_str(&result.stdout),
+                    Commander::vec_to_str(&result.stderr)
+                )
+            }
+            Err(e) => error!("Error executing {command}: {e}"),
+        };
+    }
+
+    fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
         if name.is_empty() {
             return None;
         }
@@ -129,7 +159,7 @@ impl Commander {
         }
     }
 
-    fn read_string(&self, stream: &mut UnixStream) -> Result<String, String> {
+    fn read_string(stream: &mut UnixStream) -> Result<String, String> {
         let mut buffer = String::new();
         stream
             .read_to_string(&mut buffer)
@@ -137,37 +167,24 @@ impl Commander {
         Ok(buffer)
     }
 
-    fn run_cycle(&self, stream: &mut UnixStream) -> Result<(), String> {
-        let msg = self.read_string(stream)?;
-
-        let commander_data: CommanderData = toml::from_str(&msg)
-            .map_err(|e| format!("Could not deserialize CommanderData: {e}"))?;
-
-        let command_name = &commander_data.command_name;
-        let command = self
-            .config
-            .get(command_name)
-            .ok_or(format!("Unknown command name: {}", command_name))?;
-
-        self.run_command(command, commander_data.ip);
-        Ok(())
-    }
-
-    fn run_command(&self, command: &str, ip_str: String) {
-        info!("Running command {command}");
-        match Command::new("sh").arg("-c").arg(command).env("RUROCO_IP", ip_str).output() {
-            Ok(result) => {
-                info!(
-                    "Successfully executed {command}\nstdout: {}\nstderr: {}",
-                    Self::vec_to_str(&result.stdout),
-                    Self::vec_to_str(&result.stderr)
-                )
-            }
-            Err(e) => error!("Error executing {command}: {e}"),
-        };
-    }
-
     fn vec_to_str(stdout: &[u8]) -> &str {
         str::from_utf8(stdout).unwrap_or("")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::commander::Commander;
+
+    #[test]
+    fn test_get_id_by_name_and_flag() {
+        assert_eq!(Commander::get_id_by_name_and_flag("root", "-u"), Some(0));
+        assert_eq!(Commander::get_id_by_name_and_flag("root", "-g"), Some(0));
+    }
+
+    #[test]
+    fn test_get_id_by_name_and_flag_unknown_user() {
+        assert_eq!(Commander::get_id_by_name_and_flag("barfoobaz", "-u"), None);
+        assert_eq!(Commander::get_id_by_name_and_flag("barfoobaz", "-g"), None);
     }
 }
