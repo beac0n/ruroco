@@ -103,10 +103,7 @@ See make goal `install_server`, which
     config_dir = "/etc/ruroco/"  # path where the configuration files are saved
     
     [commands]
-    # open ssh, but only for the IP address where the request came from
-    open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 80"
-    # close ssh, but only for the IP address where the request came from
-    close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 80"
+    # commands will be added here - see configuration chapter
     ```
     1. Make sure that the configuration file has the minimal permission set
        needed: `sudo chmod 400 /etc/ruroco/config.toml`
