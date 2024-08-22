@@ -44,7 +44,7 @@ impl Commander {
             match stream {
                 Ok(mut stream) => {
                     if let Err(e) = self.run_cycle(&mut stream) {
-                        error(format!("{e}"))
+                        error(e)
                     }
                 }
                 Err(e) => error(format!("Connection for {:?} failed: {e}", &self.socket_path)),

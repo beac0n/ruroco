@@ -73,8 +73,8 @@ impl Server {
         let pid = std::process::id().to_string();
         let socket = match env::var("LISTEN_PID") {
             Ok(listen_pid) if listen_pid == pid => {
-                info(format!(
-                    "env var LISTEN_PID was set to our PID, creating socket from raw fd ..."
+                info(String::from(
+                    "env var LISTEN_PID was set to our PID, creating socket from raw fd ...",
                 ));
                 let fd: RawFd = 3;
                 unsafe { UdpSocket::from_raw_fd(fd) }
@@ -205,7 +205,7 @@ impl Server {
 
     fn send_command(&self, data: CommanderData) {
         match self.write_to_socket(data) {
-            Ok(_) => info(format!("Successfully sent data to commander")),
+            Ok(_) => info("Successfully sent data to commander".to_string()),
             Err(e) => error(format!(
                 "Could not send data to commander via socket {:?}: {e}",
                 &self.socket_path
