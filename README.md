@@ -120,15 +120,15 @@ See make goal `install_server`, which
     2. `sudo systemctl start ruroco.socket`
     3. `sudo systemctl start ruroco.service`
 
-### server configuration
+# configuration
 
-#### generate and deploy rsa key
+## generate and deploy rsa key
 
 - run `ruroco-client gen` to generate two files: `ruroco_private.pem` and `ruroco_public.pem`
 - move `ruroco_public.pem` to `/etc/ruroco/ruroco_public.pem` on server
 - save `ruroco_private.pem` to `~/.config/ruroco/ruroco_private.pem` on client
 
-#### update config
+## update config
 
 Add commands to config `/etc/ruroco/config.toml` on server. The new config file **could** look like this:
 
