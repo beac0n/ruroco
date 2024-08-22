@@ -3,11 +3,10 @@
 use std::fs;
 use std::path::PathBuf;
 
-use log::error;
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
 
-use crate::common::get_blocklist_path;
+use crate::common::{error, get_blocklist_path};
 
 /// contains a list of blocked deadlines and a path to where the blocklist is persisted
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -77,12 +76,12 @@ impl Blocklist {
     pub fn save(&self) {
         let toml_string = match toml::to_string(&self) {
             Ok(s) => s,
-            Err(e) => return error!("Error serializing blacklist: {e}"),
+            Err(e) => return error(format!("Error serializing blacklist: {e}")),
         };
 
         match fs::write(&self.path, toml_string) {
             Ok(_) => (),
-            Err(e) => error!("Error persisting blacklist: {e}"),
+            Err(e) => error(format!("Error persisting blacklist: {e}")),
         };
     }
 }

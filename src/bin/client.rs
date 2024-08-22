@@ -1,12 +1,10 @@
 use clap::Parser;
 
 use ruroco::client::{gen, send};
-use ruroco::common::{init_logger, time};
+use ruroco::common::time;
 use ruroco::config_client::{CliClient, CommandsClient};
 
 fn main() -> Result<(), String> {
-    init_logger();
-
     match CliClient::parse().command {
         CommandsClient::Gen {
             private_pem_path,

@@ -1,4 +1,3 @@
-use log::{error, info};
 use openssl::error::ErrorStack;
 use openssl::pkey::Public;
 use openssl::rsa::Rsa;
@@ -13,7 +12,7 @@ use std::{env, fs};
 
 use crate::blocklist::Blocklist;
 use crate::commander_data::CommanderData;
-use crate::common::{get_socket_path, resolve_path, time, RSA_PADDING};
+use crate::common::{error, get_socket_path, info, resolve_path, time, RSA_PADDING};
 use crate::config_server::ConfigServer;
 
 #[derive(Debug)]
@@ -61,7 +60,10 @@ impl Server {
         let config_dir = resolve_path(&config.config_dir);
 
         let pem_path = Self::get_pem_path(&config_dir)?;
-        info!("Creating server, loading public PEM from {pem_path:?}, using {} ...", version());
+        info(format!(
+            "Creating server, loading public PEM from {pem_path:?}, using {} ...",
+            version()
+        ));
 
         let pem_data =
             fs::read(&pem_path).map_err(|e| format!("Could not read {pem_path:?}: {e}"))?;
@@ -71,17 +73,21 @@ impl Server {
         let pid = std::process::id().to_string();
         let socket = match env::var("LISTEN_PID") {
             Ok(listen_pid) if listen_pid == pid => {
-                info!("env var LISTEN_PID was set to our PID, creating socket from raw fd ...");
+                info(format!(
+                    "env var LISTEN_PID was set to our PID, creating socket from raw fd ..."
+                ));
                 let fd: RawFd = 3;
                 unsafe { UdpSocket::from_raw_fd(fd) }
             }
             Ok(_) => {
-                info!("env var LISTEN_PID was set, but not to our PID, binding to {address}");
+                info(format!(
+                    "env var LISTEN_PID was set, but not to our PID, binding to {address}"
+                ));
                 UdpSocket::bind(&address)
                     .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
             }
             Err(_) => {
-                info!("env var LISTEN_PID was not set, binding to {address}");
+                info(format!("env var LISTEN_PID was not set, binding to {address}"));
                 UdpSocket::bind(&address)
                     .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
             }
@@ -116,7 +122,7 @@ impl Server {
         let entries: ReadDir = match fs::read_dir(config_dir) {
             Ok(entries) => entries,
             Err(e) => {
-                error!("Error reading directory: {e}");
+                error(format!("Error reading directory: {e}"));
                 return vec![];
             }
         };
@@ -131,21 +137,25 @@ impl Server {
     }
 
     pub fn run(&mut self) -> Result<(), String> {
-        info!("Running server on udp://{}", self.address);
+        info(format!("Running server on udp://{}", self.address));
         let rsa_size = self.rsa.size() as usize;
         loop {
             match self.receive() {
                 Ok((count, src)) if count != rsa_size => {
-                    error!("Invalid read count {count}, expected {rsa_size} from {src}")
+                    error(format!("Invalid read count {count}, expected {rsa_size} from {src}"))
                 }
                 Ok((count, src)) => {
-                    info!("Successfully received {count} bytes from {src}");
+                    info(format!("Successfully received {count} bytes from {src}"));
                     match self.decrypt() {
                         Ok(count) => self.validate(count, src.ip().to_string()),
-                        Err(e) => error!("Could not decrypt {:X?}: {e}", self.encrypted_data),
+                        Err(e) => {
+                            error(format!("Could not decrypt {:X?}: {e}", self.encrypted_data))
+                        }
                     }
                 }
-                Err(e) => error!("Could not recv_from socket from udp://{}: {e}", self.address),
+                Err(e) => {
+                    error(format!("Could not recv_from socket from udp://{}: {e}", self.address))
+                }
             }
 
             self.encrypted_data = vec![0; rsa_size];
@@ -164,17 +174,18 @@ impl Server {
     fn validate(&mut self, count: usize, ip_str: String) {
         self.decrypted_data.truncate(count);
         match self.decode() {
-            Ok(data) if data.now_ns > data.deadline_ns => {
-                error!("Invalid data - now {} is after deadline {}", data.now_ns, data.deadline_ns)
-            }
+            Ok(data) if data.now_ns > data.deadline_ns => error(format!(
+                "Invalid data - now {} is after deadline {}",
+                data.now_ns, data.deadline_ns
+            )),
             Ok(data) if self.blocklist.is_blocked(data.deadline_ns) => {
-                error!("Invalid data - deadline {} is on blocklist", data.deadline_ns)
+                error(format!("Invalid data - deadline {} is on blocklist", data.deadline_ns))
             }
             Ok(data) => {
-                info!(
+                info(format!(
                     "Successfully validated data - now {} is before deadline {}",
                     data.now_ns, data.deadline_ns
-                );
+                ));
 
                 self.send_command(CommanderData {
                     command_name: String::from(&data.command_name),
@@ -182,7 +193,7 @@ impl Server {
                 });
                 self.update_block_list(&data);
             }
-            Err(e) => error!("Could not decode data: {e}"),
+            Err(e) => error(format!("Could not decode data: {e}")),
         }
     }
 
@@ -194,10 +205,11 @@ impl Server {
 
     fn send_command(&self, data: CommanderData) {
         match self.write_to_socket(data) {
-            Ok(_) => info!("Successfully sent data to commander"),
-            Err(e) => {
-                error!("Could not send data to commander via socket {:?}: {e}", &self.socket_path)
-            }
+            Ok(_) => info(format!("Successfully sent data to commander")),
+            Err(e) => error(format!(
+                "Could not send data to commander via socket {:?}: {e}",
+                &self.socket_path
+            )),
         }
     }
 

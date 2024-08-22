@@ -5,12 +5,11 @@ use std::fs;
 use std::net::UdpSocket;
 use std::path::PathBuf;
 
-use log::info;
 use openssl::pkey::Private;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use crate::common::{PADDING_SIZE, RSA_PADDING};
+use crate::common::{info, PADDING_SIZE, RSA_PADDING};
 
 /// Send data to the server to execute a predefined command
 ///
@@ -26,7 +25,10 @@ pub fn send(
     deadline: u16,
     now: u128,
 ) -> Result<(), String> {
-    info!("Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...", version());
+    info(format!(
+        "Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...",
+        version()
+    ));
 
     let rsa = get_rsa_private(&pem_path)?;
     let data_to_encrypt = get_data_to_encrypt(&command, &rsa, deadline, now)?;
@@ -37,7 +39,7 @@ pub fn send(
     socket.connect(&address).map_err(|e| socket_err(e, &address))?;
     socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
 
-    info!("Sent command {command} to udp://{address}");
+    info(format!("Sent command {command} to udp://{address}"));
     Ok(())
 }
 
@@ -50,7 +52,7 @@ pub fn gen(private_path: PathBuf, public_path: PathBuf, key_size: u32) -> Result
     validate_pem_path(&public_path)?;
     validate_pem_path(&private_path)?;
 
-    info!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while...");
+    info(format!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while..."));
     let rsa = Rsa::generate(key_size)
         .map_err(|e| format!("Could not generate rsa for key size {key_size}: {e}"))?;
 

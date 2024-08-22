@@ -8,7 +8,6 @@ mod tests {
     use rand::distributions::{Alphanumeric, DistString};
 
     use ruroco::commander::Commander;
-    use ruroco::common::init_logger;
     use ruroco::config_server::ConfigServer;
 
     fn gen_file_name(suffix: &str) -> String {
@@ -70,7 +69,6 @@ mod tests {
 
     #[test]
     fn test_run() {
-        init_logger();
         let socket_file_path = Path::new("/tmp/ruroco/ruroco.socket");
         let _ = fs::remove_file(socket_file_path);
         assert!(!socket_file_path.exists());

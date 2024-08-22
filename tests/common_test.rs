@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use ruroco::common::{get_blocklist_path, get_socket_path, init_logger, resolve_path};
+    use ruroco::common::{get_blocklist_path, get_socket_path, resolve_path};
     use std::path::PathBuf;
     use std::{env, fs};
 
@@ -27,7 +27,6 @@ mod tests {
 
     #[test]
     fn test_resolve_relative_path() {
-        init_logger();
         let _ = fs::create_dir_all(PathBuf::from("./tmp/foo"));
         assert_eq!(
             resolve_path(&PathBuf::from("./tmp/foo")),

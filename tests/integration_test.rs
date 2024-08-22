@@ -11,7 +11,7 @@ mod tests {
     use ruroco::blocklist::Blocklist;
     use ruroco::client::{gen, send};
     use ruroco::commander::Commander;
-    use ruroco::common::{get_blocklist_path, get_socket_path, init_logger, time};
+    use ruroco::common::{get_blocklist_path, get_socket_path, time};
     use ruroco::config_server::ConfigServer;
     use ruroco::server::Server;
 
@@ -58,8 +58,6 @@ mod tests {
 
     #[test]
     fn test_is_blocked() {
-        init_logger();
-
         let test_data: TestData = TestData::create();
 
         run_client_gen(&test_data);
@@ -76,8 +74,6 @@ mod tests {
 
     #[test]
     fn test_integration_test() {
-        init_logger();
-
         let test_data: TestData = TestData::create();
 
         run_client_gen(&test_data);
