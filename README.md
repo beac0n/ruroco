@@ -7,7 +7,7 @@
 Ruroco is a tool to run pre-defined commands on a remote server, using the UDP protocol to hide the existence of the
 service from adversaries, making the service on the server "invisible".
 
-## use case
+# use case
 
 If you host a server on the web, you know that you'll get lots of brute-force attacks on (at least) the SSH port of your
 server. While using good practices in securing your server will keep you safe from such attacks, these attacks are quite
@@ -49,7 +49,7 @@ you would do if the SSH port would be exposed to the internet.
 
 You can define any number of commands you wish, by adding more commands to configuration file.
 
-## setup
+# setup
 
 download binaries from the [releases page](https://github.com/beac0n/ruroco/releases) or build them yourself by running
 
@@ -59,13 +59,20 @@ make release
 
 you can find the binaries in `target/release/client`, `target/release/server` and `target/release/commander`
 
-### client
+## client
 
-See make goal `install_client`.
+### self-build
 
-This builds the project and copies the client binary to `/usr/local/bin/ruroco-client`
+See make goal `install_client`. This builds the project and copies the client binary to `/usr/local/bin/ruroco-client`
 
-### server
+### pre-build
+
+Download the `client-v<major>.<minor>.<patch>-x86_64-linux` binary from https://github.com/beac0n/ruroco/releases/latest
+and move it to `/usr/local/bin/ruroco-client`
+
+## server
+
+### self-build
 
 See make goal `install_server`, which
 
@@ -78,6 +85,42 @@ See make goal `install_server`, which
 - After running the make goal, you have to
     - generate a RSA key and copy it to the right place
     - setup the `config.toml`
+
+### pre-build
+
+1. Download the `server-v<major>.<minor>.<patch>-x86_64-linux` and `commander-v<major>.<minor>.<patch>-x86_64-linux`
+   binaries from https://github.com/beac0n/ruroco/releases/latest and move them to
+   `/usr/local/bin/ruroco-server` and `/usr/local/bin/ruroco-commander`.
+2. Make sure that the binaries have the minimal permission sets needed:
+    1. `sudo chmod 500 /usr/local/bin/ruroco-server`
+    2. `sudo chmod 100 /usr/local/bin/ruroco-commander`
+    3. `sudo chown ruroco:ruroco /usr/local/bin/ruroco-server`
+3. Create the `ruroco` user: `sudo useradd --system ruroco --shell /bin/false`
+4. Install the systemd service files from the `systemd` folder: `sudo cp ./systemd/* /etc/systemd/system`
+5. Create `/etc/ruroco/config.toml` and define your config and commands, e.g.:
+    ```toml
+    address = "127.0.0.1:8080"  # address the ruroco serer listens on, if systemd/ruroco.socket is not used
+    config_dir = "/etc/ruroco/"  # path where the configuration files are saved
+    
+    [commands]
+    # open ssh, but only for the IP address where the request came from
+    open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 80"
+    # close ssh, but only for the IP address where the request came from
+    close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 80"
+    ```
+    1. Make sure that the configuration file has the minimal permission set
+       needed: `sudo chmod 400 /etc/ruroco/config.toml`
+6. Since new systemd files have been added, reload the daemon: `sudo systemctl daemon-reload`
+7. Enable the systemd services:
+    1. `sudo systemctl enable ruroco.service`
+    2. `sudo systemctl enable ruroco-commander.service`
+    3. `sudo systemctl enable ruroco.socket`
+8. Start the systemd services
+    1. `sudo systemctl start ruroco-commander.service`
+    2. `sudo systemctl start ruroco.socket`
+    3. `sudo systemctl start ruroco.service`
+
+### server configuration
 
 #### generate and deploy rsa key
 
@@ -100,7 +143,7 @@ open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 80"
 close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 80"
 ```
 
-## security
+# security
 
 A lot of thought has gone into making this tool as secure as possible:
 
@@ -116,9 +159,9 @@ A lot of thought has gone into making this tool as secure as possible:
 - Each packet can only be sent once and will be blacklisted on the server.
 - (WIP) To make the service less vulnerable against DoS attacks ...
 
-## architecture
+# architecture
 
-### overview
+## overview
 
 The service consists of three parts:
 
@@ -149,7 +192,7 @@ The service consists of three parts:
 └────────────────┘ └────────────────┘
 ```
 
-### execution
+## execution
 
 Whenever a user sends a command via the client, the following steps are executed
 
