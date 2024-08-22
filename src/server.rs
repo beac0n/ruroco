@@ -134,7 +134,6 @@ impl Server {
         info!("Running server on udp://{}", self.address);
         let rsa_size = self.rsa.size() as usize;
         loop {
-            // TODO: How to deal with DoS attacks?
             match self.receive() {
                 Ok((count, src)) if count != rsa_size => {
                     error!("Invalid read count {count}, expected {rsa_size} from {src}")
