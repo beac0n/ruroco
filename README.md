@@ -24,7 +24,9 @@ picks from existing commands.
 - **replay protection** by adding every packet that the server received to a blocklist
 - (WIP) DoS protection
 
-# use case
+# use cases
+
+## single packet authorization (SPA)
 
 If you host a server on the web, you know that you'll get lots of brute-force attacks on (at least) the SSH port of your
 server. While using good practices in securing your server will keep you safe from such attacks, these attacks are quite
@@ -65,6 +67,30 @@ sent from, if you want to connect to your server. Of course, you should also do 
 you would do if the SSH port would be exposed to the internet.
 
 You can define any number of commands you wish, by adding more commands to configuration file.
+
+## Enabling webservice
+
+You may run a webservice like https://github.com/filebrowser/filebrowser on your server, which you do not want to
+publicly expose. If you use nginx as a reverse proxy, you can use ruroco to enable or disable services:
+
+```toml
+address = "0.0.0.0:8080"  # address the ruroco serer listens on, if systemd/ruroco.socket is not used
+config_dir = "/etc/ruroco/"  # path where the configuration files are saved
+
+[commands]
+# disable file browser nginx config file and reload nginx
+disable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf /etc/nginx/conf.d/https_file_browser.conf_disabled && nginx -s reload"
+# enable file browser nginx config file and reload nginx
+enable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf_disabled /etc/nginx/conf.d/https_file_browser.conf && nginx -s reload"
+```
+
+If you have configured ruroco on server like that and execute the following client side command
+
+```shell
+ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command enable_file_browser --deadline 5
+```
+
+the file browser nginx config will be enabled and nginx reloaded, effectively making the file browser accessible.
 
 # setup
 
