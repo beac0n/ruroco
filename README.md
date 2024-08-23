@@ -15,6 +15,15 @@ the tool consist of 3 binaries:
 The commands are configured on the server side, so the client does not define what is going to be executed, it only
 picks from existing commands.
 
+## security
+
+- client sends UDP packet to server, server never responds to it -> port-scanning does not help an adversary
+- data sent from client to server is encrypted using RSA
+- client only defines command to execute, commands are saved on server -> client can only pick command but not define it
+- run server software in such a way so that it uses as little operating system rights as possible
+- replay protection by adding every packet that the server received to a blocklist
+- (WIP) DoS protection
+
 # use case
 
 If you host a server on the web, you know that you'll get lots of brute-force attacks on (at least) the SSH port of your
@@ -147,22 +156,6 @@ open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"
 # close ssh, but only for the IP address where the request came from
 close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22"
 ```
-
-# security
-
-A lot of thought has gone into making this tool as secure as possible:
-
-- The client sends a UDP packet to the server, to which the server never responds. So port-scanning does not help an
-  adversary.
-- The server only holds the public key. The client uses the private key to send an encrypted packet.
-- Each request that is sent holds the current timestamp and the command that the server should execute.
-  This encrypted packet is only valid for a configurable amount of time.
-- On the server, the service that received the UDP package has as little OS rights as possible (restricted by systemd).
-  After validating the data, the service that received the UDP packet (server) instructs another service (commander) to
-  execute the command. So even if the server service is compromised, it can't do anything, because it's rights are
-  extremely limited.
-- Each packet can only be sent once and will be blacklisted on the server.
-- (WIP) To make the service less vulnerable against DoS attacks ...
 
 # architecture
 
