@@ -8,9 +8,9 @@ ruroco is a tool that lets you execute commands on a server by sending UDP packe
 
 the tool consist of 3 binaries:
 
-- `client` -> runs on your notebook/computer and sends the UDP packets
-- `server` -> receives the UDP packets and makes sure that they are valid
-- `commander` -> runs the command encoded by the data of the UDP packet if it's valid
+- `client`: runs on your notebook/computer and sends the UDP packets
+- `server`: receives the UDP packets and makes sure that they are valid
+- `commander`: runs the command encoded by the data of the UDP packet if it's valid
 
 The commands are configured on the server side, so the client does not define what is going to be executed, it only
 picks from existing commands.
