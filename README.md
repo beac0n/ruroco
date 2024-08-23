@@ -36,9 +36,9 @@ config_dir = "/etc/ruroco/"  # path where the configuration files are saved
 
 [commands]
 # open ssh, but only for the IP address where the request came from
-open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 80"
+open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"
 # close ssh, but only for the IP address where the request came from
-close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 80"
+close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22"
 ```
 
 If you have configured ruroco on server like that and execute the following client side command
@@ -143,9 +143,9 @@ config_dir = "/etc/ruroco/"  # path where the configuration files are saved
 
 [commands]
 # open ssh, but only for the IP address where the request came from
-open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 80"
+open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"
 # close ssh, but only for the IP address where the request came from
-close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 80"
+close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22"
 ```
 
 # security
