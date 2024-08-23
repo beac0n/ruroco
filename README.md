@@ -2,10 +2,18 @@
 [![release](https://img.shields.io/github/v/release/beac0n/ruroco?style=flat&labelColor=1C2C2E&color=C96329&logo=GitHub&logoColor=white)](https://github.com/beac0n/ruroco/releases)
 [![codecov](https://codecov.io/gh/beac0n/ruroco/graph/badge.svg?token=H7ABBHYYWT)](https://codecov.io/gh/beac0n/ruroco)
 
-# ruroco - run remote command
+# ruroco - RUn RemOte COmmand
 
-Ruroco is a tool to run pre-defined commands on a remote server, using the UDP protocol to hide the existence of the
-service from adversaries, making the service on the server "invisible".
+ruroco is a tool that lets you execute commands on a server by sending UDP packets.
+
+the tool consist of 3 binaries:
+
+- `client` -> runs on your notebook/computer and sends the UDP packets
+- `server` -> receives the UDP packets and makes sure that they are valid
+- `commander` -> runs the command encoded by the data of the UDP packet if it's valid
+
+The commands are configured on the server side, so the client does not define what is going to be executed, it only
+picks from existing commands.
 
 # use case
 
