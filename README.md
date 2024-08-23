@@ -17,11 +17,11 @@ picks from existing commands.
 
 ## security
 
-- client sends UDP packet to server, server never responds to it -> port-scanning does not help an adversary
-- data sent from client to server is encrypted using RSA
-- client only defines command to execute, commands are saved on server -> client can only pick command but not define it
-- run server software in such a way so that it uses as little operating system rights as possible
-- replay protection by adding every packet that the server received to a blocklist
+- client sends UDP packet to server, server never responds to it -> **port-scanning** does not help an adversary
+- data sent from client to server is **encrypted** using **RSA**
+- client only defines command to execute, **commands are saved on server** -> client can pick command but not define it
+- run server software in such a way so that it uses **as little operating system rights** as possible
+- **replay protection** by adding every packet that the server received to a blocklist
 - (WIP) DoS protection
 
 # use case
