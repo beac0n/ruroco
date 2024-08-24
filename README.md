@@ -150,6 +150,7 @@ See make goal `install_server`, which
     ```
     1. Make sure that the configuration file has the minimal permission set
        needed: `sudo chmod 400 /etc/ruroco/config.toml`
+    2. N.B. If you edit the [commands] in `/etc/ruroco/config.toml` then restart ruroco-commander
 6. Since new systemd files have been added, reload the daemon: `sudo systemctl daemon-reload`
 7. Enable the systemd services:
     1. `sudo systemctl enable ruroco.service`
