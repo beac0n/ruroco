@@ -11,7 +11,7 @@ build:
 
 release:
 	# see https://github.com/johnthagen/min-sized-rust
-	cargo build --color=always --release --package ruroco
+	cargo build --color=always --release --package ruroco --features release-build
 	upx --best --lzma target/release/client
 	upx --best --lzma target/release/server
 	upx --best --lzma target/release/commander
