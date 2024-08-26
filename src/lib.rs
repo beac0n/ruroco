@@ -1,3 +1,4 @@
+#![allow(clippy::too_long_first_doc_paragraph)]
 //! This file exposes all the modules that are needed by the client, server and commander
 
 /// persists the blocked list of deadlines
