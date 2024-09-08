@@ -34,6 +34,9 @@ pub enum CommandsClient {
         command: String,
         #[arg(short, long, default_value = "5")]
         deadline: u16,
+        #[arg(short, long, default_value_t = true)]
+        strict: bool,
+        ip: Option<String>,
     },
 }
 

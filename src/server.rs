@@ -11,9 +11,9 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 use crate::blocklist::Blocklist;
-use crate::commander_data::CommanderData;
 use crate::common::{error, get_socket_path, info, resolve_path, time, RSA_PADDING};
 use crate::config_server::ConfigServer;
+use crate::data::{CommanderData, ServerData};
 
 #[derive(Debug)]
 pub struct Server {
@@ -36,12 +36,6 @@ impl PartialEq for Server {
             && self.socket_path == other.socket_path
             && self.blocklist == other.blocklist
     }
-}
-
-struct DecodedData {
-    deadline_ns: u128,
-    now_ns: u128,
-    command_name: String,
 }
 
 impl Server {
@@ -174,38 +168,42 @@ impl Server {
     fn validate(&mut self, count: usize, ip_str: String) {
         self.decrypted_data.truncate(count);
         match self.decode() {
-            Ok(data) if data.now_ns > data.deadline_ns => error(format!(
-                "Invalid data - now {} is after deadline {}",
-                data.now_ns, data.deadline_ns
-            )),
-            Ok(data) if self.blocklist.is_blocked(data.deadline_ns) => {
-                error(format!("Invalid data - deadline {} is on blocklist", data.deadline_ns))
+            Ok((now_ns, data)) if now_ns > data.d => {
+                error(format!("Invalid data - now {} is after deadline {}", now_ns, data.d))
             }
-            Ok(data) => {
+            Ok((_, data)) if self.blocklist.is_blocked(data.d) => {
+                error(format!("Invalid data - deadline {} is on blocklist", data.d))
+            }
+            Ok((now_ns, data))
+                if data.is_strict() && data.i.clone().is_some_and(|ip| ip == ip_str) =>
+            {
+                error(format!("Invalid data - now {} is after deadline {}", now_ns, data.d))
+            }
+            Ok((now_ns, data)) => {
                 info(format!(
-                    "Successfully validated data - now {} is before deadline {}",
-                    data.now_ns, data.deadline_ns
+                    "Successfully validated data - now {now_ns} is before deadline {}",
+                    data.d
                 ));
 
                 self.send_command(CommanderData {
-                    command_name: String::from(&data.command_name),
-                    ip: ip_str,
+                    command_name: String::from(&data.c),
+                    ip: data.i.unwrap_or(ip_str),
                 });
-                self.update_block_list(&data);
+                self.update_block_list(now_ns, data.d);
             }
             Err(e) => error(format!("Could not decode data: {e}")),
         }
     }
 
-    fn update_block_list(&mut self, data: &DecodedData) {
-        self.blocklist.clean(data.now_ns);
-        self.blocklist.add(data.deadline_ns);
+    fn update_block_list(&mut self, now_ns: u128, deadline_ns: u128) {
+        self.blocklist.clean(now_ns);
+        self.blocklist.add(deadline_ns);
         self.blocklist.save();
     }
 
     fn send_command(&self, data: CommanderData) {
         match self.write_to_socket(data) {
-            Ok(_) => info("Successfully sent data to commander".to_string()),
+            Ok(_) => info(String::from("Successfully sent data to commander")),
             Err(e) => error(format!(
                 "Could not send data to commander via socket {:?}: {e}",
                 &self.socket_path
@@ -231,14 +229,12 @@ impl Server {
         Ok(())
     }
 
-    fn decode(&self) -> Result<DecodedData, String> {
-        let mut buffer = [0u8; 16];
-        buffer.copy_from_slice(&self.decrypted_data[..16]);
-
-        Ok(DecodedData {
-            deadline_ns: u128::from_le_bytes(buffer),
-            now_ns: time()?,
-            command_name: String::from_utf8_lossy(&self.decrypted_data[16..]).to_string(),
-        })
+    fn decode(&self) -> Result<(u128, ServerData), String> {
+        let now = time()?;
+        let decrypted_data = String::from_utf8_lossy(&self.decrypted_data).to_string();
+        match toml::from_str::<ServerData>(&decrypted_data) {
+            Ok(data) => Ok((now, data)),
+            Err(e) => Err(format!("Could not deserialize ServerData {}: {e}", decrypted_data)),
+        }
     }
 }

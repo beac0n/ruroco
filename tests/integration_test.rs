@@ -136,6 +136,8 @@ mod tests {
             test_data.server_address.to_string(),
             String::from("default"),
             deadline,
+            true,
+            None,
             now,
         )
         .unwrap();

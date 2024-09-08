@@ -10,6 +10,7 @@ use openssl::rsa::Rsa;
 use openssl::version::version;
 
 use crate::common::{info, PADDING_SIZE, RSA_PADDING};
+use crate::data::ServerData;
 
 /// Send data to the server to execute a predefined command
 ///
@@ -23,6 +24,8 @@ pub fn send(
     address: String,
     command: String,
     deadline: u16,
+    strict: bool,
+    ip: Option<String>,
     now: u128,
 ) -> Result<(), String> {
     info(format!(
@@ -31,7 +34,7 @@ pub fn send(
     ));
 
     let rsa = get_rsa_private(&pem_path)?;
-    let data_to_encrypt = get_data_to_encrypt(&command, &rsa, deadline, now)?;
+    let data_to_encrypt = get_data_to_encrypt(&command, &rsa, deadline, strict, ip, now)?;
     let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
@@ -91,25 +94,45 @@ fn get_data_to_encrypt(
     command: &str,
     rsa: &Rsa<Private>,
     deadline: u16,
-    now: u128,
+    strict: bool,
+    ip: Option<String>,
+    now_ns: u128,
 ) -> Result<Vec<u8>, String> {
-    // collect data to encrypt: now-timestamp + command + random data -> all as bytes
-    let mut data_to_encrypt = Vec::new();
+    let server_data_serialized_min =
+        get_minified_server_data(command, deadline, strict, ip, now_ns)?;
 
-    let timestamp = now + (u128::from(deadline) * 1_000_000_000);
-    let timestamp_bytes = timestamp.to_le_bytes().to_vec();
-    let timestamp_len = timestamp_bytes.len();
-    data_to_encrypt.extend(timestamp_bytes);
-
-    data_to_encrypt.extend(command.as_bytes().to_vec());
-
+    let data_to_encrypt = server_data_serialized_min.as_bytes().to_vec();
+    let data_to_encrypt_len = data_to_encrypt.len();
     let rsa_size = rsa.size() as usize;
-    if data_to_encrypt.len() + PADDING_SIZE > rsa_size {
-        let max_size = rsa_size - PADDING_SIZE - timestamp_len;
-        return Err(format!("Command too long, must be at most {max_size} bytes"));
+    if data_to_encrypt_len + PADDING_SIZE > rsa_size {
+        let max_size = rsa_size - PADDING_SIZE;
+        return Err(format!(
+            "Too much data, must be at most {max_size} bytes, but was {data_to_encrypt_len} bytes. \
+            Reduce command name length or create a bigger RSA key size."
+        ));
     }
 
     Ok(data_to_encrypt)
+}
+
+fn get_minified_server_data(
+    command: &str,
+    deadline: u16,
+    strict: bool,
+    ip: Option<String>,
+    now_ns: u128,
+) -> Result<String, String> {
+    let server_data = ServerData {
+        c: command.to_string(),
+        d: now_ns + (u128::from(deadline) * 1_000_000_000),
+        s: if strict { 1 } else { 0 },
+        i: ip,
+    };
+
+    let server_data_serialized = toml::to_string(&server_data)
+        .map_err(|e| format!("Could not serialize data for server {:?}: {e}", &server_data))?;
+
+    Ok(server_data_serialized.trim().replace(" = ", "="))
 }
 
 fn get_pem_data(rsa: &Rsa<Private>, name: &str) -> Result<Vec<u8>, String> {
@@ -133,5 +156,34 @@ fn validate_pem_path(path: &PathBuf) -> Result<(), String> {
         Some(s) if path.exists() => Err(format!("Could not create PEM file: {s} already exists")),
         Some(s) => Err(format!("Could not read PEM file: {s} does not end with .pem")),
         None => Err(format!("Could not convert PEM path {path:?} to string")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::client::get_minified_server_data;
+    use crate::data::ServerData;
+
+    #[test]
+    fn test_get_minified_server_data() {
+        let min_server_data = get_minified_server_data(
+            "some_kind_of_long_but_not_really_that_long_command",
+            5,
+            false,
+            Some(String::from("192.168.178.123")),
+            1725821510 * 1_000_000_000,
+        )
+        .unwrap();
+
+        assert_eq!(min_server_data, "c=\"some_kind_of_long_but_not_really_that_long_command\"\nd=\"1725821515000000000\"\ns=0\ni=\"192.168.178.123\"");
+        assert_eq!(
+            toml::from_str::<ServerData>(&min_server_data).unwrap(),
+            ServerData {
+                c: String::from("some_kind_of_long_but_not_really_that_long_command"),
+                d: 1725821515000000000,
+                s: 0,
+                i: Some(String::from("192.168.178.123")),
+            }
+        );
     }
 }

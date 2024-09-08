@@ -16,7 +16,7 @@ pub struct CliServer {
     pub config: PathBuf,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct ConfigServer {
     pub commands: HashMap<String, String>,
     #[serde(default = "default_address")]

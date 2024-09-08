@@ -9,10 +9,9 @@ mod tests {
 
     use rand::distributions::{Alphanumeric, DistString};
 
+    use super::*;
     use ruroco::client::gen;
     use ruroco::common::time;
-
-    use super::*;
 
     fn gen_file_name(suffix: &str) -> String {
         let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
@@ -28,6 +27,8 @@ mod tests {
             String::from("127.0.0.1:1234"),
             String::from("default"),
             5,
+            true,
+            None,
             time().unwrap(),
         );
 
@@ -48,6 +49,8 @@ mod tests {
             String::from("127.0.0.1:1234"),
             String::from("default"),
             5,
+            true,
+            None,
             time().unwrap(),
         );
 
@@ -69,8 +72,15 @@ mod tests {
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
         let address = String::from("127.0.0.1:asd");
-        let result =
-            send(private_pem_path, address.clone(), String::from("default"), 5, time().unwrap());
+        let result = send(
+            private_pem_path,
+            address.clone(),
+            String::from("default"),
+            5,
+            true,
+            None,
+            time().unwrap(),
+        );
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
@@ -91,8 +101,15 @@ mod tests {
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
         let address = String::from("999.999.999.999:9999");
-        let result =
-            send(private_pem_path, address.clone(), String::from("default"), 5, time().unwrap());
+        let result = send(
+            private_pem_path,
+            address.clone(),
+            String::from("default"),
+            5,
+            true,
+            None,
+            time().unwrap(),
+        );
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
@@ -118,8 +135,10 @@ mod tests {
         let result = send(
             private_pem_path,
             String::from("127.0.0.1:1234"),
-            "default".repeat(24),
+            "#".repeat(66),
             5,
+            true,
+            Some(String::from("192.168.178.123")),
             time().unwrap(),
         );
 
@@ -128,7 +147,10 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            String::from("Command too long, must be at most 101 bytes")
+            String::from(
+                "Too much data, must be at most 117 bytes, but was 118 bytes. \
+            Reduce command name length or create a bigger RSA key size."
+            )
         );
     }
 
@@ -146,6 +168,8 @@ mod tests {
             String::from("127.0.0.1:1234"),
             String::from("default"),
             5,
+            true,
+            None,
             time().unwrap(),
         );
 

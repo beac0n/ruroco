@@ -16,6 +16,8 @@ fn main() -> Result<(), String> {
             address,
             command,
             deadline,
-        } => send(private_pem_path, address, command, deadline, time()?),
+            strict,
+            ip,
+        } => send(private_pem_path, address, command, deadline, strict, ip, time()?),
     }
 }

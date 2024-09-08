@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
 use std::os::unix::fs::{chown, PermissionsExt};
@@ -7,15 +6,15 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{fs, str};
 
-use crate::commander_data::CommanderData;
 use crate::common::{error, get_socket_path, info};
 use crate::config_server::ConfigServer;
+use crate::data::CommanderData;
+
+const ENV_PREFIX: &str = "RUROCO_";
 
 #[derive(Debug, PartialEq)]
 pub struct Commander {
-    config: HashMap<String, String>,
-    socket_group: String,
-    socket_user: String,
+    config: ConfigServer,
     socket_path: PathBuf,
 }
 
@@ -31,11 +30,10 @@ impl Commander {
     }
 
     pub fn create(config: ConfigServer) -> Commander {
+        let socket_path = get_socket_path(&config.config_dir);
         Commander {
-            config: config.commands,
-            socket_user: config.socket_user,
-            socket_group: config.socket_group,
-            socket_path: get_socket_path(&config.config_dir),
+            config,
+            socket_path,
         }
     }
 
@@ -79,8 +77,8 @@ impl Commander {
     }
 
     fn change_socket_ownership(&self) -> Result<(), String> {
-        let user_name = self.socket_user.trim();
-        let group_name = self.socket_group.trim();
+        let user_name = self.config.socket_user.trim();
+        let group_name = self.config.socket_group.trim();
 
         let user_id = match Commander::get_id_by_name_and_flag(user_name, "-u") {
             Some(id) => Some(id),
@@ -107,21 +105,27 @@ impl Commander {
         let msg = Commander::read_string(stream)?;
 
         let commander_data: CommanderData = toml::from_str(&msg)
-            .map_err(|e| format!("Could not deserialize CommanderData: {e}"))?;
+            .map_err(|e| format!("Could not deserialize CommanderData {}: {e}", &msg))?;
 
         let command_name = &commander_data.command_name;
         let command = self
             .config
+            .commands
             .get(command_name)
             .ok_or(format!("Unknown command name: {}", command_name))?;
 
-        Commander::run_command(command, commander_data.ip);
+        self.run_command(command, commander_data.ip);
         Ok(())
     }
 
-    fn run_command(command: &str, ip_str: String) {
+    fn run_command(&self, command: &str, ip_str: String) {
         info(format!("Running command {command}"));
-        match Command::new("sh").arg("-c").arg(command).env("RUROCO_IP", ip_str).output() {
+        match Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .env(format!("{ENV_PREFIX}IP"), ip_str)
+            .output()
+        {
             Ok(result) => info(format!(
                 "Successfully executed {command}\nstdout: {}\nstderr: {}",
                 Commander::vec_to_str(&result.stdout),
