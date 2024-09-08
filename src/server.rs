@@ -165,30 +165,26 @@ impl Server {
         self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, RSA_PADDING)
     }
 
-    fn validate(&mut self, count: usize, ip_str: String) {
+    fn validate(&mut self, count: usize, ip_src: String) {
         self.decrypted_data.truncate(count);
         match self.decode() {
             Ok((now_ns, data)) if now_ns > data.d => {
-                error(format!("Invalid data - now {} is after deadline {}", now_ns, data.d))
+                error(format!("Invalid deadline - now {now_ns} is after {}", data.d))
             }
             Ok((_, data)) if self.blocklist.is_blocked(data.d) => {
-                error(format!("Invalid data - deadline {} is on blocklist", data.d))
+                error(format!("Invalid deadline - {} is on blocklist", data.d))
             }
-            Ok((now_ns, data))
-                if data.is_strict() && data.i.clone().is_some_and(|ip| ip == ip_str) =>
+            Ok((_, data))
+                if data.is_strict() && data.i.clone().is_some_and(|ip_sent| ip_sent != ip_src) =>
             {
-                error(format!("Invalid data - now {} is after deadline {}", now_ns, data.d))
+                error(format!("Invalid IP - expected {:?}, actual {ip_src}", data.i))
             }
             Ok((now_ns, data)) => {
-                info(format!(
-                    "Successfully validated data - now {now_ns} is before deadline {}",
-                    data.d
-                ));
+                let command_name = String::from(&data.c);
+                let ip = data.i.unwrap_or(ip_src);
+                info(format!("Valid data - trying {command_name} with {ip}"));
 
-                self.send_command(CommanderData {
-                    command_name: String::from(&data.c),
-                    ip: data.i.unwrap_or(ip_str),
-                });
+                self.send_command(CommanderData { command_name, ip });
                 self.update_block_list(now_ns, data.d);
             }
             Err(e) => error(format!("Could not decode data: {e}")),

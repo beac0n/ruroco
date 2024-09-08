@@ -15,6 +15,8 @@ mod tests {
     use ruroco::config_server::ConfigServer;
     use ruroco::server::Server;
 
+    const TEST_IP: &str = "192.168.178.123";
+
     struct TestData {
         test_file_path: PathBuf,
         socket_path: PathBuf,
@@ -27,7 +29,7 @@ mod tests {
 
     impl TestData {
         fn create() -> TestData {
-            let test_folder_path = PathBuf::from(gen_file_name(""));
+            let test_folder_path = PathBuf::from("/dev/shm").join(gen_file_name(""));
             let private_pem_dir = test_folder_path.join("private");
             let _ = fs::create_dir_all(&test_folder_path);
             let _ = fs::create_dir_all(&private_pem_dir);
@@ -52,7 +54,7 @@ mod tests {
         run_server(&test_data);
         run_commander(&test_data);
 
-        run_client_send(&test_data, 0, time().unwrap());
+        run_client_send(&test_data, 0, time().unwrap(), None, true);
         assert_file_paths(&test_data, false, false);
     }
 
@@ -65,25 +67,61 @@ mod tests {
         run_commander(&test_data);
 
         let now = time().unwrap();
-        run_client_send(&test_data, 5, now);
+        run_client_send(&test_data, 5, now, None, true);
         let _ = fs::remove_file(&test_data.test_file_path);
 
-        run_client_send(&test_data, 5, now);
+        run_client_send(&test_data, 5, now, None, true);
         assert_file_paths(&test_data, false, true);
     }
 
     #[test]
-    fn test_integration_test() {
+    fn test_ip_mismatch() {
         let test_data: TestData = TestData::create();
 
         run_client_gen(&test_data);
         run_server(&test_data);
         run_commander(&test_data);
 
-        run_client_send(&test_data, 1, time().unwrap());
+        run_client_send(&test_data, 1, time().unwrap(), Some(String::from(TEST_IP)), true);
+        assert_file_paths(&test_data, false, false);
+    }
+
+    #[test]
+    fn test_ip_mismatch_not_strict() {
+        let test_data: TestData = TestData::create();
+
+        run_client_gen(&test_data);
+        run_server(&test_data);
+        run_commander(&test_data);
+
+        run_client_send(&test_data, 1, time().unwrap(), Some(String::from(TEST_IP)), false);
+        assert_file_paths(&test_data, true, true);
+    }
+
+    #[test]
+    fn test_ip_match() {
+        let test_data: TestData = TestData::create();
+
+        run_client_gen(&test_data);
+        run_server(&test_data);
+        run_commander(&test_data);
+
+        run_client_send(&test_data, 1, time().unwrap(), Some(String::from("127.0.0.1")), true);
+        assert_file_paths(&test_data, true, true);
+    }
+
+    #[test]
+    fn test_is_valid() {
+        let test_data: TestData = TestData::create();
+
+        run_client_gen(&test_data);
+        run_server(&test_data);
+        run_commander(&test_data);
+
+        run_client_send(&test_data, 1, time().unwrap(), None, true);
         let blocked_list_0 = get_blocked_list(&test_data);
 
-        run_client_send(&test_data, 5, time().unwrap());
+        run_client_send(&test_data, 5, time().unwrap(), None, true);
         let blocked_list_1 = get_blocked_list(&test_data);
 
         assert_file_paths(&test_data, true, true);
@@ -130,18 +168,18 @@ mod tests {
         blocklist.get().clone()
     }
 
-    fn run_client_send(test_data: &TestData, deadline: u16, now: u128) {
-        send(
-            test_data.private_pem_path.clone(),
-            test_data.server_address.to_string(),
-            String::from("default"),
-            deadline,
-            true,
-            None,
-            now,
-        )
-        .unwrap();
-        thread::sleep(Duration::from_secs(1)); // wait for commands to be executed
+    fn run_client_send(
+        test_data: &TestData,
+        deadline: u16,
+        now: u128,
+        ip: Option<String>,
+        strict: bool,
+    ) {
+        let pem_path = test_data.private_pem_path.clone();
+        let address = test_data.server_address.to_string();
+        let command = String::from("default");
+        send(pem_path, address, command, deadline, strict, ip, now).unwrap();
+        thread::sleep(Duration::from_secs(1)); // wait for files to be written and blocklist to be updated
     }
 
     fn run_commander(test_data: &TestData) {

@@ -28,7 +28,7 @@ mod tests {
             String::from("default"),
             5,
             true,
-            None,
+            Some(String::from("192.168.178.123")),
             time().unwrap(),
         );
 
@@ -50,7 +50,7 @@ mod tests {
             String::from("default"),
             5,
             true,
-            None,
+            Some(String::from("192.168.178.123")),
             time().unwrap(),
         );
 
@@ -78,7 +78,7 @@ mod tests {
             String::from("default"),
             5,
             true,
-            None,
+            Some(String::from("192.168.178.123")),
             time().unwrap(),
         );
 
@@ -107,7 +107,7 @@ mod tests {
             String::from("default"),
             5,
             true,
-            None,
+            Some(String::from("192.168.178.123")),
             time().unwrap(),
         );
 
@@ -169,7 +169,7 @@ mod tests {
             String::from("default"),
             5,
             true,
-            None,
+            Some(String::from("192.168.178.123")),
             time().unwrap(),
         );
 
