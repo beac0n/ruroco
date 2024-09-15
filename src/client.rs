@@ -98,10 +98,7 @@ fn get_data_to_encrypt(
     ip: Option<String>,
     now_ns: u128,
 ) -> Result<Vec<u8>, String> {
-    let server_data_serialized_min =
-        get_minified_server_data(command, deadline, strict, ip, now_ns)?;
-
-    let data_to_encrypt = server_data_serialized_min.as_bytes().to_vec();
+    let data_to_encrypt = ServerData::create(command, deadline, strict, ip, now_ns).serialize()?;
     let data_to_encrypt_len = data_to_encrypt.len();
     let rsa_size = rsa.size() as usize;
     if data_to_encrypt_len + PADDING_SIZE > rsa_size {
@@ -113,26 +110,6 @@ fn get_data_to_encrypt(
     }
 
     Ok(data_to_encrypt)
-}
-
-fn get_minified_server_data(
-    command: &str,
-    deadline: u16,
-    strict: bool,
-    ip: Option<String>,
-    now_ns: u128,
-) -> Result<String, String> {
-    let server_data = ServerData {
-        c: command.to_string(),
-        d: now_ns + (u128::from(deadline) * 1_000_000_000),
-        s: if strict { 1 } else { 0 },
-        i: ip,
-    };
-
-    let server_data_serialized = toml::to_string(&server_data)
-        .map_err(|e| format!("Could not serialize data for server {:?}: {e}", &server_data))?;
-
-    Ok(server_data_serialized.trim().replace(" = ", "="))
 }
 
 fn get_pem_data(rsa: &Rsa<Private>, name: &str) -> Result<Vec<u8>, String> {
@@ -161,23 +138,24 @@ fn validate_pem_path(path: &PathBuf) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::get_minified_server_data;
     use crate::data::ServerData;
 
     #[test]
     fn test_get_minified_server_data() {
-        let min_server_data = get_minified_server_data(
+        let server_data = ServerData::create(
             "some_kind_of_long_but_not_really_that_long_command",
             5,
             false,
             Some(String::from("192.168.178.123")),
             1725821510 * 1_000_000_000,
         )
+        .serialize()
         .unwrap();
+        let server_data_str = String::from_utf8_lossy(&server_data).to_string();
 
-        assert_eq!(min_server_data, "c=\"some_kind_of_long_but_not_really_that_long_command\"\nd=\"1725821515000000000\"\ns=0\ni=\"192.168.178.123\"");
+        assert_eq!(server_data_str, "c=\"some_kind_of_long_but_not_really_that_long_command\"\nd=\"1725821515000000000\"\ns=0\ni=\"192.168.178.123\"");
         assert_eq!(
-            toml::from_str::<ServerData>(&min_server_data).unwrap(),
+            ServerData::deserialize(&server_data).unwrap(),
             ServerData {
                 c: String::from("some_kind_of_long_but_not_really_that_long_command"),
                 d: 1725821515000000000,

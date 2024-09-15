@@ -21,19 +21,15 @@ pub struct Commander {
 impl Commander {
     pub fn create_from_path(path: PathBuf) -> Result<Commander, String> {
         match fs::read_to_string(&path) {
+            Ok(config) => Ok(Commander::create(ConfigServer::deserialize(&config)?)),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),
-            Ok(config) => match toml::from_str::<ConfigServer>(&config) {
-                Err(e) => Err(format!("Could not create TOML from {path:?}: {e}")),
-                Ok(config) => Ok(Commander::create(config)),
-            },
         }
     }
 
     pub fn create(config: ConfigServer) -> Commander {
-        let socket_path = get_socket_path(&config.config_dir);
         Commander {
+            socket_path: get_socket_path(&config.config_dir),
             config,
-            socket_path,
         }
     }
 
@@ -103,10 +99,7 @@ impl Commander {
 
     fn run_cycle(&self, stream: &mut UnixStream) -> Result<(), String> {
         let msg = Commander::read_string(stream)?;
-
-        let commander_data: CommanderData = toml::from_str(&msg)
-            .map_err(|e| format!("Could not deserialize CommanderData {}: {e}", &msg))?;
-
+        let commander_data: CommanderData = CommanderData::deserialize(&msg)?;
         let command_name = &commander_data.command_name;
         let command = self
             .config

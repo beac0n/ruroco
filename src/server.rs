@@ -41,11 +41,8 @@ impl PartialEq for Server {
 impl Server {
     pub fn create_from_path(path: PathBuf) -> Result<Server, String> {
         match fs::read_to_string(&path) {
+            Ok(config) => Server::create(ConfigServer::deserialize(&config)?),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),
-            Ok(config) => match toml::from_str::<ConfigServer>(&config) {
-                Err(e) => Err(format!("Could not create TOML from {path:?}: {e}")),
-                Ok(config) => Server::create(config),
-            },
         }
     }
 
@@ -168,24 +165,24 @@ impl Server {
     fn validate(&mut self, count: usize, ip_src: String) {
         self.decrypted_data.truncate(count);
         match self.decode() {
-            Ok((now_ns, data)) if now_ns > data.d => {
-                error(format!("Invalid deadline - now {now_ns} is after {}", data.d))
+            Ok((now_ns, data)) if now_ns > data.deadline() => {
+                error(format!("Invalid deadline - now {now_ns} is after {}", data.deadline()))
             }
-            Ok((_, data)) if self.blocklist.is_blocked(data.d) => {
-                error(format!("Invalid deadline - {} is on blocklist", data.d))
+            Ok((_, data)) if self.blocklist.is_blocked(data.deadline()) => {
+                error(format!("Invalid deadline - {} is on blocklist", data.deadline()))
             }
             Ok((_, data))
-                if data.is_strict() && data.i.clone().is_some_and(|ip_sent| ip_sent != ip_src) =>
+                if data.is_strict() && data.ip().is_some_and(|ip_sent| ip_sent != ip_src) =>
             {
-                error(format!("Invalid IP - expected {:?}, actual {ip_src}", data.i))
+                error(format!("Invalid IP - expected {:?}, actual {ip_src}", data.ip()))
             }
             Ok((now_ns, data)) => {
                 let command_name = String::from(&data.c);
-                let ip = data.i.unwrap_or(ip_src);
+                let ip = data.ip().unwrap_or(ip_src);
                 info(format!("Valid data - trying {command_name} with {ip}"));
 
                 self.send_command(CommanderData { command_name, ip });
-                self.update_block_list(now_ns, data.d);
+                self.update_block_list(now_ns, data.deadline());
             }
             Err(e) => error(format!("Could not decode data: {e}")),
         }
@@ -211,9 +208,7 @@ impl Server {
         let mut stream = UnixStream::connect(&self.socket_path)
             .map_err(|e| format!("Could not connect to socket {:?}: {e}", self.socket_path))?;
 
-        let data_to_send = toml::to_string(&data).map_err(|e| {
-            format!("Could not serialize commander data to socket {:?}: {e}", &data)
-        })?;
+        let data_to_send = data.serialize()?;
 
         stream.write_all(data_to_send.as_bytes()).map_err(|e| {
             format!("Could not write {data_to_send} to socket {:?}: {e}", self.socket_path)
@@ -226,11 +221,9 @@ impl Server {
     }
 
     fn decode(&self) -> Result<(u128, ServerData), String> {
-        let now = time()?;
-        let decrypted_data = String::from_utf8_lossy(&self.decrypted_data).to_string();
-        match toml::from_str::<ServerData>(&decrypted_data) {
-            Ok(data) => Ok((now, data)),
-            Err(e) => Err(format!("Could not deserialize ServerData {}: {e}", decrypted_data)),
+        match ServerData::deserialize(&self.decrypted_data) {
+            Ok(data) => Ok((time()?, data)),
+            Err(e) => Err(e),
         }
     }
 }

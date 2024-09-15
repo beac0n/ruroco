@@ -7,6 +7,18 @@ pub struct CommanderData {
     pub ip: String,
 }
 
+impl CommanderData {
+    pub fn deserialize(data: &str) -> Result<CommanderData, String> {
+        toml::from_str::<CommanderData>(data)
+            .map_err(|e| format!("Could not create CommanderData from {data}: {e}"))
+    }
+
+    pub fn serialize(&self) -> Result<String, String> {
+        toml::to_string(&self)
+            .map_err(|e| format!("Could not serialize CommanderData {:?}: {e}", &self))
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 // use one char for each field, to minify serialized size
 pub struct ServerData {
@@ -18,8 +30,43 @@ pub struct ServerData {
 }
 
 impl ServerData {
+    pub fn create(
+        command: &str,
+        deadline: u16,
+        strict: bool,
+        ip: Option<String>,
+        now_ns: u128,
+    ) -> ServerData {
+        ServerData {
+            c: command.to_string(),
+            d: now_ns + (u128::from(deadline) * 1_000_000_000),
+            s: if strict { 1 } else { 0 },
+            i: ip,
+        }
+    }
+
+    pub fn deserialize(data: &[u8]) -> Result<ServerData, String> {
+        let data_str = String::from_utf8_lossy(data).to_string();
+        toml::from_str::<ServerData>(&data_str)
+            .map_err(|e| format!("Could not deserialize ServerData {data_str}: {e}"))
+    }
+
+    pub fn serialize(&self) -> Result<Vec<u8>, String> {
+        toml::to_string(&self)
+            .map(|s| s.trim().replace(" = ", "=").as_bytes().to_vec())
+            .map_err(|e| format!("Could not serialize data for server {:?}: {e}", &self))
+    }
+
     pub fn is_strict(&self) -> bool {
         self.s == 1
+    }
+
+    pub fn ip(&self) -> Option<String> {
+        self.i.clone()
+    }
+
+    pub fn deadline(&self) -> u128 {
+        self.d
     }
 }
 

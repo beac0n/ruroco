@@ -2,12 +2,11 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
+use clap::Parser;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
-
-use clap::Parser;
-use serde::Deserialize;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -27,6 +26,13 @@ pub struct ConfigServer {
     pub socket_user: String,
     #[serde(default = "default_socket_group")]
     pub socket_group: String,
+}
+
+impl ConfigServer {
+    pub fn deserialize(data: &str) -> Result<ConfigServer, String> {
+        toml::from_str::<ConfigServer>(data)
+            .map_err(|e| format!("Could not create ConfigServer from {data}: {e}"))
+    }
 }
 
 impl Default for ConfigServer {
