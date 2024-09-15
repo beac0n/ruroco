@@ -179,7 +179,7 @@ mod tests {
         let address = test_data.server_address.to_string();
         let command = String::from("default");
         send(pem_path, address, command, deadline, strict, ip, now).unwrap();
-        thread::sleep(Duration::from_secs(1)); // wait for files to be written and blocklist to be updated
+        thread::sleep(Duration::from_secs(2)); // wait for files to be written and blocklist to be updated
     }
 
     fn run_commander(test_data: &TestData) {
