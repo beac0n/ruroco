@@ -53,7 +53,7 @@ jobs:
       - name: Run tests end to end
         run: make test_end_to_end
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose -- --test-threads=1
         env:
           RUST_BACKTRACE: 'full'
           CARGO_INCREMENTAL: '0'
