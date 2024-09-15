@@ -129,28 +129,40 @@ impl Server {
 
     pub fn run(&mut self) -> Result<(), String> {
         info(format!("Running server on udp://{}", self.address));
-        let rsa_size = self.rsa.size() as usize;
         loop {
-            match self.receive() {
-                Ok((count, src)) if count != rsa_size => {
-                    error(format!("Invalid read count {count}, expected {rsa_size} from {src}"))
-                }
-                Ok((count, src)) => {
-                    info(format!("Successfully received {count} bytes from {src}"));
-                    match self.decrypt() {
-                        Ok(count) => self.validate(count, src.ip().to_string()),
-                        Err(e) => {
-                            error(format!("Could not decrypt {:X?}: {e}", self.encrypted_data))
-                        }
+            let data = self.receive();
+            self.run_loop_iteration(data);
+        }
+    }
+
+    fn run_loop_iteration(&mut self, data: std::io::Result<(usize, SocketAddr)>) -> Option<String> {
+        let rsa_size = self.rsa.size() as usize;
+        let error_msg = match data {
+            Ok((count, src)) if count != rsa_size => {
+                Some(format!("Invalid read count {count}, expected {rsa_size} from {src}"))
+            }
+            Ok((count, src)) => {
+                info(format!("Successfully received {count} bytes from {src}"));
+                match self.decrypt() {
+                    Ok(count) => {
+                        self.validate(count, src.ip().to_string());
+                        None
                     }
-                }
-                Err(e) => {
-                    error(format!("Could not recv_from socket from udp://{}: {e}", self.address))
+                    Err(e) => Some(format!("Could not decrypt {:X?}: {e}", self.encrypted_data)),
                 }
             }
+            Err(e) => Some(format!("Could not recv_from socket from udp://{}: {e}", self.address)),
+        };
 
-            self.encrypted_data = vec![0; rsa_size];
-            self.decrypted_data = vec![0; rsa_size];
+        self.encrypted_data = vec![0; rsa_size];
+        self.decrypted_data = vec![0; rsa_size];
+
+        match error_msg {
+            Some(s) => {
+                error(s.clone());
+                Some(s)
+            }
+            None => None,
         }
     }
 
@@ -225,5 +237,90 @@ impl Server {
             Ok(data) => Ok((time()?, data)),
             Err(e) => Err(e),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::client::gen;
+    use crate::config_server::ConfigServer;
+    use crate::server::Server;
+    use rand::distributions::{Alphanumeric, DistString};
+    use rand::Rng;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::path::PathBuf;
+    use std::{fs, io};
+
+    struct TestData {
+        public_pem_path: PathBuf,
+        private_pem_path: PathBuf,
+        server_address: String,
+        config_dir: PathBuf,
+    }
+
+    impl TestData {
+        fn create() -> TestData {
+            let test_folder_path = PathBuf::from("/dev/shm").join(gen_file_name(""));
+            let private_pem_dir = test_folder_path.join("private");
+            let _ = fs::create_dir_all(&test_folder_path);
+            let _ = fs::create_dir_all(&private_pem_dir);
+
+            TestData {
+                config_dir: test_folder_path.clone(),
+                public_pem_path: test_folder_path.join(gen_file_name(".pem")),
+                private_pem_path: private_pem_dir.join(gen_file_name(".pem")),
+                server_address: format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535)),
+            }
+        }
+    }
+
+    fn gen_file_name(suffix: &str) -> String {
+        let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+        format!("{rand_str}{suffix}")
+    }
+
+    #[test]
+    fn test_loop_iteration_invalid_read_count() {
+        let mut server = create_server();
+        let success_data: io::Result<(usize, SocketAddr)> =
+            Ok((0, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
+
+        //
+
+        assert_eq!(
+            server.run_loop_iteration(success_data).unwrap(),
+            String::from("Invalid read count 0, expected 128 from 127.0.0.1:8080")
+        );
+    }
+
+    #[test]
+    fn test_loop_iteration_decrypt_error() {
+        let mut server = create_server();
+        let success_data: io::Result<(usize, SocketAddr)> =
+            Ok((128, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
+        assert!(server.run_loop_iteration(success_data).unwrap().starts_with("Could not decrypt "));
+    }
+
+    #[test]
+    fn test_loop_iteration_error() {
+        let mut server = create_server();
+        let error_data: io::Result<(usize, SocketAddr)> =
+            Err(io::Error::new(io::ErrorKind::Other, "An error occurred"));
+
+        assert!(server
+            .run_loop_iteration(error_data)
+            .unwrap()
+            .starts_with("Could not recv_from socket from udp://127.0.0.1:"));
+    }
+
+    fn create_server() -> Server {
+        let test_data: TestData = TestData::create();
+        gen(test_data.private_pem_path.clone(), test_data.public_pem_path.clone(), 1024).unwrap();
+        Server::create(ConfigServer {
+            address: test_data.server_address,
+            config_dir: test_data.config_dir,
+            ..Default::default()
+        })
+        .expect("could not create server")
     }
 }
