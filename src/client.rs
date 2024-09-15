@@ -164,6 +164,7 @@ mod tests {
             5,
             false,
             Some(String::from("192.168.178.123")),
+            String::from("192.168.178.124"),
             1725821510 * 1_000_000_000,
         )
         .serialize()
