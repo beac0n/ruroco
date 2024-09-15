@@ -251,41 +251,11 @@ mod tests {
     use std::path::PathBuf;
     use std::{fs, io};
 
-    struct TestData {
-        public_pem_path: PathBuf,
-        private_pem_path: PathBuf,
-        server_address: String,
-        config_dir: PathBuf,
-    }
-
-    impl TestData {
-        fn create() -> TestData {
-            let test_folder_path = PathBuf::from("/dev/shm").join(gen_file_name(""));
-            let private_pem_dir = test_folder_path.join("private");
-            let _ = fs::create_dir_all(&test_folder_path);
-            let _ = fs::create_dir_all(&private_pem_dir);
-
-            TestData {
-                config_dir: test_folder_path.clone(),
-                public_pem_path: test_folder_path.join(gen_file_name(".pem")),
-                private_pem_path: private_pem_dir.join(gen_file_name(".pem")),
-                server_address: format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535)),
-            }
-        }
-    }
-
-    fn gen_file_name(suffix: &str) -> String {
-        let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-        format!("{rand_str}{suffix}")
-    }
-
     #[test]
     fn test_loop_iteration_invalid_read_count() {
         let mut server = create_server();
         let success_data: io::Result<(usize, SocketAddr)> =
             Ok((0, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
-
-        //
 
         assert_eq!(
             server.run_loop_iteration(success_data).unwrap(),
@@ -314,13 +284,29 @@ mod tests {
     }
 
     fn create_server() -> Server {
-        let test_data: TestData = TestData::create();
-        gen(test_data.private_pem_path.clone(), test_data.public_pem_path.clone(), 1024).unwrap();
+        let test_folder_path = PathBuf::from("/dev/shm").join(gen_file_name(""));
+        let private_pem_dir = test_folder_path.join("private");
+
+        let _ = fs::create_dir_all(&test_folder_path);
+        let _ = fs::create_dir_all(&private_pem_dir);
+
+        gen(
+            private_pem_dir.join(gen_file_name(".pem")),
+            test_folder_path.join(gen_file_name(".pem")),
+            1024,
+        )
+        .expect("could not generate key");
+
         Server::create(ConfigServer {
-            address: test_data.server_address,
-            config_dir: test_data.config_dir,
+            address: format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535)),
+            config_dir: test_folder_path.clone(),
             ..Default::default()
         })
         .expect("could not create server")
+    }
+
+    fn gen_file_name(suffix: &str) -> String {
+        let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+        format!("{rand_str}{suffix}")
     }
 }
