@@ -58,6 +58,22 @@ If you have configured ruroco on server like that and execute the following clie
 ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command open_ssh --deadline 5
 ```
 
+> 🛈 The following two commands are still work in progress and not available yet
+
+If you want to use a different IP address than the one you are sending the packet from, you can use the `--ip` argument
+together with `--strict false`:
+
+```shell
+ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command open_ssh --deadline 5 --ip 94.111.111.111 --strict false
+```
+
+If you want to make sure that an adversary does not spoof your source IP address, you can get your external IP address
+from a service and set `--strict true` (the default) - the ruroco server will make sure that the IP addresses match:
+
+```shell
+ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command open_ssh --deadline 5 --ip $(curl -s https://checkip.amazonaws.com) --strict true
+```
+
 the server will validate that the client is authorized to execute that command by using public-key cryptography (RSA)
 and will then execute the command defined in the config above under "open_ssh". The `--deadline` argument means that the
 command has to be started on the server within 5 seconds after executing the command.
