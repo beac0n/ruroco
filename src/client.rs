@@ -2,12 +2,14 @@
 
 use std::fmt::{Debug, Display};
 use std::fs;
-use std::net::UdpSocket;
+use std::net::{SocketAddr, UdpSocket};
 use std::path::PathBuf;
 
 use openssl::pkey::Private;
 use openssl::rsa::Rsa;
 use openssl::version::version;
+
+use std::net::ToSocketAddrs;
 
 use crate::common::{info, PADDING_SIZE, RSA_PADDING};
 use crate::data::ServerData;
@@ -25,7 +27,7 @@ pub fn send(
     command: String,
     deadline: u16,
     strict: bool,
-    ip: Option<String>,
+    source_ip: Option<String>,
     now: u128,
 ) -> Result<(), String> {
     info(format!(
@@ -33,8 +35,20 @@ pub fn send(
         version()
     ));
 
+    let destination_ips = address
+        .to_socket_addrs()
+        .map_err(|err| format!("Could not resolve hostname for {address}: {err}"))?
+        .filter(|a| a.is_ipv4())
+        .collect::<Vec<SocketAddr>>();
+
+    let destination_ip = match destination_ips.first() {
+        Some(a) => a.ip().to_string(),
+        None => return Err(format!("Could not find any IPv4 address for {address}")),
+    };
+
     let rsa = get_rsa_private(&pem_path)?;
-    let data_to_encrypt = get_data_to_encrypt(&command, &rsa, deadline, strict, ip, now)?;
+    let data_to_encrypt =
+        get_data_to_encrypt(&command, &rsa, deadline, strict, source_ip, destination_ip, now)?;
     let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
@@ -95,10 +109,13 @@ fn get_data_to_encrypt(
     rsa: &Rsa<Private>,
     deadline: u16,
     strict: bool,
-    ip: Option<String>,
+    source_ip: Option<String>,
+    destination_ip: String,
     now_ns: u128,
 ) -> Result<Vec<u8>, String> {
-    let data_to_encrypt = ServerData::create(command, deadline, strict, ip, now_ns).serialize()?;
+    let data_to_encrypt =
+        ServerData::create(command, deadline, strict, source_ip, destination_ip, now_ns)
+            .serialize()?;
     let data_to_encrypt_len = data_to_encrypt.len();
     let rsa_size = rsa.size() as usize;
     if data_to_encrypt_len + PADDING_SIZE > rsa_size {

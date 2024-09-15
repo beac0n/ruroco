@@ -180,17 +180,25 @@ impl Server {
             Ok((now_ns, data)) if now_ns > data.deadline() => {
                 error(format!("Invalid deadline - now {now_ns} is after {}", data.deadline()))
             }
+            Ok((_, data)) if data.destination_ip() != "" => {
+                // TODO: get IP address from server -> define in config
+                error(format!("Invalid host IP - expected {}, actual ", data.destination_ip()))
+            }
             Ok((_, data)) if self.blocklist.is_blocked(data.deadline()) => {
                 error(format!("Invalid deadline - {} is on blocklist", data.deadline()))
             }
             Ok((_, data))
-                if data.is_strict() && data.ip().is_some_and(|ip_sent| ip_sent != ip_src) =>
+                if data.is_strict()
+                    && data.source_ip().is_some_and(|ip_sent| ip_sent != ip_src) =>
             {
-                error(format!("Invalid IP - expected {:?}, actual {ip_src}", data.ip()))
+                error(format!(
+                    "Invalid source IP - expected {:?}, actual {ip_src}",
+                    data.source_ip()
+                ))
             }
             Ok((now_ns, data)) => {
                 let command_name = String::from(&data.c);
-                let ip = data.ip().unwrap_or(ip_src);
+                let ip = data.source_ip().unwrap_or(ip_src);
                 info(format!("Valid data - trying {command_name} with {ip}"));
 
                 self.send_command(CommanderData { command_name, ip });
