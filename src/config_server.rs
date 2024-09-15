@@ -62,3 +62,26 @@ fn default_address() -> String {
 fn default_config_path() -> PathBuf {
     PathBuf::from("/etc/ruroco")
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config_server::{
+        default_address, default_config_path, default_socket_group, default_socket_user,
+        ConfigServer,
+    };
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_create_deserialize() {
+        assert_eq!(
+            ConfigServer::deserialize("[commands]").unwrap(),
+            ConfigServer {
+                commands: HashMap::new(),
+                address: default_address(),
+                config_dir: default_config_path(),
+                socket_user: default_socket_user(),
+                socket_group: default_socket_group(),
+            }
+        );
+    }
+}
