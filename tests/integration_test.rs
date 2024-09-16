@@ -113,7 +113,7 @@ mod tests {
 
             thread::spawn(move || {
                 Server::create(ConfigServer {
-                    address: address,
+                    address,
                     config_dir,
                     ..Default::default()
                 })
