@@ -171,7 +171,7 @@ mod tests {
         .unwrap();
         let server_data_str = String::from_utf8_lossy(&server_data).to_string();
 
-        assert_eq!(server_data_str, "c=\"some_kind_of_long_but_not_really_that_long_command\"\nd=\"1725821515000000000\"\ns=0\ni=\"192.168.178.123\"");
+        assert_eq!(server_data_str, "c=\"some_kind_of_long_but_not_really_that_long_command\"\nd=\"1725821515000000000\"\ns=0\ni=\"192.168.178.123\"\nh=\"192.168.178.124\"");
         assert_eq!(
             ServerData::deserialize(&server_data).unwrap(),
             ServerData {

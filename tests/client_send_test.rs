@@ -87,7 +87,7 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("Could not connect/send data to \"{address}\": invalid port value")
+            format!("Could not resolve hostname for {address}: invalid port value")
         );
     }
 
@@ -117,7 +117,7 @@ mod tests {
         assert_eq!(
             result.unwrap_err().to_string(),
             format!(
-                "Could not connect/send data to \"{address}\": \
+                "Could not resolve hostname for {address}: \
                 failed to lookup address information: Name or service not known"
             )
         );
@@ -148,8 +148,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err().to_string(),
             String::from(
-                "Too much data, must be at most 117 bytes, but was 118 bytes. \
-            Reduce command name length or create a bigger RSA key size."
+                "Too much data, must be at most 117 bytes, but was 132 bytes. \
+                Reduce command name length or create a bigger RSA key size."
             )
         );
     }
