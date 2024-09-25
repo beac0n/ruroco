@@ -42,10 +42,11 @@ so that you can ssh into your server. Afterward ruruco closes the SSH port again
 ruroco, you have to use a configuration similar to the one shown below:
 
 ```toml
-address = "0.0.0.0:8080"  # address the ruroco serer listens on, if systemd/ruroco.socket is not used
-config_dir = "/etc/ruroco/"  # path where the configuration files are saved
+ip = "95.111.111.111"        # MANDATORY - public IP address of your server where this service runs on
+address = "0.0.0.0:8080"     # OPTIONAL  - address the ruroco serer listens on, if systemd/ruroco.socket is not used
+config_dir = "/etc/ruroco/"  # OPTIONAL  - path where the configuration files are saved
 
-[commands]
+[commands]                   # MANDATORY - but can be empty
 # open ssh, but only for the IP address where the request came from
 open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"
 # close ssh, but only for the IP address where the request came from

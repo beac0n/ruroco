@@ -1,6 +1,6 @@
 ip = "<ip-address>" # public IP address of your server where this service runs on
-address = "127.0.0.1:8080" # address where this service runs on
-config_dir = "/etc/ruroco/" # directory where pem files are
+address = "127.0.0.1:8080" # address the ruroco serer listens on, if systemd/ruroco.socket is not used
+config_dir = "/etc/ruroco/" # path where the configuration files are saved
 socket_user = "ruroco" # user of socket, facilitating communication between server and commander
 socket_group = "ruroco" # user group of socket, facilitating communication between server and commander
 
