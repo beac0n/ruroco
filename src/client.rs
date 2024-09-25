@@ -20,6 +20,8 @@ use crate::data::ServerData;
 /// * `address` - IP address and port to send the data to
 /// * `command` - Which command the commander should execute
 /// * `deadline` - After how many seconds from now the commander has to start executing the command
+/// * `strict` - If the server should error when provided source_ip does not match actual source ip
+/// * `source_ip` - The ip from which this packet was supposed to be sent
 /// * `now` - current timestamp in ns
 pub fn send(
     pem_path: PathBuf,
