@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add --strict and --ip flags to implement overriding the IP address that is being used for the commander
+- Add `ip` field to config, to make sure that the UDP packet that was sent is actually destinated for the server
 
 ### Changed
 
@@ -97,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial Release
+
+[0.3.0]: https://github.com/beac0n/ruroco/compare/v0.2.6..v0.3.0
 
 [0.2.6]: https://github.com/beac0n/ruroco/compare/v0.2.5..v0.2.6
 
