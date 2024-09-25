@@ -18,6 +18,7 @@ pub struct CliServer {
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ConfigServer {
     pub commands: HashMap<String, String>,
+    pub ip: String,
     #[serde(default = "default_address")]
     pub address: String,
     #[serde(default = "default_config_path")]
@@ -39,6 +40,7 @@ impl Default for ConfigServer {
     fn default() -> ConfigServer {
         ConfigServer {
             commands: HashMap::new(),
+            ip: String::from("127.0.0.1"),
             address: String::from(""),
             socket_user: String::from(""),
             socket_group: String::from(""),
@@ -74,9 +76,10 @@ mod tests {
     #[test]
     fn test_create_deserialize() {
         assert_eq!(
-            ConfigServer::deserialize("[commands]").unwrap(),
+            ConfigServer::deserialize("ip = \"127.0.0.1\"\n[commands]").unwrap(),
             ConfigServer {
                 commands: HashMap::new(),
+                ip: String::from("127.0.0.1"),
                 address: default_address(),
                 config_dir: default_config_path(),
                 socket_user: default_socket_user(),

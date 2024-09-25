@@ -1,4 +1,7 @@
-address = "127.0.0.1:8080"
-config_dir = "/etc/ruroco/"
+ip = "<ip-address>" # public IP address of your server where this service runs on
+address = "127.0.0.1:8080" # address where this service runs on
+config_dir = "/etc/ruroco/" # directory where pem files are
+socket_user = "ruroco" # user of socket, facilitating communication between server and commander
+socket_group = "ruroco" # user group of socket, facilitating communication between server and commander
 
-[commands]
+[commands] # commands which are possible to execute

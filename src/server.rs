@@ -4,7 +4,7 @@ use openssl::rsa::Rsa;
 use openssl::version::version;
 use std::fs::ReadDir;
 use std::io::Write;
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::os::fd::{FromRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -20,6 +20,7 @@ pub struct Server {
     rsa: Rsa<Public>,
     socket: UdpSocket,
     address: String,
+    ip: String,
     encrypted_data: Vec<u8>,
     decrypted_data: Vec<u8>,
     socket_path: PathBuf,
@@ -50,6 +51,17 @@ impl Server {
         let address = config.address;
         let config_dir = resolve_path(&config.config_dir);
 
+        let ip_addr = config.ip.parse::<IpAddr>().map_err(|e| {
+            format!("Could not parse configured host IP address {}: {e}", config.ip)
+        })?;
+
+        if !ip_addr.is_ipv4() {
+            return Err(format!(
+                "Only IPv4 Addresses are currently supported, got IP config {}",
+                ip_addr
+            ));
+        }
+
         let pem_path = Self::get_pem_path(&config_dir)?;
         info(format!(
             "Creating server, loading public PEM from {pem_path:?}, using {} ...",
@@ -61,28 +73,7 @@ impl Server {
         let rsa = Rsa::public_key_from_pem(&pem_data)
             .map_err(|e| format!("Could not load public key from {pem_path:?}: {e}"))?;
 
-        let pid = std::process::id().to_string();
-        let socket = match env::var("LISTEN_PID") {
-            Ok(listen_pid) if listen_pid == pid => {
-                info(String::from(
-                    "env var LISTEN_PID was set to our PID, creating socket from raw fd ...",
-                ));
-                let fd: RawFd = 3;
-                unsafe { UdpSocket::from_raw_fd(fd) }
-            }
-            Ok(_) => {
-                info(format!(
-                    "env var LISTEN_PID was set, but not to our PID, binding to {address}"
-                ));
-                UdpSocket::bind(&address)
-                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
-            }
-            Err(_) => {
-                info(format!("env var LISTEN_PID was not set, binding to {address}"));
-                UdpSocket::bind(&address)
-                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))?
-            }
-        };
+        let socket = Self::create_udp_socket(&address)?;
 
         let rsa_size = rsa.size() as usize;
         let decrypted_data = vec![0; rsa_size];
@@ -91,12 +82,38 @@ impl Server {
         Ok(Server {
             rsa,
             address,
+            ip: ip_addr.to_string(),
             socket,
             decrypted_data,
             encrypted_data,
             socket_path: get_socket_path(&config_dir),
             blocklist: Blocklist::create(&config_dir),
         })
+    }
+
+    fn create_udp_socket(address: &str) -> Result<UdpSocket, String> {
+        let pid = std::process::id().to_string();
+        match env::var("LISTEN_PID") {
+            Ok(listen_pid) if listen_pid == pid => {
+                info(String::from(
+                    "env var LISTEN_PID was set to our PID, creating socket from raw fd ...",
+                ));
+                let fd: RawFd = 3;
+                Ok(unsafe { UdpSocket::from_raw_fd(fd) })
+            }
+            Ok(_) => {
+                info(format!(
+                    "env var LISTEN_PID was set, but not to our PID, binding to {address}"
+                ));
+                UdpSocket::bind(address)
+                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
+            }
+            Err(_) => {
+                info(format!("env var LISTEN_PID was not set, binding to {address}"));
+                UdpSocket::bind(address)
+                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
+            }
+        }
     }
 
     fn get_pem_path(config_dir: &PathBuf) -> Result<PathBuf, String> {
@@ -180,17 +197,26 @@ impl Server {
             Ok((now_ns, data)) if now_ns > data.deadline() => {
                 error(format!("Invalid deadline - now {now_ns} is after {}", data.deadline()))
             }
+            Ok((_, data)) if self.ip != data.destination_ip() => error(format!(
+                "Invalid host IP - expected {}, actual {}",
+                self.ip,
+                data.destination_ip()
+            )),
             Ok((_, data)) if self.blocklist.is_blocked(data.deadline()) => {
                 error(format!("Invalid deadline - {} is on blocklist", data.deadline()))
             }
             Ok((_, data))
-                if data.is_strict() && data.ip().is_some_and(|ip_sent| ip_sent != ip_src) =>
+                if data.is_strict()
+                    && data.source_ip().is_some_and(|ip_sent| ip_sent != ip_src) =>
             {
-                error(format!("Invalid IP - expected {:?}, actual {ip_src}", data.ip()))
+                error(format!(
+                    "Invalid source IP - expected {:?}, actual {ip_src}",
+                    data.source_ip()
+                ))
             }
             Ok((now_ns, data)) => {
                 let command_name = String::from(&data.c);
-                let ip = data.ip().unwrap_or(ip_src);
+                let ip = data.source_ip().unwrap_or(ip_src);
                 info(format!("Valid data - trying {command_name} with {ip}"));
 
                 self.send_command(CommanderData { command_name, ip });

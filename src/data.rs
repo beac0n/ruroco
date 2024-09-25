@@ -25,8 +25,9 @@ pub struct ServerData {
     pub c: String, // command name
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
     pub d: u128, // deadline in ns
-    pub s: u8,     // strict - 0 == false, 1 == true
-    pub i: Option<String>, // ip address
+    pub s: u8,     // strict -> 0 == false, 1 == true
+    pub i: Option<String>, // source ip address
+    pub h: String, // host ip address
 }
 
 impl ServerData {
@@ -34,14 +35,16 @@ impl ServerData {
         command: &str,
         deadline: u16,
         strict: bool,
-        ip: Option<String>,
+        source_ip: Option<String>,
+        destination_ip: String,
         now_ns: u128,
     ) -> ServerData {
         ServerData {
             c: command.to_string(),
             d: now_ns + (u128::from(deadline) * 1_000_000_000),
             s: if strict { 1 } else { 0 },
-            i: ip,
+            i: source_ip,
+            h: destination_ip,
         }
     }
 
@@ -61,8 +64,12 @@ impl ServerData {
         self.s == 1
     }
 
-    pub fn ip(&self) -> Option<String> {
+    pub fn source_ip(&self) -> Option<String> {
         self.i.clone()
+    }
+
+    pub fn destination_ip(&self) -> String {
+        self.h.clone()
     }
 
     pub fn deadline(&self) -> u128 {
