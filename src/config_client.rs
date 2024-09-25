@@ -5,6 +5,7 @@
 use std::env;
 use std::path::PathBuf;
 
+use crate::common::NTP_SYSTEM;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -37,6 +38,8 @@ pub enum CommandsClient {
         #[arg(short, long, default_value_t = true)]
         strict: bool,
         ip: Option<String>,
+        #[arg(short, long, default_value = NTP_SYSTEM)]
+        ntp: String,
     },
 }
 
