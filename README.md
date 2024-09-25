@@ -59,8 +59,6 @@ If you have configured ruroco on server like that and execute the following clie
 ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command open_ssh --deadline 5
 ```
 
-> 🛈 The following two commands are still work in progress and not available yet
-
 If you want to use a different IP address than the one you are sending the packet from, you can use the `--ip` argument
 together with `--strict false`:
 
