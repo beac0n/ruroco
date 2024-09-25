@@ -45,6 +45,7 @@ ruroco, you have to use a configuration similar to the one shown below:
 ip = "95.111.111.111"        # MANDATORY - public IP address of your server where this service runs on
 address = "0.0.0.0:8080"     # OPTIONAL  - address the ruroco serer listens on, if systemd/ruroco.socket is not used
 config_dir = "/etc/ruroco/"  # OPTIONAL  - path where the configuration files are saved
+ntp = "system"               # OPTIONAL   - NTP server configuration - use "system" to use the systems time configuration
 
 [commands]                   # MANDATORY - but can be empty
 # open ssh, but only for the IP address where the request came from
