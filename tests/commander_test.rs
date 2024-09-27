@@ -60,6 +60,7 @@ mod tests {
             Ok(Commander::create(ConfigServer {
                 address: String::from("127.0.0.1:8080"),
                 ip: String::from("127.0.0.1"),
+                ntp: String::from("system"),
                 config_dir: PathBuf::from("tests/conf_dir"),
                 socket_user: String::from("ruroco"),
                 socket_group: String::from("ruroco"),

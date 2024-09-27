@@ -5,13 +5,8 @@ USAGE="Usage: $0 {major|minor|patch}"
 if [ "$#" -ne 1 ]; then
     printf "%s\n" "$USAGE"
     exit 1
-elif [ ! -f VERSION ]; then
-    VERSION="0.0.0"
-else
-    VERSION=$(cat VERSION)
-    VERSION=${VERSION#v}
-fi
 
+VERSION=$(grep '^version = ' Cargo.toml | cut -d '"' -f 2)
 MAJOR=$(printf "%s" "$VERSION" | cut -d '.' -f 1)
 MINOR=$(printf "%s" "$VERSION" | cut -d '.' -f 2)
 PATCH=$(printf "%s" "$VERSION" | cut -d '.' -f 3)
@@ -27,12 +22,11 @@ NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
 NEW_VERSION_SEMVER=${NEW_VERSION#v}
 
 sed -i -E "s/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"$NEW_VERSION_SEMVER\"/" Cargo.toml
-printf "%s" "$NEW_VERSION" > VERSION
 git cliff --unreleased --tag "$NEW_VERSION_SEMVER" --prepend CHANGELOG.md
 printf "Updated version to %s\n" "$NEW_VERSION"
 cargo update
 
-git add VERSION Cargo.toml Cargo.lock CHANGELOG.md
+git add Cargo.toml Cargo.lock CHANGELOG.md
 git commit -m "Bump version to ${NEW_VERSION}"
 git tag "$NEW_VERSION"
 

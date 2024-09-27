@@ -11,16 +11,15 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 use crate::blocklist::Blocklist;
-use crate::common::{error, get_socket_path, info, resolve_path, time, RSA_PADDING};
+use crate::common::{error, get_socket_path, info, resolve_path, time_from_ntp, RSA_PADDING};
 use crate::config_server::ConfigServer;
 use crate::data::{CommanderData, ServerData};
 
 #[derive(Debug)]
 pub struct Server {
+    config: ConfigServer,
     rsa: Rsa<Public>,
     socket: UdpSocket,
-    address: String,
-    ip: String,
     encrypted_data: Vec<u8>,
     decrypted_data: Vec<u8>,
     socket_path: PathBuf,
@@ -29,8 +28,8 @@ pub struct Server {
 
 impl PartialEq for Server {
     fn eq(&self, other: &Self) -> bool {
-        let self_address_split = self.address.split(':').next().unwrap_or("");
-        let other_address_split = other.address.split(':').next().unwrap_or("");
+        let self_address_split = self.config.address.split(':').next().unwrap_or("");
+        let other_address_split = other.config.address.split(':').next().unwrap_or("");
         self_address_split == other_address_split
             && self.encrypted_data == other.encrypted_data
             && self.decrypted_data == other.decrypted_data
@@ -48,9 +47,6 @@ impl Server {
     }
 
     pub fn create(config: ConfigServer) -> Result<Server, String> {
-        let address = config.address;
-        let config_dir = resolve_path(&config.config_dir);
-
         let ip_addr = config.ip.parse::<IpAddr>().map_err(|e| {
             format!("Could not parse configured host IP address {}: {e}", config.ip)
         })?;
@@ -62,6 +58,7 @@ impl Server {
             ));
         }
 
+        let config_dir = resolve_path(&config.config_dir);
         let pem_path = Self::get_pem_path(&config_dir)?;
         info(format!(
             "Creating server, loading public PEM from {pem_path:?}, using {} ...",
@@ -73,16 +70,14 @@ impl Server {
         let rsa = Rsa::public_key_from_pem(&pem_data)
             .map_err(|e| format!("Could not load public key from {pem_path:?}: {e}"))?;
 
-        let socket = Self::create_udp_socket(&address)?;
-
+        let socket = Self::create_udp_socket(&config.address)?;
         let rsa_size = rsa.size() as usize;
         let decrypted_data = vec![0; rsa_size];
         let encrypted_data = vec![0; rsa_size];
 
         Ok(Server {
+            config,
             rsa,
-            address,
-            ip: ip_addr.to_string(),
             socket,
             decrypted_data,
             encrypted_data,
@@ -145,7 +140,7 @@ impl Server {
     }
 
     pub fn run(&mut self) -> Result<(), String> {
-        info(format!("Running server on udp://{}", self.address));
+        info(format!("Running server on udp://{}", self.config.address));
         loop {
             let data = self.receive();
             self.run_loop_iteration(data);
@@ -168,7 +163,9 @@ impl Server {
                     Err(e) => Some(format!("Could not decrypt {:X?}: {e}", self.encrypted_data)),
                 }
             }
-            Err(e) => Some(format!("Could not recv_from socket from udp://{}: {e}", self.address)),
+            Err(e) => {
+                Some(format!("Could not recv_from socket from udp://{}: {e}", self.config.address))
+            }
         };
 
         self.encrypted_data = vec![0; rsa_size];
@@ -197,9 +194,9 @@ impl Server {
             Ok((now_ns, data)) if now_ns > data.deadline() => {
                 error(format!("Invalid deadline - now {now_ns} is after {}", data.deadline()))
             }
-            Ok((_, data)) if self.ip != data.destination_ip() => error(format!(
+            Ok((_, data)) if self.config.ip != data.destination_ip() => error(format!(
                 "Invalid host IP - expected {}, actual {}",
-                self.ip,
+                self.config.ip,
                 data.destination_ip()
             )),
             Ok((_, data)) if self.blocklist.is_blocked(data.deadline()) => {
@@ -260,7 +257,7 @@ impl Server {
 
     fn decode(&self) -> Result<(u128, ServerData), String> {
         match ServerData::deserialize(&self.decrypted_data) {
-            Ok(data) => Ok((time()?, data)),
+            Ok(data) => Ok((time_from_ntp(&self.config.ntp)?, data)),
             Err(e) => Err(e),
         }
     }

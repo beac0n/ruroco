@@ -1,7 +1,7 @@
 use clap::Parser;
 
 use ruroco::client::{gen, send};
-use ruroco::common::time;
+use ruroco::common::time_from_ntp;
 use ruroco::config_client::{CliClient, CommandsClient};
 
 fn main() -> Result<(), String> {
@@ -18,6 +18,7 @@ fn main() -> Result<(), String> {
             deadline,
             strict,
             ip,
-        } => send(private_pem_path, address, command, deadline, strict, ip, time()?),
+            ntp,
+        } => send(private_pem_path, address, command, deadline, strict, ip, time_from_ntp(&ntp)?),
     }
 }

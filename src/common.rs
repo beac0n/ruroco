@@ -1,10 +1,33 @@
 use openssl::rsa::Padding;
+use std::net::UdpSocket;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
 pub const RSA_PADDING: Padding = Padding::PKCS1;
 pub const PADDING_SIZE: usize = 11; // see https://www.rfc-editor.org/rfc/rfc3447#section-7.2.1
+
+pub const NTP_SYSTEM: &str = "system";
+
+pub fn time_from_ntp(ntp_server: &str) -> Result<u128, String> {
+    if ntp_server == NTP_SYSTEM {
+        return time();
+    }
+
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("Could not create UDP socket to connect to {ntp_server}: {e}"))?;
+
+    socket
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .map_err(|e| format!("Could not set UDP socket read timeout: {e}"))?;
+
+    let time = sntpc::simple_get_time(ntp_server, &socket)
+        .map_err(|e| format!("Could not get time from NTP Server {ntp_server}: {e:?}"))?;
+
+    let nano_seconds_fraction = sntpc::fraction_to_nanoseconds(time.sec_fraction()) as u128;
+    let nano_seconds = (time.sec() as u128) * 1_000_000_000;
+    Ok(nano_seconds + nano_seconds_fraction)
+}
 
 pub fn time() -> Result<u128, String> {
     let duration = SystemTime::now()
