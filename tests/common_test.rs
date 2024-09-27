@@ -1,8 +1,34 @@
 #[cfg(test)]
 mod tests {
-    use ruroco::common::{get_blocklist_path, get_socket_path, resolve_path};
+    use ruroco::common::{get_blocklist_path, get_socket_path, resolve_path, time, time_from_ntp};
     use std::path::PathBuf;
     use std::{env, fs};
+
+    #[test]
+    fn test_time_from_ntp_server() {
+        let now = time().unwrap();
+        let time = time_from_ntp("pool.ntp.org:123").unwrap();
+        let diff = time - now;
+
+        println!("{now} || {time}");
+
+        assert!(diff > 0);
+        let one_second = 1000000000;
+        assert!(diff < one_second);
+    }
+
+    #[test]
+    fn test_time_from_ntp_system() {
+        let now = time().unwrap();
+        let time = time_from_ntp("system").unwrap();
+        let diff = time - now;
+
+        println!("{diff}");
+
+        assert!(diff > 0);
+        let one_milli_second = 1000000;
+        assert!(diff < one_milli_second);
+    }
 
     #[test]
     fn test_get_blocklist_path() {
