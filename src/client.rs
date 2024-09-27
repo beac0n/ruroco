@@ -37,16 +37,23 @@ pub fn send(
         version()
     ));
 
-    let destination_ips = address
+    let destination_ips: Vec<SocketAddr> = address
         .to_socket_addrs()
         .map_err(|err| format!("Could not resolve hostname for {address}: {err}"))?
-        .filter(|a| a.is_ipv4())
-        .collect::<Vec<SocketAddr>>();
+        .collect();
 
-    let destination_ip = match destination_ips.first() {
-        Some(a) => a.ip().to_string(),
-        None => return Err(format!("Could not find any IPv4 address for {address}")),
-    };
+    let destination_ipv4s: Vec<&SocketAddr> =
+        destination_ips.iter().filter(|a| a.is_ipv4()).collect();
+
+    let destination_ipv6s: Vec<&SocketAddr> =
+        destination_ips.iter().filter(|a| a.is_ipv6()).collect();
+
+    let (destination_ip, bind_address) =
+        match (destination_ipv4s.first(), destination_ipv6s.first()) {
+            (_, Some(ipv6)) => (ipv6.ip().to_string(), "[::]:0"),
+            (Some(ipv4), _) => (ipv4.ip().to_string(), "0.0.0.0:0"),
+            _ => return Err(format!("Could not find any IPv4 or IPv6 address for {address}")),
+        };
 
     let rsa = get_rsa_private(&pem_path)?;
     let data_to_encrypt =
@@ -54,11 +61,11 @@ pub fn send(
     let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
-    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| socket_err(e, &address))?;
+    let socket = UdpSocket::bind(bind_address).map_err(|e| socket_err(e, &address))?;
     socket.connect(&address).map_err(|e| socket_err(e, &address))?;
     socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
 
-    info(format!("Sent command {command} to udp://{address}"));
+    info(format!("Sent command {command} from {bind_address} to udp://{address}"));
     Ok(())
 }
 

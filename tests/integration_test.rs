@@ -15,7 +15,8 @@ mod tests {
     use ruroco::config_server::ConfigServer;
     use ruroco::server::Server;
 
-    const TEST_IP: &str = "192.168.178.123";
+    const TEST_IP_V4: &str = "192.168.178.123";
+    const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
 
     struct TestData {
         test_file_path: PathBuf,
@@ -29,13 +30,14 @@ mod tests {
         block_list_exists: bool,
         deadline: u16,
         now: Option<u128>,
-        ip: Option<String>,
+        client_sent_ip: Option<String>,
+        server_ip: String,
         strict: bool,
     }
 
     impl TestData {
         fn create() -> TestData {
-            let test_folder_path = PathBuf::from("/dev/shm").join(TestData::gen_file_name(""));
+            let test_folder_path = PathBuf::from("/tmp").join(TestData::gen_file_name(""));
             let private_pem_dir = test_folder_path.join("private");
             let _ = fs::create_dir_all(&test_folder_path);
             let _ = fs::create_dir_all(&private_pem_dir);
@@ -52,7 +54,8 @@ mod tests {
                 block_list_exists: false,
                 deadline: 1,
                 now: None,
-                ip: None,
+                client_sent_ip: None,
+                server_ip: String::from("127.0.0.1"),
                 strict: true,
             }
         }
@@ -83,8 +86,16 @@ mod tests {
             let pem_path = self.private_pem_path.clone();
             let address = self.server_address.to_string();
             let command = String::from("default");
-            send(pem_path, address, command, self.deadline, self.strict, self.ip.clone(), now)
-                .unwrap();
+            send(
+                pem_path,
+                address,
+                command,
+                self.deadline,
+                self.strict,
+                self.client_sent_ip.clone(),
+                now,
+            )
+            .unwrap();
             thread::sleep(Duration::from_secs(2)); // wait for files to be written and blocklist to be updated
         }
 
@@ -110,17 +121,25 @@ mod tests {
         fn run_server(&self) {
             let address = self.server_address.clone();
             let config_dir = self.config_dir.clone();
+            let ip = self.server_ip.clone();
 
             thread::spawn(move || {
                 Server::create(ConfigServer {
                     address,
                     config_dir,
+                    ip,
                     ..Default::default()
                 })
                 .expect("could not create server")
                 .run()
                 .expect("server terminated")
             });
+        }
+
+        fn with_ipv6(&mut self) -> &mut TestData {
+            self.server_address = format!("::1:{}", rand::thread_rng().gen_range(1024..65535));
+            self.server_ip = String::from("::1");
+            self
         }
 
         fn with_deadline(&mut self, deadline: u16) -> &mut TestData {
@@ -134,7 +153,7 @@ mod tests {
         }
 
         fn with_ip(&mut self, ip: &str) -> &mut TestData {
-            self.ip = Some(String::from(ip));
+            self.client_sent_ip = Some(String::from(ip));
             self
         }
 
@@ -200,52 +219,85 @@ mod tests {
     }
 
     #[test]
-    fn test_ip_mismatch() {
-        let mut test_data: TestData = TestData::create();
+    fn test_ip_mismatch_v4() {
+        ip_mismatch_test(TestData::create(), TEST_IP_V4);
+    }
 
+    #[test]
+    fn test_ip_mismatch_v6() {
+        let mut test_data = TestData::create();
+        test_data.with_ipv6();
+        ip_mismatch_test(test_data, TEST_IP_V6);
+    }
+
+    fn ip_mismatch_test(mut test_data: TestData, ip: &str) {
         test_data.run_client_gen();
         test_data.run_server();
         test_data.run_commander();
 
-        test_data.with_ip(TEST_IP).run_client_send();
+        test_data.with_ip(ip).run_client_send();
         test_data.assert_file_paths();
     }
 
     #[test]
-    fn test_ip_mismatch_not_strict() {
-        let mut test_data: TestData = TestData::create();
+    fn test_ip_mismatch_not_strict_ipv4() {
+        ip_mismatch_not_strict_test(TestData::create(), TEST_IP_V4);
+    }
 
+    #[test]
+    fn test_ip_mismatch_not_strict_ipv6() {
+        let mut test_data = TestData::create();
+        test_data.with_ipv6();
+        ip_mismatch_not_strict_test(test_data, TEST_IP_V6);
+    }
+
+    fn ip_mismatch_not_strict_test(mut test_data: TestData, ip: &str) {
         test_data.run_client_gen();
         test_data.run_server();
         test_data.run_commander();
 
-        test_data.with_ip(TEST_IP).with_strict(false).run_client_send();
+        test_data.with_ip(ip).with_strict(false).run_client_send();
 
-        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), String::from(TEST_IP));
+        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), String::from(ip));
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
     }
 
     #[test]
-    fn test_ip_match() {
-        let mut test_data: TestData = TestData::create();
+    fn test_ip_match_v4() {
+        ip_match_test(TestData::create(), "127.0.0.1");
+    }
 
+    #[test]
+    fn test_ip_match_v6() {
+        let mut test_data = TestData::create();
+        test_data.with_ipv6();
+        ip_match_test(test_data, "::1");
+    }
+
+    fn ip_match_test(mut test_data: TestData, ip: &str) {
         test_data.run_client_gen();
         test_data.run_server();
         test_data.run_commander();
 
-        test_data.with_ip("127.0.0.1").run_client_send();
+        test_data.with_ip(ip).run_client_send();
 
-        assert_eq!(
-            fs::read_to_string(&test_data.test_file_path).unwrap(),
-            String::from("127.0.0.1")
-        );
+        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), String::from(ip));
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
     }
 
     #[test]
-    fn test_is_valid() {
-        let mut test_data: TestData = TestData::create();
+    fn test_is_valid_ipv4() {
+        is_valid_test(TestData::create());
+    }
 
+    #[test]
+    fn test_is_valid_ipv6() {
+        let mut test_data = TestData::create();
+        test_data.with_ipv6();
+        is_valid_test(test_data);
+    }
+
+    fn is_valid_test(mut test_data: TestData) {
         test_data.run_client_gen();
         test_data.run_server();
         test_data.run_commander();

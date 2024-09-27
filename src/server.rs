@@ -47,16 +47,9 @@ impl Server {
     }
 
     pub fn create(config: ConfigServer) -> Result<Server, String> {
-        let ip_addr = config.ip.parse::<IpAddr>().map_err(|e| {
+        let _ = config.ip.parse::<IpAddr>().map_err(|e| {
             format!("Could not parse configured host IP address {}: {e}", config.ip)
         })?;
-
-        if !ip_addr.is_ipv4() {
-            return Err(format!(
-                "Only IPv4 Addresses are currently supported, got IP config {}",
-                ip_addr
-            ));
-        }
 
         let config_dir = resolve_path(&config.config_dir);
         let pem_path = Self::get_pem_path(&config_dir)?;

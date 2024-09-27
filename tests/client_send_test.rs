@@ -155,7 +155,16 @@ mod tests {
     }
 
     #[test]
-    fn test_send() {
+    fn test_send_ipv4() {
+        assert!(send_test("127.0.0.1:1234").is_ok());
+    }
+
+    #[test]
+    fn test_send_ipv6() {
+        assert!(send_test("::1:1234").is_ok());
+    }
+
+    fn send_test(address: &str) -> Result<(), String> {
         let private_file = gen_file_name(".pem");
         let public_file = gen_file_name(".pem");
 
@@ -165,17 +174,17 @@ mod tests {
 
         let result = send(
             private_pem_path,
-            String::from("127.0.0.1:1234"),
+            String::from(address),
             String::from("default"),
             5,
             true,
             Some(String::from("192.168.178.123")),
-            time().unwrap(),
+            time()?,
         );
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
 
-        assert!(result.is_ok());
+        result
     }
 }
