@@ -24,6 +24,79 @@ picks from existing commands.
 - **replay protection** by adding every packet that the server received to a blocklist
 - (WIP) DoS protection
 
+## client usage
+
+### commands
+
+```shell
+ruroco-client
+```
+
+```text
+Usage: client <COMMAND>
+
+Commands:
+  gen   
+  send  
+  help  Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
+### gen
+
+```shell
+ruroco-client gen --help
+```
+
+```text
+Generate a pair of private and public PEM keys
+
+Usage: client gen [OPTIONS]
+
+Options:
+  -r, --private-pem-path <PRIVATE_PEM_PATH>
+          Path to the private PEM file [default: ./ruroco_private.pem]
+  -u, --public-pem-path <PUBLIC_PEM_PATH>
+          Path to the public PEM file [default: ./ruroco_public.pem]
+  -k, --key-size <KEY_SIZE>
+          Key size for the PEM file [default: 8192]
+  -h, --help
+          Print help
+```
+
+### send
+
+```shell
+ruroco-client send --help
+```
+
+```text
+Send a command to a specific address
+
+Usage: client send [OPTIONS] --address <ADDRESS>
+
+Options:
+  -a, --address <ADDRESS>
+          Address to send the command to
+  -p, --private-pem-path <PRIVATE_PEM_PATH>
+          Path to the private PEM file [default: ~/.config/ruroco/ruroco_private.pem]
+  -c, --command <COMMAND>
+          Command to send [default: default]
+  -d, --deadline <DEADLINE>
+          Deadline from now in seconds [default: 5]
+  -s, --strict
+          Whether to enforce strict mode for source ip validation (defaults to true)
+  -i, --ip <IP>
+          Optional IP address from which the command was sent
+  -n, --ntp <NTP>
+          NTP server (defaults to using the system time) [default: system]
+  -h, --help
+          Print help
+```
+
 # use cases
 
 ## single packet authorization (SPA)

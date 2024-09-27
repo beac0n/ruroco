@@ -17,27 +17,40 @@ pub struct CliClient {
 
 #[derive(Debug, Subcommand)]
 pub enum CommandsClient {
+    /// Generate a pair of private and public PEM keys.
     Gen {
+        /// Path to the private PEM file
         #[arg(short = 'r', long, default_value = env::current_dir().unwrap().join("ruroco_private.pem").into_os_string())]
         private_pem_path: PathBuf,
+        /// Path to the public PEM file
         #[arg(short = 'u', long, default_value = env::current_dir().unwrap().join("ruroco_public.pem").into_os_string())]
         public_pem_path: PathBuf,
+        /// Key size for the PEM file
         #[arg(short = 'k', long, default_value_t = 8192, value_parser = validate_key_size)]
         key_size: u32,
     },
 
+    /// Send a command to a specific address.
     Send {
+        /// Address to send the command to.
         #[arg(short, long)]
         address: String,
+        /// Path to the private PEM file.
         #[arg(short, long, default_value = default_private_pem_path())]
         private_pem_path: PathBuf,
+        /// Command to send
         #[arg(short, long, default_value = "default")]
         command: String,
+        /// Deadline from now in seconds
         #[arg(short, long, default_value = "5")]
         deadline: u16,
         #[arg(short, long, default_value_t = true)]
+        /// Whether to enforce strict mode for source ip validation (defaults to true).
         strict: bool,
+        /// Optional IP address from which the command was sent.
+        #[arg(short, long)]
         ip: Option<String>,
+        /// NTP server (defaults to using the system time).
         #[arg(short, long, default_value = NTP_SYSTEM)]
         ntp: String,
     },
