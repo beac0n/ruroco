@@ -97,89 +97,25 @@ Options:
           Print help
 ```
 
-# use cases
+## server config
 
-## single packet authorization (SPA)
-
-If you host a server on the web, you know that you'll get lots of brute-force attacks on (at least) the SSH port of your
-server. While using good practices in securing your server will keep you safe from such attacks, these attacks are quite
-annoying (filling up logs) and even if you secured your server correctly, you will still not be 100% safe, see
-https://www.schneier.com/blog/archives/2024/04/xz-utils-backdoor.html or
-https://www.qualys.com/2024/07/01/cve-2024-6387/regresshion.txt
-
-Completely blocking all traffic to all ports that do not have to be open at all times can reduce the attack surface.
-But blocking the SSH port completely will make SSH unusable for that server.
-
-This is where ruroco comes in. Ruroco can execute a command that opens up the SSH port for just a short amount of time,
-so that you can ssh into your server. Afterward ruruco closes the SSH port again. To implement this use case with
-ruroco, you have to use a configuration similar to the one shown below:
+1. run `ruroco-client gen` to generate two files: `ruroco_private.pem` and `ruroco_public.pem`
+2. move `ruroco_public.pem` to `/etc/ruroco/ruroco_public.pem` on server
+3. save `ruroco_private.pem` to `~/.config/ruroco/ruroco_private.pem` on client
+4. add server config to `/etc/ruroco/config.toml`
 
 ```toml
 ip = "95.111.111.111"        # MANDATORY - public IP address of your server where this service runs on
 address = "0.0.0.0:8080"     # OPTIONAL  - address the ruroco serer listens on, if systemd/ruroco.socket is not used
-config_dir = "/etc/ruroco/"  # OPTIONAL  - path where the configuration files are saved
-ntp = "system"               # OPTIONAL   - NTP server configuration - use "system" to use the systems time configuration
+config_dir = "/etc/ruroco/"  # OPTIONAL  - path where the configuration files (.pem and others) are saved
+ntp = "system"               # OPTIONAL  - NTP server configuration - use "system" to use the systems time configuration
+socket_user = "ruroco"       # OPTIONAL  - user of socket, facilitating communication between server and commander
+socket_group = "ruroco"      # OPTIONAL  - user group of socket, facilitating communication between server and commander
 
 [commands]                   # MANDATORY - but can be empty
-# open ssh, but only for the IP address where the request came from
-open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"
-# close ssh, but only for the IP address where the request came from
-close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22"
+open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"         #  open ssh for IP where request came from
+close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close ssh for IP where request came from
 ```
-
-If you have configured ruroco on server like that and execute the following client side command
-
-```shell
-ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command open_ssh --deadline 5
-```
-
-If you want to use a different IP address than the one you are sending the packet from, you can use the `--ip` argument
-together with `--strict false`:
-
-```shell
-ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command open_ssh --deadline 5 --ip 94.111.111.111 --strict false
-```
-
-If you want to make sure that an adversary does not spoof your source IP address, you can get your external IP address
-from a service and set `--strict true` (the default) - the ruroco server will make sure that the IP addresses match:
-
-```shell
-ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command open_ssh --deadline 5 --ip $(curl -s https://checkip.amazonaws.com) --strict true
-```
-
-the server will validate that the client is authorized to execute that command by using public-key cryptography (RSA)
-and will then execute the command defined in the config above under "open_ssh". The `--deadline` argument means that the
-command has to be started on the server within 5 seconds after executing the command.
-
-This gives you the ability to effectively only allow access to the SSH port, for only the IP that the UDP packet was
-sent from, if you want to connect to your server. Of course, you should also do all the other security hardening tasks
-you would do if the SSH port would be exposed to the internet.
-
-You can define any number of commands you wish, by adding more commands to configuration file.
-
-## Enabling webservice
-
-You may run a webservice like https://github.com/filebrowser/filebrowser on your server, which you do not want to
-publicly expose. If you use nginx as a reverse proxy, you can use ruroco to enable or disable services:
-
-```toml
-address = "0.0.0.0:8080"  # address the ruroco serer listens on, if systemd/ruroco.socket is not used
-config_dir = "/etc/ruroco/"  # path where the configuration files are saved
-
-[commands]
-# disable file browser nginx config file and reload nginx
-disable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf /etc/nginx/conf.d/https_file_browser.conf_disabled && nginx -s reload"
-# enable file browser nginx config file and reload nginx
-enable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf_disabled /etc/nginx/conf.d/https_file_browser.conf && nginx -s reload"
-```
-
-If you have configured ruroco on server like that and execute the following client side command
-
-```shell
-ruroco-client send --address host.domain:8080 --private-pem-path /path/to/ruroco_private.pem --command enable_file_browser --deadline 5
-```
-
-the file browser nginx config will be enabled and nginx reloaded, effectively making the file browser accessible.
 
 # setup
 
@@ -215,31 +151,24 @@ See make goal `install_server`, which
 - Assigns correct file permissions to the systemd and config files
 - Enables and starts the systemd services
 - After running the make goal, you have to
-    - generate a RSA key and copy it to the right place
+    - generate an RSA key and copy it to the right place
     - setup the `config.toml`
 
 ### pre-build
 
 1. Download the `server-v<major>.<minor>.<patch>-x86_64-linux` and `commander-v<major>.<minor>.<patch>-x86_64-linux`
-   binaries from https://github.com/beac0n/ruroco/releases/latest and move them to
-   `/usr/local/bin/ruroco-server` and `/usr/local/bin/ruroco-commander`.
+   binaries from https://github.com/beac0n/ruroco/releases/latest and move them to `/usr/local/bin/ruroco-server` and
+   `/usr/local/bin/ruroco-commander`.
 2. Make sure that the binaries have the minimal permission sets needed:
     1. `sudo chmod 500 /usr/local/bin/ruroco-server`
     2. `sudo chmod 100 /usr/local/bin/ruroco-commander`
     3. `sudo chown ruroco:ruroco /usr/local/bin/ruroco-server`
 3. Create the `ruroco` user: `sudo useradd --system ruroco --shell /bin/false`
 4. Install the systemd service files from the `systemd` folder: `sudo cp ./systemd/* /etc/systemd/system`
-5. Create `/etc/ruroco/config.toml` and define your config and commands, e.g.:
-    ```toml
-    address = "127.0.0.1:8080"  # address the ruroco serer listens on, if systemd/ruroco.socket is not used
-    config_dir = "/etc/ruroco/"  # path where the configuration files are saved
-    
-    [commands]
-    # commands will be added here - see configuration chapter
-    ```
-    1. Make sure that the configuration file has the minimal permission set
-       needed: `sudo chmod 400 /etc/ruroco/config.toml`
-    2. N.B. If you edit the [commands] in `/etc/ruroco/config.toml` then restart ruroco-commander
+5. Create `/etc/ruroco/config.toml` and define your config and commands
+    1. Make sure that the configuration file has the minimal permission set needed:
+       `sudo chmod 400 /etc/ruroco/config.toml`
+    2. Hint: If you edit the `[commands]` in `/etc/ruroco/config.toml` then restart ruroco-commander
 6. Since new systemd files have been added, reload the daemon: `sudo systemctl daemon-reload`
 7. Enable the systemd services:
     1. `sudo systemctl enable ruroco.service`
@@ -250,28 +179,79 @@ See make goal `install_server`, which
     2. `sudo systemctl start ruroco.socket`
     3. `sudo systemctl start ruroco.service`
 
-# configuration
+# use cases
 
-## generate and deploy rsa key
+## single packet authorization (SPA)
 
-- run `ruroco-client gen` to generate two files: `ruroco_private.pem` and `ruroco_public.pem`
-- move `ruroco_public.pem` to `/etc/ruroco/ruroco_public.pem` on server
-- save `ruroco_private.pem` to `~/.config/ruroco/ruroco_private.pem` on client
+If you host a server on the web, you know that you'll get lots of brute-force attacks on (at least) the SSH port of your
+server. While using good practices in securing your server will keep you safe from such attacks, these attacks are quite
+annoying (filling up logs) and even if you secured your server correctly, you will still not be 100% safe, see
+https://www.schneier.com/blog/archives/2024/04/xz-utils-backdoor.html or
+https://www.qualys.com/2024/07/01/cve-2024-6387/regresshion.txt
 
-## update config
+Completely blocking all traffic to all ports that do not have to be open at all times can reduce the attack surface.
+But blocking the SSH port completely will make SSH unusable for that server.
 
-Add commands to config `/etc/ruroco/config.toml` on server. The new config file **could** look like this:
+This is where ruroco comes in. Ruroco can execute a command that opens up the SSH port for just a short amount of time,
+so that you can ssh into your server. Afterward ruruco closes the SSH port again. To implement this use case with
+ruroco, you have to use a configuration similar to the one shown below:
 
 ```toml
-address = "127.0.0.1:8080"  # address the ruroco serer listens on, if systemd/ruroco.socket is not used
-config_dir = "/etc/ruroco/"  # path where the configuration files are saved
-
+# see chapter "server config"
 [commands]
-# open ssh, but only for the IP address where the request came from
-open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"
-# close ssh, but only for the IP address where the request came from
-close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22"
+open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"         #  open ssh for IP where request came from
+close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close ssh for IP where request came from
 ```
+
+If you have configured ruroco on server like that and execute the following client side command
+
+```shell
+ruroco-client send --address host.domain:8080 --command open_ssh  
+```
+
+If you want to use a different IP address than the one you are sending the packet from, you can use the `--ip` argument
+together with `--strict false`:
+
+```shell
+ruroco-client send --address host.domain:8080 --command open_ssh --ip 94.111.111.111 --strict false
+```
+
+If you want to make sure that an adversary does not spoof your source IP address, you can get your external IP address
+from a service and set `--strict true` (the default) - the ruroco server will make sure that the IP addresses match:
+
+```shell
+ruroco-client send --address host.domain:8080 --command open_ssh --ip $(curl -s https://api64.ipify.org) --strict true
+```
+
+the server will validate that the client is authorized to execute that command by using public-key cryptography (RSA)
+and will then execute the command defined in the config above under "open_ssh". The `--deadline` argument means that the
+command has to be started on the server within 5 seconds after executing the command.
+
+This gives you the ability to effectively only allow access to the SSH port, for only the IP that the UDP packet was
+sent from, if you want to connect to your server. Of course, you should also do all the other security hardening tasks
+you would do if the SSH port would be exposed to the internet.
+
+You can define any number of commands you wish, by adding more commands to configuration file.
+
+## Enabling webservice
+
+You may run a webservice like https://github.com/filebrowser/filebrowser on your server, which you do not want to
+publicly expose. If you use nginx as a reverse proxy, you can use ruroco to enable or disable services:
+
+```toml
+# see chapter "server config"
+[commands]
+disable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf /etc/nginx/conf.d/https_file_browser.conf_disabled && nginx -s reload"
+enable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf_disabled /etc/nginx/conf.d/https_file_browser.conf && nginx -s reload"
+```
+
+If you have configured ruroco on server like that and execute the following client side command
+
+```shell
+ruroco-client send --address host.domain:8080 --command enable_file_browser
+```
+
+the file browser nginx config will be enabled and nginx reloaded, effectively making the file browser accessible.
 
 # architecture
 
