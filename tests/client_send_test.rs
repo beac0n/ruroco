@@ -12,6 +12,9 @@ mod tests {
     use super::*;
     use ruroco::client::gen;
     use ruroco::common::time;
+    use ruroco::config_client::SendCommand;
+
+    const IP: &str = "192.168.178.123";
 
     fn gen_file_name(suffix: &str) -> String {
         let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
@@ -21,14 +24,13 @@ mod tests {
     #[test]
     fn test_send_no_such_file() {
         let pem_file_name = gen_file_name(".pem");
-        let pem_path = PathBuf::from(&pem_file_name);
+
         let result = send(
-            pem_path,
-            String::from("127.0.0.1:1234"),
-            String::from("default"),
-            5,
-            true,
-            Some(String::from("192.168.178.123")),
+            SendCommand {
+                private_pem_path: PathBuf::from(&pem_file_name),
+                ip: Some(String::from(IP)),
+                ..Default::default()
+            },
             time().unwrap(),
         );
 
@@ -43,14 +45,12 @@ mod tests {
         let pem_file_name = gen_file_name(".pem");
         File::create(&pem_file_name).unwrap();
 
-        let pem_path = PathBuf::from(&pem_file_name);
         let result = send(
-            pem_path,
-            String::from("127.0.0.1:1234"),
-            String::from("default"),
-            5,
-            true,
-            Some(String::from("192.168.178.123")),
+            SendCommand {
+                private_pem_path: PathBuf::from(&pem_file_name),
+                ip: Some(String::from(IP)),
+                ..Default::default()
+            },
             time().unwrap(),
         );
 
@@ -73,12 +73,12 @@ mod tests {
 
         let address = String::from("127.0.0.1:asd");
         let result = send(
-            private_pem_path,
-            address.clone(),
-            String::from("default"),
-            5,
-            true,
-            Some(String::from("192.168.178.123")),
+            SendCommand {
+                address: address.clone(),
+                private_pem_path,
+                ip: Some(String::from(IP)),
+                ..Default::default()
+            },
             time().unwrap(),
         );
 
@@ -102,12 +102,12 @@ mod tests {
 
         let address = String::from("999.999.999.999:9999");
         let result = send(
-            private_pem_path,
-            address.clone(),
-            String::from("default"),
-            5,
-            true,
-            Some(String::from("192.168.178.123")),
+            SendCommand {
+                address: address.clone(),
+                private_pem_path,
+                ip: Some(String::from(IP)),
+                ..Default::default()
+            },
             time().unwrap(),
         );
 
@@ -133,12 +133,12 @@ mod tests {
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
         let result = send(
-            private_pem_path,
-            String::from("127.0.0.1:1234"),
-            "#".repeat(66),
-            5,
-            true,
-            Some(String::from("192.168.178.123")),
+            SendCommand {
+                private_pem_path,
+                command: "#".repeat(66),
+                ip: Some(String::from(IP)),
+                ..Default::default()
+            },
             time().unwrap(),
         );
 
@@ -170,15 +170,15 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
+        gen(private_pem_path.clone(), public_pem_path, 1024)?;
 
         let result = send(
-            private_pem_path,
-            String::from(address),
-            String::from("default"),
-            5,
-            true,
-            Some(String::from("192.168.178.123")),
+            SendCommand {
+                address: String::from(address),
+                private_pem_path,
+                ip: Some(String::from(IP)),
+                ..Default::default()
+            },
             time()?,
         );
 

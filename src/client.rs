@@ -12,26 +12,18 @@ use openssl::version::version;
 use std::net::ToSocketAddrs;
 
 use crate::common::{info, PADDING_SIZE, RSA_PADDING};
+use crate::config_client::SendCommand;
 use crate::data::ServerData;
 
 /// Send data to the server to execute a predefined command
 ///
-/// * `pem_path` - Path to the private PEM to encrypt the data with
-/// * `address` - IP address and port to send the data to
-/// * `command` - Which command the commander should execute
-/// * `deadline` - After how many seconds from now the commander has to start executing the command
-/// * `strict` - If the server should error when provided source_ip does not match actual source ip
-/// * `source_ip` - The ip from which this packet was supposed to be sent
+/// * `send_command` - data holding information how to send the command - see SendCommand
 /// * `now` - current timestamp in ns
-pub fn send(
-    pem_path: PathBuf,
-    address: String,
-    command: String,
-    deadline: u16,
-    strict: bool,
-    source_ip: Option<String>,
-    now: u128,
-) -> Result<(), String> {
+pub fn send(send_command: SendCommand, now: u128) -> Result<(), String> {
+    let address = send_command.address;
+    let pem_path = send_command.private_pem_path;
+    let command = send_command.command;
+
     info(format!(
         "Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...",
         version()
@@ -50,14 +42,21 @@ pub fn send(
 
     let (destination_ip, bind_address) =
         match (destination_ipv4s.first(), destination_ipv6s.first()) {
-            (_, Some(ipv6)) => (ipv6.ip().to_string(), "[::]:0"),
+            (_, Some(ipv6)) if !send_command.ipv4 => (ipv6.ip().to_string(), "[::]:0"),
             (Some(ipv4), _) => (ipv4.ip().to_string(), "0.0.0.0:0"),
             _ => return Err(format!("Could not find any IPv4 or IPv6 address for {address}")),
         };
 
     let rsa = get_rsa_private(&pem_path)?;
-    let data_to_encrypt =
-        get_data_to_encrypt(&command, &rsa, deadline, strict, source_ip, destination_ip, now)?;
+    let data_to_encrypt = get_data_to_encrypt(
+        &command,
+        &rsa,
+        send_command.deadline,
+        send_command.strict,
+        send_command.ip,
+        destination_ip,
+        now,
+    )?;
     let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address

@@ -12,6 +12,7 @@ mod tests {
     use ruroco::client::{gen, send};
     use ruroco::commander::Commander;
     use ruroco::common::{get_blocklist_path, get_socket_path, time};
+    use ruroco::config_client::SendCommand;
     use ruroco::config_server::ConfigServer;
     use ruroco::server::Server;
 
@@ -77,23 +78,18 @@ mod tests {
         }
 
         fn run_client_send(&self) {
-            let now = if self.now.is_none() {
-                time().unwrap()
-            } else {
-                self.now.unwrap()
-            };
-
-            let pem_path = self.private_pem_path.clone();
-            let address = self.server_address.to_string();
-            let command = String::from("default");
             send(
-                pem_path,
-                address,
-                command,
-                self.deadline,
-                self.strict,
-                self.client_sent_ip.clone(),
-                now,
+                SendCommand {
+                    address: self.server_address.to_string(),
+                    private_pem_path: self.private_pem_path.clone(),
+                    command: String::from("default"),
+                    deadline: self.deadline,
+                    strict: self.strict,
+                    ip: self.client_sent_ip.clone(),
+                    ntp: String::from("system"),
+                    ipv4: false,
+                },
+                self.now.unwrap_or_else(|| time().unwrap()),
             )
             .unwrap();
             thread::sleep(Duration::from_secs(2)); // wait for files to be written and blocklist to be updated
