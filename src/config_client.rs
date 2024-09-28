@@ -45,7 +45,7 @@ pub struct SendCommand {
     #[arg(short, long, default_value = NTP_SYSTEM)]
     pub ntp: String,
     /// Connect via IPv4 (defaults to true)
-    #[arg(short, long, default_value_t = true)]
+    #[arg(short = '4', long, default_value_t = true)]
     pub ipv4: bool,
 }
 
