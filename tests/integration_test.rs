@@ -123,7 +123,7 @@ mod tests {
                 Server::create(ConfigServer {
                     address,
                     config_dir,
-                    ip,
+                    ips: vec![ip],
                     ..Default::default()
                 })
                 .expect("could not create server")
