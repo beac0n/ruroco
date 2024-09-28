@@ -93,6 +93,8 @@ Options:
           Optional IP address from which the command was sent
   -n, --ntp <NTP>
           NTP server (defaults to using the system time) [default: system]
+  -4, --ipv4
+          Connect via IPv4 (defaults to true)
   -h, --help
           Print help
 ```
