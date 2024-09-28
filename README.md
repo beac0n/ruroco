@@ -104,20 +104,7 @@ Options:
 1. run `ruroco-client gen` to generate two files: `ruroco_private.pem` and `ruroco_public.pem`
 2. move `ruroco_public.pem` to `/etc/ruroco/ruroco_public.pem` on server
 3. save `ruroco_private.pem` to `~/.config/ruroco/ruroco_private.pem` on client
-4. add server config to `/etc/ruroco/config.toml`
-
-```toml
-ip = "95.111.111.111"        # MANDATORY - public IP address of your server where this service runs on
-address = "0.0.0.0:8080"     # OPTIONAL  - address the ruroco serer listens on, if systemd/ruroco.socket is not used
-config_dir = "/etc/ruroco/"  # OPTIONAL  - path where the configuration files (.pem and others) are saved
-ntp = "system"               # OPTIONAL  - NTP server configuration - use "system" to use the systems time configuration
-socket_user = "ruroco"       # OPTIONAL  - user of socket, facilitating communication between server and commander
-socket_group = "ruroco"      # OPTIONAL  - user group of socket, facilitating communication between server and commander
-
-[commands]                   # MANDATORY - but can be empty
-open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"         #  open ssh for IP where request came from
-close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close ssh for IP where request came from
-```
+4. add server config to `/etc/ruroco/config.toml` -> see [config.toml](config/config.toml)
 
 # setup
 
