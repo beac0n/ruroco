@@ -10,12 +10,9 @@ mod tests {
     use ruroco::config_server::ConfigServer;
     use ruroco::server::Server;
     use std::collections::HashMap;
-    use std::io::Error;
-    use std::net::UdpSocket;
-    use std::os::fd::{AsRawFd, FromRawFd};
     use std::path::PathBuf;
     use std::time::Duration;
-    use std::{env, fs, thread};
+    use std::{fs, thread};
 
     const TEST_IP_V4: &str = "192.168.178.123";
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
