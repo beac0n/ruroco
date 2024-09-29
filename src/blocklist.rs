@@ -44,8 +44,7 @@ impl Blocklist {
     /// If the blocklist.toml file already exists, its content will be loaded if possible.
     pub fn create(config_dir: &PathBuf) -> Blocklist {
         let blocklist_path = get_blocklist_path(config_dir);
-        let blocklist_str =
-            fs::read_to_string(&blocklist_path).unwrap_or_else(|_| String::from(""));
+        let blocklist_str = fs::read_to_string(&blocklist_path).unwrap_or_else(|_| "".to_string());
         toml::from_str(&blocklist_str).unwrap_or_else(|_| Blocklist {
             list: vec![],
             path: blocklist_path,
@@ -76,12 +75,12 @@ impl Blocklist {
     pub fn save(&self) {
         let toml_string = match toml::to_string(&self) {
             Ok(s) => s,
-            Err(e) => return error(format!("Error serializing blacklist: {e}")),
+            Err(e) => return error(&format!("Error serializing blacklist: {e}")),
         };
 
         match fs::write(&self.path, toml_string) {
             Ok(_) => (),
-            Err(e) => error(format!("Error persisting blacklist: {e}")),
+            Err(e) => error(&format!("Error persisting blacklist: {e}")),
         };
     }
 }

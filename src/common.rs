@@ -36,7 +36,7 @@ pub fn time() -> Result<u128, String> {
     Ok(duration.as_nanos())
 }
 
-pub fn get_socket_path(config_dir: &PathBuf) -> PathBuf {
+pub fn get_commander_unix_socket_path(config_dir: &PathBuf) -> PathBuf {
     resolve_path(config_dir).join("ruroco.socket")
 }
 
@@ -51,7 +51,7 @@ pub fn resolve_path(path: &PathBuf) -> PathBuf {
         let mut full_path = match env::current_dir() {
             Ok(p) => p,
             Err(e) => {
-                error(format!("Could not get current directory: {e}"));
+                error(&format!("Could not get current directory: {e}"));
                 return path.to_path_buf();
             }
         };
@@ -59,19 +59,19 @@ pub fn resolve_path(path: &PathBuf) -> PathBuf {
         match fs::canonicalize(&full_path) {
             Ok(p) => p,
             Err(e) => {
-                error(format!("Could not canonicalize {:?}: {e}", &full_path));
+                error(&format!("Could not canonicalize {:?}: {e}", &full_path));
                 full_path
             }
         }
     }
 }
 
-pub fn info(msg: String) {
+pub fn info(msg: &str) {
     let date_time = get_date_time();
     println!("[{} \x1b[32mINFO\x1b[0m ] {}", date_time, msg)
 }
 
-pub fn error(msg: String) {
+pub fn error(msg: &str) {
     let date_time = get_date_time();
     println!("[{} \x1b[31mERROR\x1b[0m ] {}", date_time, msg)
 }

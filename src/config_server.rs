@@ -3,7 +3,7 @@
 //! (default) arguments or are used to deserialize configuration files
 
 use crate::blocklist::Blocklist;
-use crate::common::{error, get_socket_path, info, resolve_path, NTP_SYSTEM};
+use crate::common::{error, get_commander_unix_socket_path, info, resolve_path, NTP_SYSTEM};
 use clap::Parser;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -30,8 +30,6 @@ pub struct ConfigServer {
     pub ips: Vec<String>,
     #[serde(default = "default_ntp")]
     pub ntp: String,
-    #[serde(default = "default_address")]
-    pub address: String,
     #[serde(default = "default_config_path")]
     pub config_dir: PathBuf,
     #[serde(default = "default_socket_user")]
@@ -55,26 +53,31 @@ impl ConfigServer {
         Ok(())
     }
 
-    pub fn create_udp_socket(&self) -> Result<UdpSocket, String> {
-        let address = &self.address;
-        let pid = std::process::id().to_string();
-        match env::var("LISTEN_PID") {
-            Ok(listen_pid) if listen_pid == pid => {
-                info(String::from(
-                    "env var LISTEN_PID was set to our PID, creating socket from raw fd ...",
-                ));
-                let fd: RawFd = 3;
-                Ok(unsafe { UdpSocket::from_raw_fd(fd) })
-            }
-            Ok(_) => {
-                info(format!(
-                    "env var LISTEN_PID was set, but not to our PID, binding to {address}"
-                ));
-                UdpSocket::bind(address)
+    pub fn create_server_udp_socket(&self, address: Option<String>) -> Result<UdpSocket, String> {
+        match (env::var("LISTEN_PID").ok(), env::var("RUROCO_LISTEN_ADDRESS").ok(), address) {
+            (_, _, Some(address)) => {
+                info(&format!("UdpSocket bind to {address} - argument"));
+                UdpSocket::bind(&address)
                     .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
             }
-            Err(_) => {
-                info(format!("env var LISTEN_PID was not set, binding to {address}"));
+            (None, Some(address), _) => {
+                info(&format!("UdpSocket bind to {address} - RUROCO_LISTEN_ADDRESS"));
+                UdpSocket::bind(&address)
+                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
+            }
+            (Some(listen_pid), _, _) if listen_pid == std::process::id().to_string() => {
+                let system_socket_fd: RawFd = 3;
+                info(&format!("UdpSocket from_raw_fd {system_socket_fd}"));
+                Ok(unsafe { UdpSocket::from_raw_fd(system_socket_fd) })
+            }
+            (Some(_), _, _) => Err("LISTEN_PID was set, but not to our PID".to_string()),
+            (None, None, None) => {
+                // port is calculated by using the alphabet indexes of the word ruroco:
+                // r = 18, u = 21, r = 18, o = 15, c = 3, o = 15
+                // and multiplying the distinct values with each other times two:
+                // 18 * 21 * 15 * 3 * 2 = 34020
+                let address = "[::]:34020";
+                info(&format!("UdpSocket bind to {address} - fallback"));
                 UdpSocket::bind(address)
                     .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
             }
@@ -87,7 +90,7 @@ impl ConfigServer {
 
     pub fn create_rsa(&self) -> Result<Rsa<Public>, String> {
         let pem_path = self.get_pem_path()?;
-        info(format!(
+        info(&format!(
             "Creating server, loading public PEM from {pem_path:?}, using {} ...",
             version()
         ));
@@ -99,8 +102,8 @@ impl ConfigServer {
             .map_err(|e| format!("Could not load public key from {pem_path:?}: {e}"))
     }
 
-    pub fn get_socket_path(&self) -> PathBuf {
-        get_socket_path(&self.resolve_config_dir())
+    pub fn get_commander_unix_socket_path(&self) -> PathBuf {
+        get_commander_unix_socket_path(&self.resolve_config_dir())
     }
 
     fn get_pem_path(&self) -> Result<PathBuf, String> {
@@ -109,7 +112,7 @@ impl ConfigServer {
 
         match pem_files.len() {
             0 => Err(format!("Could not find any .pem files in {config_dir:?}")),
-            1 => Ok(pem_files.first().unwrap().clone()),
+            1 => Ok(pem_files.into_iter().next().unwrap()),
             other => Err(format!("Only one public PEM is supported, found {other}")),
         }
     }
@@ -122,7 +125,7 @@ impl ConfigServer {
         let entries: ReadDir = match fs::read_dir(config_dir) {
             Ok(entries) => entries,
             Err(e) => {
-                error(format!("Error reading directory: {e}"));
+                error(&format!("Error reading directory: {e}"));
                 return vec![];
             }
         };
@@ -141,30 +144,25 @@ impl Default for ConfigServer {
     fn default() -> ConfigServer {
         ConfigServer {
             commands: HashMap::new(),
-            ips: vec![String::from("127.0.0.1")],
+            ips: vec!["127.0.0.1".to_string()],
             ntp: default_ntp(),
-            address: String::from(""),
-            socket_user: String::from(""),
-            socket_group: String::from(""),
+            socket_user: "".to_string(),
+            socket_group: "".to_string(),
             config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
         }
     }
 }
 
 fn default_socket_user() -> String {
-    String::from("ruroco")
+    "ruroco".to_string()
 }
 
 fn default_socket_group() -> String {
-    String::from("ruroco")
+    "ruroco".to_string()
 }
 
 fn default_ntp() -> String {
-    String::from(NTP_SYSTEM)
-}
-
-fn default_address() -> String {
-    String::from("127.0.0.1:8080")
+    NTP_SYSTEM.to_string()
 }
 
 fn default_config_path() -> PathBuf {
@@ -174,8 +172,7 @@ fn default_config_path() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use crate::config_server::{
-        default_address, default_config_path, default_ntp, default_socket_group,
-        default_socket_user, ConfigServer,
+        default_config_path, default_ntp, default_socket_group, default_socket_user, ConfigServer,
     };
     use std::collections::HashMap;
 
@@ -185,9 +182,8 @@ mod tests {
             ConfigServer::deserialize("ips = [\"127.0.0.1\"]\n[commands]").unwrap(),
             ConfigServer {
                 commands: HashMap::new(),
-                ips: vec![String::from("127.0.0.1")],
+                ips: vec!["127.0.0.1".to_string()],
                 ntp: default_ntp(),
-                address: default_address(),
                 config_dir: default_config_path(),
                 socket_user: default_socket_user(),
                 socket_group: default_socket_group(),

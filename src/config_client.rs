@@ -52,13 +52,13 @@ pub struct SendCommand {
 impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
-            address: String::from("127.0.0.1:1234"),
+            address: "127.0.0.1:1234".to_string(),
             private_pem_path: PathBuf::from(default_private_pem_path()),
-            command: String::from("default"),
+            command: "default".to_string(),
             deadline: 5,
             strict: true,
             ip: None,
-            ntp: String::from("system"),
+            ntp: "system".to_string(),
             ipv4: false,
         }
     }

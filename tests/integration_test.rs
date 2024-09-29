@@ -1,20 +1,21 @@
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-    use std::path::PathBuf;
-    use std::time::Duration;
-    use std::{fs, thread};
-
     use rand::distributions::{Alphanumeric, DistString};
     use rand::Rng;
-
     use ruroco::blocklist::Blocklist;
     use ruroco::client::{gen, send};
     use ruroco::commander::Commander;
-    use ruroco::common::{get_blocklist_path, get_socket_path, time};
+    use ruroco::common::{get_blocklist_path, get_commander_unix_socket_path, time};
     use ruroco::config_client::SendCommand;
     use ruroco::config_server::ConfigServer;
     use ruroco::server::Server;
+    use std::collections::HashMap;
+    use std::io::Error;
+    use std::net::UdpSocket;
+    use std::os::fd::{AsRawFd, FromRawFd};
+    use std::path::PathBuf;
+    use std::time::Duration;
+    use std::{env, fs, thread};
 
     const TEST_IP_V4: &str = "192.168.178.123";
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
@@ -32,7 +33,6 @@ mod tests {
         deadline: u16,
         now: Option<u128>,
         client_sent_ip: Option<String>,
-        server_ip: String,
         strict: bool,
     }
 
@@ -46,19 +46,23 @@ mod tests {
             TestData {
                 config_dir: test_folder_path.clone(),
                 test_file_path: test_folder_path.join(TestData::gen_file_name(".test")),
-                socket_path: get_socket_path(&test_folder_path),
+                socket_path: get_commander_unix_socket_path(&test_folder_path),
                 blocklist_path: get_blocklist_path(&test_folder_path),
                 public_pem_path: test_folder_path.join(TestData::gen_file_name(".pem")),
                 private_pem_path: private_pem_dir.join(TestData::gen_file_name(".pem")),
-                server_address: format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535)),
+                server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
                 block_list_exists: false,
                 deadline: 1,
                 now: None,
                 client_sent_ip: None,
-                server_ip: String::from("127.0.0.1"),
                 strict: true,
             }
+        }
+
+        fn get_server_address(host: &str) -> String {
+            let server_port = rand::thread_rng().gen_range(1024..65535);
+            format!("{host}:{server_port}")
         }
 
         fn gen_file_name(suffix: &str) -> String {
@@ -82,11 +86,11 @@ mod tests {
                 SendCommand {
                     address: self.server_address.to_string(),
                     private_pem_path: self.private_pem_path.clone(),
-                    command: String::from("default"),
+                    command: "default".to_string(),
                     deadline: self.deadline,
                     strict: self.strict,
                     ip: self.client_sent_ip.clone(),
-                    ntp: String::from("system"),
+                    ntp: "system".to_string(),
                     ipv4: false,
                 },
                 self.now.unwrap_or_else(|| time().unwrap()),
@@ -99,7 +103,7 @@ mod tests {
             let config_dir = self.config_dir.clone();
             let mut commands = HashMap::new();
             commands.insert(
-                String::from("default"),
+                "default".to_string(),
                 format!("echo -n $RUROCO_IP > {:?}", &self.test_file_path),
             );
 
@@ -115,17 +119,17 @@ mod tests {
         }
 
         fn run_server(&self) {
-            let address = self.server_address.clone();
             let config_dir = self.config_dir.clone();
-            let ip = self.server_ip.clone();
-
+            let server_address = self.server_address.clone();
             thread::spawn(move || {
-                Server::create(ConfigServer {
-                    address,
-                    config_dir,
-                    ips: vec![ip],
-                    ..Default::default()
-                })
+                Server::create(
+                    ConfigServer {
+                        config_dir,
+                        ips: vec!["127.0.0.1".to_string(), "::1".to_string(), "::".to_string()],
+                        ..Default::default()
+                    },
+                    Some(server_address),
+                )
                 .expect("could not create server")
                 .run()
                 .expect("server terminated")
@@ -133,8 +137,12 @@ mod tests {
         }
 
         fn with_ipv6(&mut self) -> &mut TestData {
-            self.server_address = format!("::1:{}", rand::thread_rng().gen_range(1024..65535));
-            self.server_ip = String::from("::1");
+            self.server_address = Self::get_server_address("[::]");
+            self
+        }
+
+        fn with_ipv4(&mut self) -> &mut TestData {
+            self.server_address = Self::get_server_address("127.0.0.1");
             self
         }
 
@@ -149,7 +157,7 @@ mod tests {
         }
 
         fn with_ip(&mut self, ip: &str) -> &mut TestData {
-            self.client_sent_ip = Some(String::from(ip));
+            self.client_sent_ip = Some(ip.to_string());
             self
         }
 
@@ -254,13 +262,15 @@ mod tests {
 
         test_data.with_ip(ip).with_strict(false).run_client_send();
 
-        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), String::from(ip));
+        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), ip.to_string());
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
     }
 
     #[test]
     fn test_ip_match_v4() {
-        ip_match_test(TestData::create(), "127.0.0.1");
+        let mut test_data = TestData::create();
+        test_data.with_ipv4();
+        ip_match_test(test_data, "127.0.0.1");
     }
 
     #[test]
@@ -277,7 +287,7 @@ mod tests {
 
         test_data.with_ip(ip).run_client_send();
 
-        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), String::from(ip));
+        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), ip.to_string());
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
     }
 

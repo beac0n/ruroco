@@ -13,7 +13,7 @@ use std::net::ToSocketAddrs;
 
 use crate::common::{info, PADDING_SIZE, RSA_PADDING};
 use crate::config_client::SendCommand;
-use crate::data::ServerData;
+use crate::data::ClientData;
 
 /// Send data to the server to execute a predefined command
 ///
@@ -24,7 +24,7 @@ pub fn send(send_command: SendCommand, now: u128) -> Result<(), String> {
     let pem_path = send_command.private_pem_path;
     let command = send_command.command;
 
-    info(format!(
+    info(&format!(
         "Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...",
         version()
     ));
@@ -64,7 +64,7 @@ pub fn send(send_command: SendCommand, now: u128) -> Result<(), String> {
     socket.connect(&address).map_err(|e| socket_err(e, &address))?;
     socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
 
-    info(format!("Sent command {command} from {bind_address} to udp://{address}"));
+    info(&format!("Sent command {command} from {bind_address} to udp://{address}"));
     Ok(())
 }
 
@@ -77,7 +77,7 @@ pub fn gen(private_path: PathBuf, public_path: PathBuf, key_size: u32) -> Result
     validate_pem_path(&public_path)?;
     validate_pem_path(&private_path)?;
 
-    info(format!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while..."));
+    info(&format!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while..."));
     let rsa = Rsa::generate(key_size)
         .map_err(|e| format!("Could not generate rsa for key size {key_size}: {e}"))?;
 
@@ -122,7 +122,7 @@ fn get_data_to_encrypt(
     now_ns: u128,
 ) -> Result<Vec<u8>, String> {
     let data_to_encrypt =
-        ServerData::create(command, deadline, strict, source_ip, destination_ip, now_ns)
+        ClientData::create(command, deadline, strict, source_ip, destination_ip, now_ns)
             .serialize()?;
     let data_to_encrypt_len = data_to_encrypt.len();
     let rsa_size = rsa.size() as usize;
@@ -163,16 +163,16 @@ fn validate_pem_path(path: &PathBuf) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::data::ServerData;
+    use crate::data::ClientData;
 
     #[test]
     fn test_get_minified_server_data() {
-        let server_data = ServerData::create(
+        let server_data = ClientData::create(
             "some_kind_of_long_but_not_really_that_long_command",
             5,
             false,
-            Some(String::from("192.168.178.123")),
-            String::from("192.168.178.124"),
+            Some("192.168.178.123".to_string()),
+            "192.168.178.124".to_string(),
             1725821510 * 1_000_000_000,
         )
         .serialize()
@@ -181,13 +181,13 @@ mod tests {
 
         assert_eq!(server_data_str, "c=\"some_kind_of_long_but_not_really_that_long_command\"\nd=\"1725821515000000000\"\ns=0\ni=\"192.168.178.123\"\nh=\"192.168.178.124\"");
         assert_eq!(
-            ServerData::deserialize(&server_data).unwrap(),
-            ServerData {
-                c: String::from("some_kind_of_long_but_not_really_that_long_command"),
+            ClientData::deserialize(&server_data).unwrap(),
+            ClientData {
+                c: "some_kind_of_long_but_not_really_that_long_command".to_string(),
                 d: 1725821515000000000,
                 s: 0,
-                i: Some(String::from("192.168.178.123")),
-                h: String::from("192.168.178.124")
+                i: Some("192.168.178.123".to_string()),
+                h: "192.168.178.124".to_string()
             }
         );
     }

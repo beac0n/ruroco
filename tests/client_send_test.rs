@@ -28,7 +28,7 @@ mod tests {
         let result = send(
             SendCommand {
                 private_pem_path: PathBuf::from(&pem_file_name),
-                ip: Some(String::from(IP)),
+                ip: Some(IP.to_string()),
                 ..Default::default()
             },
             time().unwrap(),
@@ -48,7 +48,7 @@ mod tests {
         let result = send(
             SendCommand {
                 private_pem_path: PathBuf::from(&pem_file_name),
-                ip: Some(String::from(IP)),
+                ip: Some(IP.to_string()),
                 ..Default::default()
             },
             time().unwrap(),
@@ -71,12 +71,12 @@ mod tests {
         let public_pem_path = PathBuf::from(&public_file);
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
-        let address = String::from("127.0.0.1:asd");
+        let address = "127.0.0.1:asd".to_string();
         let result = send(
             SendCommand {
                 address: address.clone(),
                 private_pem_path,
-                ip: Some(String::from(IP)),
+                ip: Some(IP.to_string()),
                 ..Default::default()
             },
             time().unwrap(),
@@ -100,12 +100,12 @@ mod tests {
         let public_pem_path = PathBuf::from(&public_file);
         gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
 
-        let address = String::from("999.999.999.999:9999");
+        let address = "999.999.999.999:9999".to_string();
         let result = send(
             SendCommand {
                 address: address.clone(),
                 private_pem_path,
-                ip: Some(String::from(IP)),
+                ip: Some(IP.to_string()),
                 ..Default::default()
             },
             time().unwrap(),
@@ -136,7 +136,7 @@ mod tests {
             SendCommand {
                 private_pem_path,
                 command: "#".repeat(66),
-                ip: Some(String::from(IP)),
+                ip: Some(IP.to_string()),
                 ..Default::default()
             },
             time().unwrap(),
@@ -147,10 +147,9 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            String::from(
-                "Too much data, must be at most 117 bytes, but was 132 bytes. \
+            "Too much data, must be at most 117 bytes, but was 132 bytes. \
                 Reduce command name length or create a bigger RSA key size."
-            )
+                .to_string()
         );
     }
 
@@ -174,9 +173,9 @@ mod tests {
 
         let result = send(
             SendCommand {
-                address: String::from(address),
+                address: address.to_string(),
                 private_pem_path,
-                ip: Some(String::from(IP)),
+                ip: Some(IP.to_string()),
                 ..Default::default()
             },
             time()?,

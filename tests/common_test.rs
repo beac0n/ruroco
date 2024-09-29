@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use ruroco::common::{get_blocklist_path, get_socket_path, resolve_path, time, time_from_ntp};
+    use ruroco::common::{
+        get_blocklist_path, get_commander_unix_socket_path, resolve_path, time, time_from_ntp,
+    };
     use std::path::PathBuf;
     use std::{env, fs};
 
@@ -43,7 +45,7 @@ mod tests {
     #[test]
     fn test_get_socket_path() {
         assert_eq!(
-            get_socket_path(&PathBuf::from("/foo/bar/baz")),
+            get_commander_unix_socket_path(&PathBuf::from("/foo/bar/baz")),
             PathBuf::from("/foo/bar/baz/ruroco.socket")
         );
     }

@@ -3,14 +3,14 @@ use openssl::pkey::Public;
 use openssl::rsa::Rsa;
 use std::fs;
 use std::io::Write;
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
 use crate::blocklist::Blocklist;
 use crate::common::{error, info, time_from_ntp, RSA_PADDING};
 use crate::config_server::ConfigServer;
-use crate::data::{CommanderData, ServerData};
+use crate::data::{ClientData, CommanderData};
 
 #[derive(Debug)]
 pub struct Server {
@@ -27,35 +27,31 @@ pub struct Server {
 impl Server {
     pub fn create_from_path(path: PathBuf) -> Result<Server, String> {
         match fs::read_to_string(&path) {
-            Ok(config) => Server::create(ConfigServer::deserialize(&config)?),
+            Ok(config) => Server::create(ConfigServer::deserialize(&config)?, None),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),
         }
     }
 
-    pub fn create(config: ConfigServer) -> Result<Server, String> {
+    pub fn create(config: ConfigServer, address: Option<String>) -> Result<Server, String> {
         config.validate_ips()?;
 
         let rsa = config.create_rsa()?;
         let rsa_size = rsa.size() as usize;
 
-        let socket = config.create_udp_socket()?;
-        let socket_path = config.get_socket_path();
-        let blocklist = config.create_blocklist();
-
         Ok(Server {
-            config,
             rsa,
             rsa_size,
-            socket,
+            socket: config.create_server_udp_socket(address)?,
             decrypted_data: vec![0; rsa_size],
             encrypted_data: vec![0; rsa_size],
-            socket_path,
-            blocklist,
+            socket_path: config.get_commander_unix_socket_path(),
+            blocklist: config.create_blocklist(),
+            config,
         })
     }
 
     pub fn run(&mut self) -> Result<(), String> {
-        info(format!("Running server on udp://{}", self.config.address));
+        info(&format!("Running server on {:?}", self.socket));
         loop {
             let data = self.receive();
             self.run_loop_iteration(data);
@@ -68,18 +64,16 @@ impl Server {
                 Some(format!("Invalid read count {count}, expected {} from {src}", self.rsa_size))
             }
             Ok((count, src)) => {
-                info(format!("Successfully received {count} bytes from {src}"));
+                info(&format!("Successfully received {count} bytes from {src}"));
                 match self.decrypt() {
                     Ok(count) => {
-                        self.validate(count, src.ip().to_string());
+                        self.validate(count, src.ip());
                         None
                     }
                     Err(e) => Some(format!("Could not decrypt {:X?}: {e}", self.encrypted_data)),
                 }
             }
-            Err(e) => {
-                Some(format!("Could not recv_from socket from udp://{}: {e}", self.config.address))
-            }
+            Err(e) => Some(format!("Could not recv_from socket from {:?}: {e}", self.socket)),
         };
 
         self.encrypted_data = vec![0; self.rsa_size];
@@ -87,7 +81,7 @@ impl Server {
 
         match error_msg {
             Some(s) => {
-                error(s.clone());
+                error(&s);
                 Some(s)
             }
             None => None,
@@ -102,38 +96,40 @@ impl Server {
         self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, RSA_PADDING)
     }
 
-    fn validate(&mut self, count: usize, ip_src: String) {
+    fn validate(&mut self, count: usize, src_ip_addr: IpAddr) {
+        let src_ip = match src_ip_addr.to_string() {
+            // see https://datatracker.ietf.org/doc/html/rfc5156#section-2.2
+            ip if ip.starts_with("::ffff:") => ip.replacen("::ffff:", "", 1),
+            ip => ip,
+        };
+
         self.decrypted_data.truncate(count);
         match self.decode() {
-            Ok((now_ns, data)) if now_ns > data.deadline() => {
-                error(format!("Invalid deadline - now {now_ns} is after {}", data.deadline()))
+            Ok((now_ns, client_data)) if now_ns > client_data.deadline() => {
+                let deadline = client_data.deadline();
+                error(&format!("Invalid deadline - now {now_ns} is after {deadline}"))
             }
-            Ok((_, data)) if !self.config.ips.contains(&data.destination_ip()) => error(format!(
-                "Invalid host IP - expected {:?} to contain {}",
-                self.config.ips,
-                data.destination_ip()
-            )),
-            Ok((_, data)) if self.blocklist.is_blocked(data.deadline()) => {
-                error(format!("Invalid deadline - {} is on blocklist", data.deadline()))
+            Ok((_, client_data)) if !self.config.ips.contains(&client_data.destination_ip()) => {
+                let destination_ip = client_data.destination_ip();
+                let ips = &self.config.ips;
+                error(&format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
             }
-            Ok((_, data))
-                if data.is_strict()
-                    && data.source_ip().is_some_and(|ip_sent| ip_sent != ip_src) =>
-            {
-                error(format!(
-                    "Invalid source IP - expected {:?}, actual {ip_src}",
-                    data.source_ip()
-                ))
+            Ok((_, client_data)) if self.blocklist.is_blocked(client_data.deadline()) => {
+                error(&format!("Invalid deadline - {} is on blocklist", client_data.deadline()))
             }
-            Ok((now_ns, data)) => {
-                let command_name = String::from(&data.c);
-                let ip = data.source_ip().unwrap_or(ip_src);
-                info(format!("Valid data - trying {command_name} with {ip}"));
+            Ok((_, client_data)) if client_data.validate_source_ip(&src_ip) => {
+                let client_src_ip_str = client_data.source_ip().unwrap();
+                error(&format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
+            }
+            Ok((now_ns, client_data)) => {
+                let command_name = client_data.c.to_string();
+                let ip = client_data.source_ip().unwrap_or(src_ip);
+                info(&format!("Valid data - trying {command_name} with {ip}"));
 
                 self.send_command(CommanderData { command_name, ip });
-                self.update_block_list(now_ns, data.deadline());
+                self.update_block_list(now_ns, client_data.deadline());
             }
-            Err(e) => error(format!("Could not decode data: {e}")),
+            Err(e) => error(&format!("Could not decode data: {e}")),
         }
     }
 
@@ -145,8 +141,8 @@ impl Server {
 
     fn send_command(&self, data: CommanderData) {
         match self.write_to_socket(data) {
-            Ok(_) => info(String::from("Successfully sent data to commander")),
-            Err(e) => error(format!(
+            Ok(_) => info("Successfully sent data to commander"),
+            Err(e) => error(&format!(
                 "Could not send data to commander via socket {:?}: {e}",
                 &self.socket_path
             )),
@@ -169,8 +165,8 @@ impl Server {
         Ok(())
     }
 
-    fn decode(&self) -> Result<(u128, ServerData), String> {
-        match ServerData::deserialize(&self.decrypted_data) {
+    fn decode(&self) -> Result<(u128, ClientData), String> {
+        match ClientData::deserialize(&self.decrypted_data) {
             Ok(data) => Ok((time_from_ntp(&self.config.ntp)?, data)),
             Err(e) => Err(e),
         }
@@ -190,10 +186,7 @@ mod tests {
 
     impl PartialEq for Server {
         fn eq(&self, other: &Self) -> bool {
-            let self_address_split = self.config.address.split(':').next().unwrap_or("");
-            let other_address_split = other.config.address.split(':').next().unwrap_or("");
-            self_address_split == other_address_split
-                && self.encrypted_data == other.encrypted_data
+            self.encrypted_data == other.encrypted_data
                 && self.decrypted_data == other.decrypted_data
                 && self.socket_path == other.socket_path
                 && self.blocklist == other.blocklist
@@ -202,16 +195,21 @@ mod tests {
 
     #[test]
     fn test_create_from_path() {
+        let server_port = rand::thread_rng().gen_range(1024..65535);
+        env::set_var("RUROCO_LISTEN_ADDRESS", format!("[::]:{server_port}"));
+
         let tests_dir_path = env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests");
         let conf_path = tests_dir_path.join("files").join("config.toml");
-        let conf_dir_path = tests_dir_path.join("conf_dir");
+        let config_dir = tests_dir_path.join("conf_dir");
 
         let res_path = Server::create_from_path(conf_path).unwrap();
-        let res_create = Server::create(ConfigServer {
-            address: String::from("127.0.0.1:8081"),
-            config_dir: conf_dir_path,
-            ..Default::default()
-        })
+        let res_create = Server::create(
+            ConfigServer {
+                config_dir,
+                ..Default::default()
+            },
+            Some("127.0.0.1:8081".to_string()),
+        )
         .unwrap();
 
         assert_eq!(res_path, res_create);
@@ -225,7 +223,7 @@ mod tests {
 
         assert_eq!(
             server.run_loop_iteration(success_data).unwrap(),
-            String::from("Invalid read count 0, expected 128 from 127.0.0.1:8080")
+            "Invalid read count 0, expected 128 from 127.0.0.1:8080".to_string()
         );
     }
 
@@ -246,7 +244,7 @@ mod tests {
         assert!(server
             .run_loop_iteration(error_data)
             .unwrap()
-            .starts_with("Could not recv_from socket from udp://127.0.0.1:"));
+            .starts_with("Could not recv_from socket from UdpSocket { addr: 127.0.0.1:"));
     }
 
     fn create_server() -> Server {
@@ -263,11 +261,13 @@ mod tests {
         )
         .expect("could not generate key");
 
-        Server::create(ConfigServer {
-            address: format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535)),
-            config_dir: test_folder_path.clone(),
-            ..Default::default()
-        })
+        Server::create(
+            ConfigServer {
+                config_dir: test_folder_path.clone(),
+                ..Default::default()
+            },
+            Some(format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535))),
+        )
         .expect("could not create server")
     }
 
