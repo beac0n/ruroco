@@ -2,35 +2,33 @@
 mod tests {
     use ruroco::config_server::ConfigServer;
     use ruroco::server::Server;
-    use rusty_fork::rusty_fork_test;
     use std::env;
     use std::path::PathBuf;
 
-    rusty_fork_test! {
-        #[test]
-        fn test_create_server_udp_socket() {
-            let result = ConfigServer::default().create_server_udp_socket(None).unwrap();
-            assert_eq!(format!("{result:?}"), "UdpSocket { addr: [::]:34020, fd: 3 }");
-        }
+    #[test]
+    fn test_create_server_udp_socket() {
+        env::remove_var("LISTEN_PID");
+        let result = ConfigServer::default().create_server_udp_socket(None).unwrap();
+        assert_eq!(format!("{result:?}"), "UdpSocket { addr: [::]:34020, fd: 3 }");
+    }
 
-        #[test]
-        fn test_create_invalid_pid() {
-            env::set_var("LISTEN_PID", "12345");
+    #[test]
+    fn test_create_invalid_pid() {
+        env::set_var("LISTEN_PID", "12345");
 
-            let config_dir =
-                env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests").join("conf_dir");
+        let config_dir =
+            env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests").join("conf_dir");
 
-            let result = Server::create(
-                ConfigServer {
-                    config_dir,
-                    ..Default::default()
-                },
-                None,
-            );
+        let result = Server::create(
+            ConfigServer {
+                config_dir,
+                ..Default::default()
+            },
+            None,
+        );
 
-            assert!(result.is_err());
-            assert_eq!(result.err().unwrap(), "LISTEN_PID was set, but not to our PID");
-        }
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), "LISTEN_PID was set, but not to our PID");
     }
 
     #[test]
