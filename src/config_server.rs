@@ -175,6 +175,26 @@ mod tests {
         default_config_path, default_ntp, default_socket_group, default_socket_user, ConfigServer,
     };
     use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_get_pem_files() {
+        let expected: Vec<PathBuf> = vec![];
+        assert_eq!(ConfigServer::get_pem_files(&PathBuf::from("/foo/bar/baz")), expected);
+    }
+
+    #[test]
+    fn test_get_pem_path() {
+        let config_server = ConfigServer {
+            config_dir: PathBuf::from("/foo/bar/baz"),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            config_server.get_pem_path().unwrap_err().to_string(),
+            r#"Could not find any .pem files in "/foo/bar/baz""#
+        );
+    }
 
     #[test]
     fn test_create_deserialize() {
