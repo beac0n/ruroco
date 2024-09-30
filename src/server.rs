@@ -1,24 +1,22 @@
 use openssl::error::ErrorStack;
 use openssl::pkey::Public;
 use openssl::rsa::Rsa;
-use openssl::version::version;
-use std::fs::ReadDir;
+use std::fs;
 use std::io::Write;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
-use std::os::fd::{FromRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::{env, fs};
 
 use crate::blocklist::Blocklist;
-use crate::common::{error, get_socket_path, info, resolve_path, time_from_ntp, RSA_PADDING};
+use crate::common::{error, info, time_from_ntp, RSA_PADDING};
 use crate::config_server::ConfigServer;
-use crate::data::{CommanderData, ServerData};
+use crate::data::{ClientData, CommanderData};
 
 #[derive(Debug)]
 pub struct Server {
     config: ConfigServer,
     rsa: Rsa<Public>,
+    rsa_size: usize,
     socket: UdpSocket,
     encrypted_data: Vec<u8>,
     decrypted_data: Vec<u8>,
@@ -26,121 +24,34 @@ pub struct Server {
     blocklist: Blocklist,
 }
 
-impl PartialEq for Server {
-    fn eq(&self, other: &Self) -> bool {
-        let self_address_split = self.config.address.split(':').next().unwrap_or("");
-        let other_address_split = other.config.address.split(':').next().unwrap_or("");
-        self_address_split == other_address_split
-            && self.encrypted_data == other.encrypted_data
-            && self.decrypted_data == other.decrypted_data
-            && self.socket_path == other.socket_path
-            && self.blocklist == other.blocklist
-    }
-}
-
 impl Server {
     pub fn create_from_path(path: PathBuf) -> Result<Server, String> {
         match fs::read_to_string(&path) {
-            Ok(config) => Server::create(ConfigServer::deserialize(&config)?),
+            Ok(config) => Server::create(ConfigServer::deserialize(&config)?, None),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),
         }
     }
 
-    pub fn create(config: ConfigServer) -> Result<Server, String> {
-        let ip_addr = config.ip.parse::<IpAddr>().map_err(|e| {
-            format!("Could not parse configured host IP address {}: {e}", config.ip)
-        })?;
+    pub fn create(config: ConfigServer, address: Option<String>) -> Result<Server, String> {
+        config.validate_ips()?;
 
-        if !ip_addr.is_ipv4() {
-            return Err(format!(
-                "Only IPv4 Addresses are currently supported, got IP config {}",
-                ip_addr
-            ));
-        }
-
-        let config_dir = resolve_path(&config.config_dir);
-        let pem_path = Self::get_pem_path(&config_dir)?;
-        info(format!(
-            "Creating server, loading public PEM from {pem_path:?}, using {} ...",
-            version()
-        ));
-
-        let pem_data =
-            fs::read(&pem_path).map_err(|e| format!("Could not read {pem_path:?}: {e}"))?;
-        let rsa = Rsa::public_key_from_pem(&pem_data)
-            .map_err(|e| format!("Could not load public key from {pem_path:?}: {e}"))?;
-
-        let socket = Self::create_udp_socket(&config.address)?;
+        let rsa = config.create_rsa()?;
         let rsa_size = rsa.size() as usize;
-        let decrypted_data = vec![0; rsa_size];
-        let encrypted_data = vec![0; rsa_size];
 
         Ok(Server {
-            config,
             rsa,
-            socket,
-            decrypted_data,
-            encrypted_data,
-            socket_path: get_socket_path(&config_dir),
-            blocklist: Blocklist::create(&config_dir),
+            rsa_size,
+            socket: config.create_server_udp_socket(address)?,
+            decrypted_data: vec![0; rsa_size],
+            encrypted_data: vec![0; rsa_size],
+            socket_path: config.get_commander_unix_socket_path(),
+            blocklist: config.create_blocklist(),
+            config,
         })
     }
 
-    fn create_udp_socket(address: &str) -> Result<UdpSocket, String> {
-        let pid = std::process::id().to_string();
-        match env::var("LISTEN_PID") {
-            Ok(listen_pid) if listen_pid == pid => {
-                info(String::from(
-                    "env var LISTEN_PID was set to our PID, creating socket from raw fd ...",
-                ));
-                let fd: RawFd = 3;
-                Ok(unsafe { UdpSocket::from_raw_fd(fd) })
-            }
-            Ok(_) => {
-                info(format!(
-                    "env var LISTEN_PID was set, but not to our PID, binding to {address}"
-                ));
-                UdpSocket::bind(address)
-                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
-            }
-            Err(_) => {
-                info(format!("env var LISTEN_PID was not set, binding to {address}"));
-                UdpSocket::bind(address)
-                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
-            }
-        }
-    }
-
-    fn get_pem_path(config_dir: &PathBuf) -> Result<PathBuf, String> {
-        let pem_files = Self::get_pem_files(config_dir);
-
-        match pem_files.len() {
-            0 => Err(format!("Could not find any .pem files in {config_dir:?}")),
-            1 => Ok(pem_files.first().unwrap().clone()),
-            other => Err(format!("Only one public PEM is supported, found {other}")),
-        }
-    }
-
-    fn get_pem_files(config_dir: &PathBuf) -> Vec<PathBuf> {
-        let entries: ReadDir = match fs::read_dir(config_dir) {
-            Ok(entries) => entries,
-            Err(e) => {
-                error(format!("Error reading directory: {e}"));
-                return vec![];
-            }
-        };
-
-        entries
-            .flatten()
-            .map(|entry| entry.path())
-            .filter(|path| {
-                path.is_file() && path.extension().is_some() && path.extension().unwrap() == "pem"
-            })
-            .collect()
-    }
-
     pub fn run(&mut self) -> Result<(), String> {
-        info(format!("Running server on udp://{}", self.config.address));
+        info(&format!("Running server on {:?}", self.socket));
         loop {
             let data = self.receive();
             self.run_loop_iteration(data);
@@ -148,32 +59,29 @@ impl Server {
     }
 
     fn run_loop_iteration(&mut self, data: std::io::Result<(usize, SocketAddr)>) -> Option<String> {
-        let rsa_size = self.rsa.size() as usize;
         let error_msg = match data {
-            Ok((count, src)) if count != rsa_size => {
-                Some(format!("Invalid read count {count}, expected {rsa_size} from {src}"))
+            Ok((count, src)) if count != self.rsa_size => {
+                Some(format!("Invalid read count {count}, expected {} from {src}", self.rsa_size))
             }
             Ok((count, src)) => {
-                info(format!("Successfully received {count} bytes from {src}"));
+                info(&format!("Successfully received {count} bytes from {src}"));
                 match self.decrypt() {
                     Ok(count) => {
-                        self.validate(count, src.ip().to_string());
+                        self.validate(count, src.ip());
                         None
                     }
                     Err(e) => Some(format!("Could not decrypt {:X?}: {e}", self.encrypted_data)),
                 }
             }
-            Err(e) => {
-                Some(format!("Could not recv_from socket from udp://{}: {e}", self.config.address))
-            }
+            Err(e) => Some(format!("Could not recv_from socket from {:?}: {e}", self.socket)),
         };
 
-        self.encrypted_data = vec![0; rsa_size];
-        self.decrypted_data = vec![0; rsa_size];
+        self.encrypted_data = vec![0; self.rsa_size];
+        self.decrypted_data = vec![0; self.rsa_size];
 
         match error_msg {
             Some(s) => {
-                error(s.clone());
+                error(&s);
                 Some(s)
             }
             None => None,
@@ -188,38 +96,40 @@ impl Server {
         self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, RSA_PADDING)
     }
 
-    fn validate(&mut self, count: usize, ip_src: String) {
+    fn validate(&mut self, count: usize, src_ip_addr: IpAddr) {
+        let src_ip = match src_ip_addr.to_string() {
+            // see https://datatracker.ietf.org/doc/html/rfc5156#section-2.2
+            ip if ip.starts_with("::ffff:") => ip.replacen("::ffff:", "", 1),
+            ip => ip,
+        };
+
         self.decrypted_data.truncate(count);
         match self.decode() {
-            Ok((now_ns, data)) if now_ns > data.deadline() => {
-                error(format!("Invalid deadline - now {now_ns} is after {}", data.deadline()))
+            Ok((now_ns, client_data)) if now_ns > client_data.deadline() => {
+                let deadline = client_data.deadline();
+                error(&format!("Invalid deadline - now {now_ns} is after {deadline}"))
             }
-            Ok((_, data)) if self.config.ip != data.destination_ip() => error(format!(
-                "Invalid host IP - expected {}, actual {}",
-                self.config.ip,
-                data.destination_ip()
-            )),
-            Ok((_, data)) if self.blocklist.is_blocked(data.deadline()) => {
-                error(format!("Invalid deadline - {} is on blocklist", data.deadline()))
+            Ok((_, client_data)) if !self.config.ips.contains(&client_data.destination_ip()) => {
+                let destination_ip = client_data.destination_ip();
+                let ips = &self.config.ips;
+                error(&format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
             }
-            Ok((_, data))
-                if data.is_strict()
-                    && data.source_ip().is_some_and(|ip_sent| ip_sent != ip_src) =>
-            {
-                error(format!(
-                    "Invalid source IP - expected {:?}, actual {ip_src}",
-                    data.source_ip()
-                ))
+            Ok((_, client_data)) if self.blocklist.is_blocked(client_data.deadline()) => {
+                error(&format!("Invalid deadline - {} is on blocklist", client_data.deadline()))
             }
-            Ok((now_ns, data)) => {
-                let command_name = String::from(&data.c);
-                let ip = data.source_ip().unwrap_or(ip_src);
-                info(format!("Valid data - trying {command_name} with {ip}"));
+            Ok((_, client_data)) if client_data.validate_source_ip(&src_ip) => {
+                let client_src_ip_str = client_data.source_ip().unwrap();
+                error(&format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
+            }
+            Ok((now_ns, client_data)) => {
+                let command_name = client_data.c.to_string();
+                let ip = client_data.source_ip().unwrap_or(src_ip);
+                info(&format!("Valid data - trying {command_name} with {ip}"));
 
                 self.send_command(CommanderData { command_name, ip });
-                self.update_block_list(now_ns, data.deadline());
+                self.update_block_list(now_ns, client_data.deadline());
             }
-            Err(e) => error(format!("Could not decode data: {e}")),
+            Err(e) => error(&format!("Could not decode data: {e}")),
         }
     }
 
@@ -231,8 +141,8 @@ impl Server {
 
     fn send_command(&self, data: CommanderData) {
         match self.write_to_socket(data) {
-            Ok(_) => info(String::from("Successfully sent data to commander")),
-            Err(e) => error(format!(
+            Ok(_) => info("Successfully sent data to commander"),
+            Err(e) => error(&format!(
                 "Could not send data to commander via socket {:?}: {e}",
                 &self.socket_path
             )),
@@ -255,8 +165,8 @@ impl Server {
         Ok(())
     }
 
-    fn decode(&self) -> Result<(u128, ServerData), String> {
-        match ServerData::deserialize(&self.decrypted_data) {
+    fn decode(&self) -> Result<(u128, ClientData), String> {
+        match ClientData::deserialize(&self.decrypted_data) {
             Ok(data) => Ok((time_from_ntp(&self.config.ntp)?, data)),
             Err(e) => Err(e),
         }
@@ -272,7 +182,38 @@ mod tests {
     use rand::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::path::PathBuf;
-    use std::{fs, io};
+    use std::{env, fs, io};
+
+    impl PartialEq for Server {
+        fn eq(&self, other: &Self) -> bool {
+            self.encrypted_data == other.encrypted_data
+                && self.decrypted_data == other.decrypted_data
+                && self.socket_path == other.socket_path
+                && self.blocklist == other.blocklist
+        }
+    }
+
+    #[test]
+    fn test_create_from_path() {
+        let server_port = rand::thread_rng().gen_range(1024..65535);
+        env::set_var("RUROCO_LISTEN_ADDRESS", format!("[::]:{server_port}"));
+
+        let tests_dir_path = env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests");
+        let conf_path = tests_dir_path.join("files").join("config.toml");
+        let config_dir = tests_dir_path.join("conf_dir");
+
+        let res_path = Server::create_from_path(conf_path).unwrap();
+        let res_create = Server::create(
+            ConfigServer {
+                config_dir,
+                ..Default::default()
+            },
+            Some("127.0.0.1:8081".to_string()),
+        )
+        .unwrap();
+
+        assert_eq!(res_path, res_create);
+    }
 
     #[test]
     fn test_loop_iteration_invalid_read_count() {
@@ -282,7 +223,7 @@ mod tests {
 
         assert_eq!(
             server.run_loop_iteration(success_data).unwrap(),
-            String::from("Invalid read count 0, expected 128 from 127.0.0.1:8080")
+            "Invalid read count 0, expected 128 from 127.0.0.1:8080".to_string()
         );
     }
 
@@ -303,7 +244,7 @@ mod tests {
         assert!(server
             .run_loop_iteration(error_data)
             .unwrap()
-            .starts_with("Could not recv_from socket from udp://127.0.0.1:"));
+            .starts_with("Could not recv_from socket from UdpSocket { addr: 127.0.0.1:"));
     }
 
     fn create_server() -> Server {
@@ -320,11 +261,13 @@ mod tests {
         )
         .expect("could not generate key");
 
-        Server::create(ConfigServer {
-            address: format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535)),
-            config_dir: test_folder_path.clone(),
-            ..Default::default()
-        })
+        Server::create(
+            ConfigServer {
+                config_dir: test_folder_path.clone(),
+                ..Default::default()
+            },
+            Some(format!("127.0.0.1:{}", rand::thread_rng().gen_range(1024..65535))),
+        )
         .expect("could not create server")
     }
 

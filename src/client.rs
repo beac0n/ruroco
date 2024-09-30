@@ -12,53 +12,59 @@ use openssl::version::version;
 use std::net::ToSocketAddrs;
 
 use crate::common::{info, PADDING_SIZE, RSA_PADDING};
-use crate::data::ServerData;
+use crate::config_client::SendCommand;
+use crate::data::ClientData;
 
 /// Send data to the server to execute a predefined command
 ///
-/// * `pem_path` - Path to the private PEM to encrypt the data with
-/// * `address` - IP address and port to send the data to
-/// * `command` - Which command the commander should execute
-/// * `deadline` - After how many seconds from now the commander has to start executing the command
-/// * `strict` - If the server should error when provided source_ip does not match actual source ip
-/// * `source_ip` - The ip from which this packet was supposed to be sent
+/// * `send_command` - data holding information how to send the command - see SendCommand
 /// * `now` - current timestamp in ns
-pub fn send(
-    pem_path: PathBuf,
-    address: String,
-    command: String,
-    deadline: u16,
-    strict: bool,
-    source_ip: Option<String>,
-    now: u128,
-) -> Result<(), String> {
-    info(format!(
+pub fn send(send_command: SendCommand, now: u128) -> Result<(), String> {
+    let address = send_command.address;
+    let pem_path = send_command.private_pem_path;
+    let command = send_command.command;
+
+    info(&format!(
         "Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...",
         version()
     ));
 
-    let destination_ips = address
+    let destination_ips: Vec<SocketAddr> = address
         .to_socket_addrs()
         .map_err(|err| format!("Could not resolve hostname for {address}: {err}"))?
-        .filter(|a| a.is_ipv4())
-        .collect::<Vec<SocketAddr>>();
+        .collect();
 
-    let destination_ip = match destination_ips.first() {
-        Some(a) => a.ip().to_string(),
-        None => return Err(format!("Could not find any IPv4 address for {address}")),
-    };
+    let destination_ipv4s: Vec<&SocketAddr> =
+        destination_ips.iter().filter(|a| a.is_ipv4()).collect();
+
+    let destination_ipv6s: Vec<&SocketAddr> =
+        destination_ips.iter().filter(|a| a.is_ipv6()).collect();
+
+    let (destination_ip, bind_address) =
+        match (destination_ipv4s.first(), destination_ipv6s.first()) {
+            (_, Some(ipv6)) if !send_command.ipv4 => (ipv6.ip().to_string(), "[::]:0"),
+            (Some(ipv4), _) => (ipv4.ip().to_string(), "0.0.0.0:0"),
+            _ => return Err(format!("Could not find any IPv4 or IPv6 address for {address}")),
+        };
 
     let rsa = get_rsa_private(&pem_path)?;
-    let data_to_encrypt =
-        get_data_to_encrypt(&command, &rsa, deadline, strict, source_ip, destination_ip, now)?;
+    let data_to_encrypt = get_data_to_encrypt(
+        &command,
+        &rsa,
+        send_command.deadline,
+        send_command.strict,
+        send_command.ip,
+        destination_ip,
+        now,
+    )?;
     let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
-    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| socket_err(e, &address))?;
+    let socket = UdpSocket::bind(bind_address).map_err(|e| socket_err(e, &address))?;
     socket.connect(&address).map_err(|e| socket_err(e, &address))?;
     socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
 
-    info(format!("Sent command {command} to udp://{address}"));
+    info(&format!("Sent command {command} from {bind_address} to udp://{address}"));
     Ok(())
 }
 
@@ -71,7 +77,7 @@ pub fn gen(private_path: PathBuf, public_path: PathBuf, key_size: u32) -> Result
     validate_pem_path(&public_path)?;
     validate_pem_path(&private_path)?;
 
-    info(format!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while..."));
+    info(&format!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while..."));
     let rsa = Rsa::generate(key_size)
         .map_err(|e| format!("Could not generate rsa for key size {key_size}: {e}"))?;
 
@@ -116,7 +122,7 @@ fn get_data_to_encrypt(
     now_ns: u128,
 ) -> Result<Vec<u8>, String> {
     let data_to_encrypt =
-        ServerData::create(command, deadline, strict, source_ip, destination_ip, now_ns)
+        ClientData::create(command, deadline, strict, source_ip, destination_ip, now_ns)
             .serialize()?;
     let data_to_encrypt_len = data_to_encrypt.len();
     let rsa_size = rsa.size() as usize;
@@ -157,16 +163,16 @@ fn validate_pem_path(path: &PathBuf) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::data::ServerData;
+    use crate::data::ClientData;
 
     #[test]
     fn test_get_minified_server_data() {
-        let server_data = ServerData::create(
+        let server_data = ClientData::create(
             "some_kind_of_long_but_not_really_that_long_command",
             5,
             false,
-            Some(String::from("192.168.178.123")),
-            String::from("192.168.178.124"),
+            Some("192.168.178.123".to_string()),
+            "192.168.178.124".to_string(),
             1725821510 * 1_000_000_000,
         )
         .serialize()
@@ -175,13 +181,13 @@ mod tests {
 
         assert_eq!(server_data_str, "c=\"some_kind_of_long_but_not_really_that_long_command\"\nd=\"1725821515000000000\"\ns=0\ni=\"192.168.178.123\"\nh=\"192.168.178.124\"");
         assert_eq!(
-            ServerData::deserialize(&server_data).unwrap(),
-            ServerData {
-                c: String::from("some_kind_of_long_but_not_really_that_long_command"),
+            ClientData::deserialize(&server_data).unwrap(),
+            ClientData {
+                c: "some_kind_of_long_but_not_really_that_long_command".to_string(),
                 d: 1725821515000000000,
                 s: 0,
-                i: Some(String::from("192.168.178.123")),
-                h: String::from("192.168.178.124")
+                i: Some("192.168.178.123".to_string()),
+                h: "192.168.178.124".to_string()
             }
         );
     }

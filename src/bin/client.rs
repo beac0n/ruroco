@@ -6,19 +6,12 @@ use ruroco::config_client::{CliClient, CommandsClient};
 
 fn main() -> Result<(), String> {
     match CliClient::parse().command {
-        CommandsClient::Gen {
-            private_pem_path,
-            public_pem_path,
-            key_size,
-        } => gen(private_pem_path, public_pem_path, key_size),
-        CommandsClient::Send {
-            private_pem_path,
-            address,
-            command,
-            deadline,
-            strict,
-            ip,
-            ntp,
-        } => send(private_pem_path, address, command, deadline, strict, ip, time_from_ntp(&ntp)?),
+        CommandsClient::Gen(gen_command) => {
+            gen(gen_command.private_pem_path, gen_command.public_pem_path, gen_command.key_size)
+        }
+        CommandsClient::Send(send_command) => {
+            let ntp = send_command.ntp.clone();
+            send(send_command, time_from_ntp(&ntp)?)
+        }
     }
 }

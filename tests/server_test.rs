@@ -9,33 +9,19 @@ mod tests {
     fn test_create_invalid_pid() {
         env::set_var("LISTEN_PID", "12345");
 
-        let conf_dir_path =
+        let config_dir =
             env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests").join("conf_dir");
 
-        let result = Server::create(ConfigServer {
-            address: String::from("127.0.0.1:8082"),
-            config_dir: conf_dir_path,
-            ..Default::default()
-        });
+        let result = Server::create(
+            ConfigServer {
+                config_dir,
+                ..Default::default()
+            },
+            None,
+        );
 
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_create_from_path() {
-        let tests_dir_path = env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests");
-        let conf_path = tests_dir_path.join("files").join("config.toml");
-        let conf_dir_path = tests_dir_path.join("conf_dir");
-
-        let res_path = Server::create_from_path(conf_path).unwrap();
-        let res_create = Server::create(ConfigServer {
-            address: String::from("127.0.0.1:8081"),
-            config_dir: conf_dir_path,
-            ..Default::default()
-        })
-        .unwrap();
-
-        assert_eq!(res_path, res_create);
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), "LISTEN_PID was set, but not to our PID");
     }
 
     #[test]

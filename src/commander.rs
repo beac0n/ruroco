@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{fs, str};
 
-use crate::common::{error, get_socket_path, info};
+use crate::common::{error, get_commander_unix_socket_path, info};
 use crate::config_server::ConfigServer;
 use crate::data::CommanderData;
 
@@ -28,7 +28,7 @@ impl Commander {
 
     pub fn create(config: ConfigServer) -> Commander {
         Commander {
-            socket_path: get_socket_path(&config.config_dir),
+            socket_path: get_commander_unix_socket_path(&config.config_dir),
             config,
         }
     }
@@ -38,10 +38,10 @@ impl Commander {
             match stream {
                 Ok(mut stream) => {
                     if let Err(e) = self.run_cycle(&mut stream) {
-                        error(e)
+                        error(&e)
                     }
                 }
-                Err(e) => error(format!("Connection for {:?} failed: {e}", &self.socket_path)),
+                Err(e) => error(&format!("Connection for {:?} failed: {e}", &self.socket_path)),
             }
         }
 
@@ -60,7 +60,10 @@ impl Commander {
         let _ = fs::remove_file(&self.socket_path);
 
         let mode = 0o204; // only server should be able to write, everyone else can read
-        info(format!("Binding Unix Listener on {:?} with permissions {mode:o}", &self.socket_path));
+        info(&format!(
+            "Binding Unix Listener on {:?} with permissions {mode:o}",
+            &self.socket_path
+        ));
         let listener = UnixListener::bind(&self.socket_path)
             .map_err(|e| format!("Could not bind to socket {:?}: {e}", self.socket_path))?;
 
@@ -112,19 +115,19 @@ impl Commander {
     }
 
     fn run_command(&self, command: &str, ip_str: String) {
-        info(format!("Running command {command}"));
+        info(&format!("Running command {command}"));
         match Command::new("sh")
             .arg("-c")
             .arg(command)
             .env(format!("{ENV_PREFIX}IP"), ip_str)
             .output()
         {
-            Ok(result) => info(format!(
+            Ok(result) => info(&format!(
                 "Successfully executed {command}\nstdout: {}\nstderr: {}",
                 Commander::vec_to_str(&result.stdout),
                 Commander::vec_to_str(&result.stderr)
             )),
-            Err(e) => error(format!("Error executing {command}: {e}")),
+            Err(e) => error(&format!("Error executing {command}: {e}")),
         };
     }
 
@@ -137,7 +140,7 @@ impl Commander {
             Ok(output) => match String::from_utf8_lossy(&output.stdout).trim().parse::<u32>() {
                 Ok(uid) => Some(uid),
                 Err(e) => {
-                    error(format!(
+                    error(&format!(
                         "Error parsing id from id command output: {} {} {e}",
                         String::from_utf8_lossy(&output.stdout),
                         String::from_utf8_lossy(&output.stderr)
@@ -146,7 +149,7 @@ impl Commander {
                 }
             },
             Err(e) => {
-                error(format!("Error getting id via id command: {e}"));
+                error(&format!("Error getting id via id command: {e}"));
                 None
             }
         }

@@ -9,6 +9,62 @@ use crate::common::NTP_SYSTEM;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
+pub struct GenCommand {
+    /// Path to the private PEM file
+    #[arg(short = 'r', long, default_value = env::current_dir().unwrap().join("ruroco_private.pem").into_os_string())]
+    pub private_pem_path: PathBuf,
+    /// Path to the public PEM file
+    #[arg(short = 'u', long, default_value = env::current_dir().unwrap().join("ruroco_public.pem").into_os_string())]
+    pub public_pem_path: PathBuf,
+    /// Key size for the PEM file
+    #[arg(short = 'k', long, default_value_t = 8192, value_parser = validate_key_size)]
+    pub key_size: u32,
+}
+
+#[derive(Parser, Debug)]
+pub struct SendCommand {
+    /// Address to send the command to.
+    #[arg(short, long)]
+    pub address: String,
+    /// Path to the private PEM file.
+    #[arg(short, long, default_value = default_private_pem_path())]
+    pub private_pem_path: PathBuf,
+    /// Command to send
+    #[arg(short, long, default_value = "default")]
+    pub command: String,
+    /// Deadline from now in seconds
+    #[arg(short, long, default_value = "5")]
+    pub deadline: u16,
+    #[arg(short, long, default_value_t = true)]
+    /// Whether to enforce strict mode for source ip validation (defaults to true).
+    pub strict: bool,
+    /// Optional IP address from which the command was sent.
+    #[arg(short, long)]
+    pub ip: Option<String>,
+    /// NTP server (defaults to using the system time).
+    #[arg(short, long, default_value = NTP_SYSTEM)]
+    pub ntp: String,
+    /// Connect via IPv4 (defaults to true)
+    #[arg(short = '4', long, default_value_t = true)]
+    pub ipv4: bool,
+}
+
+impl Default for SendCommand {
+    fn default() -> SendCommand {
+        SendCommand {
+            address: "127.0.0.1:1234".to_string(),
+            private_pem_path: PathBuf::from(default_private_pem_path()),
+            command: "default".to_string(),
+            deadline: 5,
+            strict: true,
+            ip: None,
+            ntp: "system".to_string(),
+            ipv4: false,
+        }
+    }
+}
+
+#[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct CliClient {
     #[command(subcommand)]
@@ -17,30 +73,10 @@ pub struct CliClient {
 
 #[derive(Debug, Subcommand)]
 pub enum CommandsClient {
-    Gen {
-        #[arg(short = 'r', long, default_value = env::current_dir().unwrap().join("ruroco_private.pem").into_os_string())]
-        private_pem_path: PathBuf,
-        #[arg(short = 'u', long, default_value = env::current_dir().unwrap().join("ruroco_public.pem").into_os_string())]
-        public_pem_path: PathBuf,
-        #[arg(short = 'k', long, default_value_t = 8192, value_parser = validate_key_size)]
-        key_size: u32,
-    },
-
-    Send {
-        #[arg(short, long)]
-        address: String,
-        #[arg(short, long, default_value = default_private_pem_path())]
-        private_pem_path: PathBuf,
-        #[arg(short, long, default_value = "default")]
-        command: String,
-        #[arg(short, long, default_value = "5")]
-        deadline: u16,
-        #[arg(short, long, default_value_t = true)]
-        strict: bool,
-        ip: Option<String>,
-        #[arg(short, long, default_value = NTP_SYSTEM)]
-        ntp: String,
-    },
+    /// Generate a pair of private and public PEM keys.
+    Gen(GenCommand),
+    /// Send a command to a specific address.
+    Send(SendCommand),
 }
 
 fn default_private_pem_path() -> std::ffi::OsString {

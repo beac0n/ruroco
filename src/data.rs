@@ -21,7 +21,7 @@ impl CommanderData {
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 // use one char for each field, to minify serialized size
-pub struct ServerData {
+pub struct ClientData {
     pub c: String, // command name
     #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
     pub d: u128, // deadline in ns
@@ -30,7 +30,7 @@ pub struct ServerData {
     pub h: String, // host ip address
 }
 
-impl ServerData {
+impl ClientData {
     pub fn create(
         command: &str,
         deadline: u16,
@@ -38,8 +38,8 @@ impl ServerData {
         source_ip: Option<String>,
         destination_ip: String,
         now_ns: u128,
-    ) -> ServerData {
-        ServerData {
+    ) -> ClientData {
+        ClientData {
             c: command.to_string(),
             d: now_ns + (u128::from(deadline) * 1_000_000_000),
             s: if strict { 1 } else { 0 },
@@ -48,9 +48,9 @@ impl ServerData {
         }
     }
 
-    pub fn deserialize(data: &[u8]) -> Result<ServerData, String> {
+    pub fn deserialize(data: &[u8]) -> Result<ClientData, String> {
         let data_str = String::from_utf8_lossy(data).to_string();
-        toml::from_str::<ServerData>(&data_str)
+        toml::from_str::<ClientData>(&data_str)
             .map_err(|e| format!("Could not deserialize ServerData {data_str}: {e}"))
     }
 
@@ -66,6 +66,10 @@ impl ServerData {
 
     pub fn source_ip(&self) -> Option<String> {
         self.i.clone()
+    }
+
+    pub fn validate_source_ip(&self, source_ip: &str) -> bool {
+        self.is_strict() && self.source_ip().is_some_and(|ip_sent| ip_sent != source_ip)
     }
 
     pub fn destination_ip(&self) -> String {
