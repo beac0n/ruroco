@@ -1,4 +1,3 @@
-use openssl::error::ErrorStack;
 use openssl::pkey::Public;
 use openssl::rsa::Rsa;
 use std::fs;
@@ -15,7 +14,7 @@ use crate::data::{ClientData, CommanderData};
 #[derive(Debug)]
 pub struct Server {
     config: ConfigServer,
-    rsa: Rsa<Public>,
+    rsa: Vec<Rsa<Public>>,
     rsa_size: usize,
     socket: UdpSocket,
     encrypted_data: Vec<u8>,
@@ -35,8 +34,7 @@ impl Server {
     pub fn create(config: ConfigServer, address: Option<String>) -> Result<Server, String> {
         config.validate_ips()?;
 
-        let rsa = config.create_rsa()?;
-        let rsa_size = rsa.size() as usize;
+        let (rsa_size, rsa) = config.create_rsa()?;
 
         Ok(Server {
             rsa,
@@ -92,8 +90,17 @@ impl Server {
         self.socket.recv_from(&mut self.encrypted_data)
     }
 
-    fn decrypt(&mut self) -> Result<usize, ErrorStack> {
-        self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, RSA_PADDING)
+    fn decrypt(&mut self) -> Result<usize, String> {
+        // TODO: this is suboptimal - find a way to get the correct pub key in O(1)
+        match self.rsa.iter().find_map(|rsa| {
+            rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, RSA_PADDING).ok()
+        }) {
+            Some(len) => Ok(len),
+            None => Err(format!(
+                "Could not decrypt data, using any of the {} provided RSA public keys",
+                self.rsa.len()
+            )),
+        }
     }
 
     fn validate(&mut self, count: usize, src_ip_addr: IpAddr) {
