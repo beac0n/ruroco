@@ -9,11 +9,10 @@ use openssl::pkey::Private;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use std::net::ToSocketAddrs;
-
-use crate::common::{info, PADDING_SIZE, RSA_PADDING};
+use crate::common::{hash_public_key, info, PADDING_SIZE, RSA_PADDING};
 use crate::config_client::SendCommand;
 use crate::data::ClientData;
+use std::net::ToSocketAddrs;
 
 /// Send data to the server to execute a predefined command
 ///
@@ -57,15 +56,26 @@ pub fn send(send_command: SendCommand, now: u128) -> Result<(), String> {
         destination_ip,
         now,
     )?;
-    let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
+    let data_to_send = get_data_to_send(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
     let socket = UdpSocket::bind(bind_address).map_err(|e| socket_err(e, &address))?;
     socket.connect(&address).map_err(|e| socket_err(e, &address))?;
-    socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
+    socket.send(&data_to_send).map_err(|e| socket_err(e, &address))?;
 
     info(&format!("Sent command {command} from {bind_address} to udp://{address}"));
     Ok(())
+}
+
+fn get_data_to_send(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec<u8>, String> {
+    let pem_pub_key = rsa
+        .public_key_to_pem()
+        .map_err(|e| format!("Could not create public pem from private key: {e}"))?;
+    let mut data_to_send = hash_public_key(pem_pub_key)?;
+    let encrypted_data = encrypt_data(data_to_encrypt, rsa)?;
+    data_to_send.extend(encrypted_data);
+
+    Ok(data_to_send)
 }
 
 /// Generate a public and private PEM file with the provided key_size

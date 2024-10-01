@@ -3,7 +3,9 @@
 //! (default) arguments or are used to deserialize configuration files
 
 use crate::blocklist::Blocklist;
-use crate::common::{get_commander_unix_socket_path, info, resolve_path, NTP_SYSTEM};
+use crate::common::{
+    get_commander_unix_socket_path, hash_public_key, info, resolve_path, NTP_SYSTEM,
+};
 use clap::Parser;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -16,6 +18,8 @@ use openssl::version::version;
 use std::os::fd::{FromRawFd, RawFd};
 use std::path::PathBuf;
 use std::{env, fs};
+
+type RsaResult = Result<(usize, HashMap<Vec<u8>, Rsa<Public>>), String>;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -88,7 +92,7 @@ impl ConfigServer {
         Blocklist::create(&self.resolve_config_dir())
     }
 
-    pub fn create_rsa(&self) -> Result<(usize, Vec<Rsa<Public>>), String> {
+    pub fn create_rsa(&self) -> RsaResult {
         let pem_paths = self.get_pem_paths()?;
         let openssl_version = version();
         info(&format!(
@@ -117,10 +121,24 @@ impl ConfigServer {
         sizes.sort();
         sizes.dedup();
 
-        match sizes.len() {
-            1 => Ok((sizes[0], rsa)),
-            other => Err(format!("All RSA public keys must have the same size, but found {other} different sizes: {sizes:?}")),
+        let sizes_len = sizes.len();
+        if sizes_len > 1 {
+            return Err(format!("All RSA public keys must have the same size, but found {sizes_len} different sizes: {sizes:?}"));
         }
+
+        let hashmap_data = rsa
+            .into_iter()
+            .map(|rsa| {
+                let pem_pub_key = rsa
+                    .public_key_to_pem()
+                    .map_err(|e| format!("Could not create public pem from public key: {e}"))?;
+                let hash_bytes = hash_public_key(pem_pub_key)?;
+                info(&format!("loading public key PEM with hash {hash_bytes:X?}"));
+                Ok((hash_bytes, rsa))
+            })
+            .collect::<Result<Vec<(Vec<u8>, Rsa<Public>)>, String>>()?;
+
+        Ok((sizes[0], hashmap_data.into_iter().collect()))
     }
 
     pub fn get_commander_unix_socket_path(&self) -> PathBuf {
