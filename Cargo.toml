@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 openssl = { version = "0.10.64" }
-clap = { version = "4.5.18", features = ["derive", "string"] }
+clap = { version = "4.5.19", features = ["derive", "string"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8.13"
 sntpc = { version = "0.3.9", features = ["std"] }
