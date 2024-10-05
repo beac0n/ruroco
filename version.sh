@@ -5,6 +5,7 @@ USAGE="Usage: $0 {major|minor|patch}"
 if [ "$#" -ne 1 ]; then
     printf "%s\n" "$USAGE"
     exit 1
+fi
 
 VERSION=$(grep '^version = ' Cargo.toml | cut -d '"' -f 2)
 MAJOR=$(printf "%s" "$VERSION" | cut -d '.' -f 1)
