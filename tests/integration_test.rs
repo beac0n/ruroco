@@ -85,10 +85,11 @@ mod tests {
                     private_pem_path: self.private_pem_path.clone(),
                     command: "default".to_string(),
                     deadline: self.deadline,
-                    strict: self.strict,
+                    permissive: !self.strict,
                     ip: self.client_sent_ip.clone(),
                     ntp: "system".to_string(),
                     ipv4: false,
+                    ipv6: false,
                 },
                 self.now.unwrap_or_else(|| time().unwrap()),
             )

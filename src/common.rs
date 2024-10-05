@@ -1,3 +1,4 @@
+use openssl::hash::{Hasher, MessageDigest};
 use openssl::rsa::Padding;
 use std::net::UdpSocket;
 use std::path::PathBuf;
@@ -6,7 +7,7 @@ use std::{env, fs};
 
 pub const RSA_PADDING: Padding = Padding::PKCS1;
 pub const PADDING_SIZE: usize = 11; // see https://www.rfc-editor.org/rfc/rfc3447#section-7.2.1
-
+pub const SHA256_DIGEST_LENGTH: usize = 32;
 pub const NTP_SYSTEM: &str = "system";
 
 pub fn time_from_ntp(ntp_server: &str) -> Result<u128, String> {
@@ -34,6 +35,14 @@ pub fn time() -> Result<u128, String> {
         .duration_since(SystemTime::UNIX_EPOCH)
         .map_err(|e| format!("Could not get duration since: {e}"))?;
     Ok(duration.as_nanos())
+}
+
+pub fn hash_public_key(pem_pub_key: Vec<u8>) -> Result<Vec<u8>, String> {
+    let digest = MessageDigest::sha256();
+    let mut hasher = Hasher::new(digest).map_err(|e| format!("Could not create hasher: {e}"))?;
+    hasher.update(pem_pub_key.as_slice()).map_err(|e| format!("Could not update hasher: {e}"))?;
+    let hash_bytes = hasher.finish().map_err(|e| format!("Could not finish hasher: {e}"))?;
+    Ok(hash_bytes.to_vec())
 }
 
 pub fn get_commander_unix_socket_path(config_dir: &PathBuf) -> PathBuf {

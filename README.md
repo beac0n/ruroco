@@ -54,7 +54,7 @@ ruroco-client gen --help
 ```text
 Generate a pair of private and public PEM keys
 
-Usage: client gen [OPTIONS]
+Usage: ruroco-client gen [OPTIONS]
 
 Options:
   -r, --private-pem-path <PRIVATE_PEM_PATH>
@@ -87,14 +87,16 @@ Options:
           Command to send [default: default]
   -d, --deadline <DEADLINE>
           Deadline from now in seconds [default: 5]
-  -s, --strict
-          Whether to enforce strict mode for source ip validation (defaults to true)
+  -e, --permissive
+          Allow permissive IP validation - source IP does not have to match provided IP
   -i, --ip <IP>
-          Optional IP address from which the command was sent
+          Optional IP address from which the command was sent. Use -6ei "dead:beef:dead:beef::/64" to allow you whole current IPv6 network. To do this automatically, use -6ei $(curl -s6 https://api64.ipify.org | awk -F: '{print $1":"$2":"$3":"$4"::/64"}')
   -n, --ntp <NTP>
           NTP server (defaults to using the system time) [default: system]
   -4, --ipv4
-          Connect via IPv4 (defaults to true)
+          Connect via IPv4
+  -6, --ipv6
+          Connect via IPv6
   -h, --help
           Print help
 ```

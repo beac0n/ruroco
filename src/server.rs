@@ -1,24 +1,23 @@
-use openssl::error::ErrorStack;
+use crate::blocklist::Blocklist;
+use crate::common::{error, info, time_from_ntp, RSA_PADDING, SHA256_DIGEST_LENGTH};
+use crate::config_server::ConfigServer;
+use crate::data::{ClientData, CommanderData};
 use openssl::pkey::Public;
 use openssl::rsa::Rsa;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
-use crate::blocklist::Blocklist;
-use crate::common::{error, info, time_from_ntp, RSA_PADDING};
-use crate::config_server::ConfigServer;
-use crate::data::{ClientData, CommanderData};
-
 #[derive(Debug)]
 pub struct Server {
     config: ConfigServer,
-    rsa: Rsa<Public>,
+    rsa: HashMap<Vec<u8>, Rsa<Public>>,
     rsa_size: usize,
     socket: UdpSocket,
-    encrypted_data: Vec<u8>,
+    client_recv_data: Vec<u8>,
     decrypted_data: Vec<u8>,
     socket_path: PathBuf,
     blocklist: Blocklist,
@@ -35,19 +34,22 @@ impl Server {
     pub fn create(config: ConfigServer, address: Option<String>) -> Result<Server, String> {
         config.validate_ips()?;
 
-        let rsa = config.create_rsa()?;
-        let rsa_size = rsa.size() as usize;
+        let (rsa_size, rsa) = config.create_rsa()?;
 
         Ok(Server {
             rsa,
             rsa_size,
             socket: config.create_server_udp_socket(address)?,
             decrypted_data: vec![0; rsa_size],
-            encrypted_data: vec![0; rsa_size],
+            client_recv_data: vec![0; Self::get_client_recv_data_size(rsa_size)],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist: config.create_blocklist(),
             config,
         })
+    }
+
+    fn get_client_recv_data_size(rsa_size: usize) -> usize {
+        rsa_size + SHA256_DIGEST_LENGTH
     }
 
     pub fn run(&mut self) -> Result<(), String> {
@@ -59,9 +61,10 @@ impl Server {
     }
 
     fn run_loop_iteration(&mut self, data: std::io::Result<(usize, SocketAddr)>) -> Option<String> {
+        let data_size = Self::get_client_recv_data_size(self.rsa_size);
         let error_msg = match data {
-            Ok((count, src)) if count != self.rsa_size => {
-                Some(format!("Invalid read count {count}, expected {} from {src}", self.rsa_size))
+            Ok((count, src)) if count != data_size => {
+                Some(format!("Invalid read count {count}, expected {} from {src}", data_size))
             }
             Ok((count, src)) => {
                 info(&format!("Successfully received {count} bytes from {src}"));
@@ -70,13 +73,13 @@ impl Server {
                         self.validate(count, src.ip());
                         None
                     }
-                    Err(e) => Some(format!("Could not decrypt {:X?}: {e}", self.encrypted_data)),
+                    Err(e) => Some(e),
                 }
             }
             Err(e) => Some(format!("Could not recv_from socket from {:?}: {e}", self.socket)),
         };
 
-        self.encrypted_data = vec![0; self.rsa_size];
+        self.client_recv_data = vec![0; data_size];
         self.decrypted_data = vec![0; self.rsa_size];
 
         match error_msg {
@@ -89,11 +92,20 @@ impl Server {
     }
 
     fn receive(&mut self) -> std::io::Result<(usize, SocketAddr)> {
-        self.socket.recv_from(&mut self.encrypted_data)
+        self.socket.recv_from(&mut self.client_recv_data)
     }
 
-    fn decrypt(&mut self) -> Result<usize, ErrorStack> {
-        self.rsa.public_decrypt(&self.encrypted_data, &mut self.decrypted_data, RSA_PADDING)
+    fn decrypt(&mut self) -> Result<usize, String> {
+        let hash_bytes = &self.client_recv_data[..SHA256_DIGEST_LENGTH];
+        let encrypted_data = &self.client_recv_data[SHA256_DIGEST_LENGTH..];
+        match self
+            .rsa
+            .get(hash_bytes)
+            .map(|rsa| rsa.public_decrypt(encrypted_data, &mut self.decrypted_data, RSA_PADDING))
+        {
+            Some(r) => r.map_err(|e| format!("Could not decrypt {:X?}: {e}", encrypted_data)),
+            None => Err(format!("Could not find public pem for hash {hash_bytes:X?}")),
+        }
     }
 
     fn validate(&mut self, count: usize, src_ip_addr: IpAddr) {
@@ -186,7 +198,7 @@ mod tests {
 
     impl PartialEq for Server {
         fn eq(&self, other: &Self) -> bool {
-            self.encrypted_data == other.encrypted_data
+            self.client_recv_data == other.client_recv_data
                 && self.decrypted_data == other.decrypted_data
                 && self.socket_path == other.socket_path
                 && self.blocklist == other.blocklist
@@ -223,7 +235,7 @@ mod tests {
 
         assert_eq!(
             server.run_loop_iteration(success_data).unwrap(),
-            "Invalid read count 0, expected 128 from 127.0.0.1:8080".to_string()
+            "Invalid read count 0, expected 160 from 127.0.0.1:8080".to_string()
         );
     }
 
@@ -231,8 +243,8 @@ mod tests {
     fn test_loop_iteration_decrypt_error() {
         let mut server = create_server();
         let success_data: io::Result<(usize, SocketAddr)> =
-            Ok((128, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
-        assert!(server.run_loop_iteration(success_data).unwrap().starts_with("Could not decrypt "));
+            Ok((160, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
+        assert_eq!(server.run_loop_iteration(success_data).unwrap(), "Could not find public pem for hash [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]");
     }
 
     #[test]

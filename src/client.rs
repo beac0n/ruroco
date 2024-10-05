@@ -9,11 +9,10 @@ use openssl::pkey::Private;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use std::net::ToSocketAddrs;
-
-use crate::common::{info, PADDING_SIZE, RSA_PADDING};
+use crate::common::{hash_public_key, info, PADDING_SIZE, RSA_PADDING};
 use crate::config_client::SendCommand;
 use crate::data::ClientData;
+use std::net::ToSocketAddrs;
 
 /// Send data to the server to execute a predefined command
 ///
@@ -42,30 +41,49 @@ pub fn send(send_command: SendCommand, now: u128) -> Result<(), String> {
 
     let (destination_ip, bind_address) =
         match (destination_ipv4s.first(), destination_ipv6s.first()) {
-            (_, Some(ipv6)) if !send_command.ipv4 => (ipv6.ip().to_string(), "[::]:0"),
+            (_, Some(ipv6)) if send_command.ipv6 && !send_command.ipv4 => {
+                (ipv6.ip().to_string(), "[::]:0")
+            }
+            (Some(ipv4), _) if !send_command.ipv6 && send_command.ipv4 => {
+                (ipv4.ip().to_string(), "0.0.0.0:0")
+            }
             (Some(ipv4), _) => (ipv4.ip().to_string(), "0.0.0.0:0"),
+            (_, Some(ipv6)) => (ipv6.ip().to_string(), "[::]:0"),
             _ => return Err(format!("Could not find any IPv4 or IPv6 address for {address}")),
         };
+
+    info(&format!("Found IPs {destination_ipv4s:?} and {destination_ipv6s:?} for {address}, connecting to {destination_ip}"));
 
     let rsa = get_rsa_private(&pem_path)?;
     let data_to_encrypt = get_data_to_encrypt(
         &command,
         &rsa,
         send_command.deadline,
-        send_command.strict,
+        !send_command.permissive,
         send_command.ip,
         destination_ip,
         now,
     )?;
-    let encrypted_data = encrypt_data(&data_to_encrypt, &rsa)?;
+    let data_to_send = get_data_to_send(&data_to_encrypt, &rsa)?;
 
     // create UDP socket and send the encrypted data to the specified address
     let socket = UdpSocket::bind(bind_address).map_err(|e| socket_err(e, &address))?;
     socket.connect(&address).map_err(|e| socket_err(e, &address))?;
-    socket.send(&encrypted_data).map_err(|e| socket_err(e, &address))?;
+    socket.send(&data_to_send).map_err(|e| socket_err(e, &address))?;
 
     info(&format!("Sent command {command} from {bind_address} to udp://{address}"));
     Ok(())
+}
+
+fn get_data_to_send(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec<u8>, String> {
+    let pem_pub_key = rsa
+        .public_key_to_pem()
+        .map_err(|e| format!("Could not create public pem from private key: {e}"))?;
+    let mut data_to_send = hash_public_key(pem_pub_key)?;
+    let encrypted_data = encrypt_data(data_to_encrypt, rsa)?;
+    data_to_send.extend(encrypted_data);
+
+    Ok(data_to_send)
 }
 
 /// Generate a public and private PEM file with the provided key_size

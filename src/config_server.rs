@@ -3,7 +3,9 @@
 //! (default) arguments or are used to deserialize configuration files
 
 use crate::blocklist::Blocklist;
-use crate::common::{error, get_commander_unix_socket_path, info, resolve_path, NTP_SYSTEM};
+use crate::common::{
+    get_commander_unix_socket_path, hash_public_key, info, resolve_path, NTP_SYSTEM,
+};
 use clap::Parser;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -16,6 +18,8 @@ use openssl::version::version;
 use std::os::fd::{FromRawFd, RawFd};
 use std::path::PathBuf;
 use std::{env, fs};
+
+type RsaResult = Result<(usize, HashMap<Vec<u8>, Rsa<Public>>), String>;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -88,55 +92,81 @@ impl ConfigServer {
         Blocklist::create(&self.resolve_config_dir())
     }
 
-    pub fn create_rsa(&self) -> Result<Rsa<Public>, String> {
-        let pem_path = self.get_pem_path()?;
+    pub fn create_rsa(&self) -> RsaResult {
+        let pem_paths = self.get_pem_paths()?;
+        let openssl_version = version();
         info(&format!(
-            "Creating server, loading public PEM from {pem_path:?}, using {} ...",
-            version()
+            "Creating server, loading public PEMs from {pem_paths:?}, using {openssl_version} ..."
         ));
 
-        let pem_data =
-            fs::read(&pem_path).map_err(|e| format!("Could not read {pem_path:?}: {e}"))?;
+        let pem_datas = pem_paths
+            .into_iter()
+            .map(|p| {
+                fs::read(&p)
+                    .map(|d| (format!("{p:?}"), d))
+                    .map_err(|e| format!("Could not read {p:?}: {e}"))
+            })
+            .collect::<Result<Vec<(String, Vec<u8>)>, String>>()?;
 
-        Rsa::public_key_from_pem(&pem_data)
-            .map_err(|e| format!("Could not load public key from {pem_path:?}: {e}"))
+        let rsa = pem_datas
+            .into_iter()
+            .map(|(p, d)| {
+                Rsa::public_key_from_pem(&d)
+                    .map_err(|e| format!("Could not load public key from {p}: {e}"))
+            })
+            .collect::<Result<Vec<Rsa<Public>>, String>>()?;
+
+        let mut sizes: Vec<usize> = rsa.iter().map(|r| r.size() as usize).collect();
+
+        sizes.sort();
+        sizes.dedup();
+
+        let sizes_len = sizes.len();
+        if sizes_len > 1 {
+            return Err(format!("All RSA public keys must have the same size, but found {sizes_len} different sizes: {sizes:?}"));
+        }
+
+        let hashmap_data = rsa
+            .into_iter()
+            .map(|rsa| {
+                let pem_pub_key = rsa
+                    .public_key_to_pem()
+                    .map_err(|e| format!("Could not create public pem from public key: {e}"))?;
+                let hash_bytes = hash_public_key(pem_pub_key)?;
+                info(&format!("loading public key PEM with hash {hash_bytes:X?}"));
+                Ok((hash_bytes, rsa))
+            })
+            .collect::<Result<Vec<(Vec<u8>, Rsa<Public>)>, String>>()?;
+
+        Ok((sizes[0], hashmap_data.into_iter().collect()))
     }
 
     pub fn get_commander_unix_socket_path(&self) -> PathBuf {
         get_commander_unix_socket_path(&self.resolve_config_dir())
     }
 
-    fn get_pem_path(&self) -> Result<PathBuf, String> {
+    fn get_pem_paths(&self) -> Result<Vec<PathBuf>, String> {
         let config_dir = self.resolve_config_dir();
-        let pem_files = Self::get_pem_files(&config_dir);
+
+        let entries: ReadDir = match fs::read_dir(&config_dir) {
+            Ok(entries) => entries,
+            Err(e) => return Err(format!("Error reading directory {config_dir:?}: {e}")),
+        };
+
+        let pem_files: Vec<PathBuf> = entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| path.is_file() && path.extension().is_some_and(|e| e == "pem"))
+            .collect();
 
         match pem_files.len() {
             0 => Err(format!("Could not find any .pem files in {config_dir:?}")),
-            1 => Ok(pem_files.into_iter().next().unwrap()),
-            other => Err(format!("Only one public PEM is supported, found {other}")),
+            _ => Ok(pem_files),
         }
     }
 
     fn resolve_config_dir(&self) -> PathBuf {
         resolve_path(&self.config_dir)
-    }
-
-    fn get_pem_files(config_dir: &PathBuf) -> Vec<PathBuf> {
-        let entries: ReadDir = match fs::read_dir(config_dir) {
-            Ok(entries) => entries,
-            Err(e) => {
-                error(&format!("Error reading directory: {e}"));
-                return vec![];
-            }
-        };
-
-        entries
-            .flatten()
-            .map(|entry| entry.path())
-            .filter(|path| {
-                path.is_file() && path.extension().is_some() && path.extension().unwrap() == "pem"
-            })
-            .collect()
     }
 }
 
@@ -178,12 +208,6 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_get_pem_files() {
-        let expected: Vec<PathBuf> = vec![];
-        assert_eq!(ConfigServer::get_pem_files(&PathBuf::from("/foo/bar/baz")), expected);
-    }
-
-    #[test]
     fn test_get_pem_path() {
         let config_server = ConfigServer {
             config_dir: PathBuf::from("/foo/bar/baz"),
@@ -191,8 +215,8 @@ mod tests {
         };
 
         assert_eq!(
-            config_server.get_pem_path().unwrap_err().to_string(),
-            r#"Could not find any .pem files in "/foo/bar/baz""#
+            config_server.get_pem_paths().unwrap_err().to_string(),
+            r#"Error reading directory "/foo/bar/baz": No such file or directory (os error 2)"#
         );
     }
 

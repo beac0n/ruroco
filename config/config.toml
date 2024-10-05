@@ -1,6 +1,6 @@
 # MANDATORY - public IP address of your server where this service runs on
 ips = ["127.0.0.1", "dead:beef:dead:beef:dead:beef:dead:beef"]
-address = "0.0.0.0:8080"     # OPTIONAL  - address the ruroco serer listens on, if systemd/ruroco.socket is not used
+address = "[::]:8080"        # OPTIONAL  - address the ruroco serer listens on, if systemd/ruroco.socket is not used
 config_dir = "/etc/ruroco/"  # OPTIONAL  - path where the configuration files (.pem and others) are saved
 ntp = "system"               # OPTIONAL  - NTP server configuration - use "system" to use the systems time configuration
 socket_user = "ruroco"       # OPTIONAL  - user of socket, facilitating communication between server and commander
