@@ -99,7 +99,7 @@ impl ConfigServer {
             "Creating server, loading public PEMs from {pem_paths:?}, using {openssl_version} ..."
         ));
 
-        let pem_datas = pem_paths
+        let pem_data_list = pem_paths
             .into_iter()
             .map(|p| {
                 fs::read(&p)
@@ -108,7 +108,7 @@ impl ConfigServer {
             })
             .collect::<Result<Vec<(String, Vec<u8>)>, String>>()?;
 
-        let rsa = pem_datas
+        let rsa = pem_data_list
             .into_iter()
             .map(|(p, d)| {
                 Rsa::public_key_from_pem(&d)
