@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2024-10-05
+
+### Added
+
+- Add time lookup via ntp for client and server
+- Add IPv6 support
+- Add support for multiple PEM files on server
+
+### Changed
+
+- Replace --strict flag with --permissive flag
+
 ## [0.3.0] - 2024-09-25
 
 ### Added
@@ -98,6 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial Release
+
+[0.4.0]: https://github.com/beac0n/ruroco/compare/v0.3.0..v0.4.0
 
 [0.3.0]: https://github.com/beac0n/ruroco/compare/v0.2.6..v0.3.0
 
