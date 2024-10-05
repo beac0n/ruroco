@@ -41,17 +41,25 @@ pub fn send(send_command: SendCommand, now: u128) -> Result<(), String> {
 
     let (destination_ip, bind_address) =
         match (destination_ipv4s.first(), destination_ipv6s.first()) {
-            (_, Some(ipv6)) if !send_command.ipv4 => (ipv6.ip().to_string(), "[::]:0"),
+            (_, Some(ipv6)) if send_command.ipv6 && !send_command.ipv4 => {
+                (ipv6.ip().to_string(), "[::]:0")
+            }
+            (Some(ipv4), _) if !send_command.ipv6 && send_command.ipv4 => {
+                (ipv4.ip().to_string(), "0.0.0.0:0")
+            }
             (Some(ipv4), _) => (ipv4.ip().to_string(), "0.0.0.0:0"),
+            (_, Some(ipv6)) => (ipv6.ip().to_string(), "[::]:0"),
             _ => return Err(format!("Could not find any IPv4 or IPv6 address for {address}")),
         };
+
+    info(&format!("Found IPs {destination_ipv4s:?} and {destination_ipv6s:?} for {address}, connecting to {destination_ip}"));
 
     let rsa = get_rsa_private(&pem_path)?;
     let data_to_encrypt = get_data_to_encrypt(
         &command,
         &rsa,
         send_command.deadline,
-        send_command.strict,
+        !send_command.permissive,
         send_command.ip,
         destination_ip,
         now,

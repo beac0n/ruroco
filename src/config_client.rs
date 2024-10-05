@@ -35,18 +35,23 @@ pub struct SendCommand {
     /// Deadline from now in seconds
     #[arg(short, long, default_value = "5")]
     pub deadline: u16,
-    #[arg(short, long, default_value_t = true)]
-    /// Whether to enforce strict mode for source ip validation (defaults to true).
-    pub strict: bool,
+    #[arg(short = 'e', long)]
+    /// Allow permissive IP validation - source IP does not have to match provided IP.
+    pub permissive: bool,
     /// Optional IP address from which the command was sent.
+    /// Use -6ei "dead:beef:dead:beef::/64" to allow you whole current IPv6 network.
+    /// To do this automatically, use -6ei $(curl -s6 https://api64.ipify.org | awk -F: '{print $1":"$2":"$3":"$4"::/64"}')
     #[arg(short, long)]
     pub ip: Option<String>,
     /// NTP server (defaults to using the system time).
     #[arg(short, long, default_value = NTP_SYSTEM)]
     pub ntp: String,
-    /// Connect via IPv4 (defaults to true)
-    #[arg(short = '4', long, default_value_t = true)]
+    /// Connect via IPv4
+    #[arg(short = '4', long)]
     pub ipv4: bool,
+    /// Connect via IPv6
+    #[arg(short = '6', long)]
+    pub ipv6: bool,
 }
 
 impl Default for SendCommand {
@@ -56,10 +61,11 @@ impl Default for SendCommand {
             private_pem_path: PathBuf::from(default_private_pem_path()),
             command: "default".to_string(),
             deadline: 5,
-            strict: true,
+            permissive: false,
             ip: None,
             ntp: "system".to_string(),
             ipv4: false,
+            ipv6: false,
         }
     }
 }
