@@ -201,17 +201,17 @@ ruroco-client send --address host.domain:8080 --command open_ssh
 ```
 
 If you want to use a different IP address than the one you are sending the packet from, you can use the `--ip` argument
-together with `--strict false`:
+together with `--permissive`:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_ssh --ip 94.111.111.111 --strict false
+ruroco-client send --address host.domain:8080 --command open_ssh --ip 94.111.111.111 --permissive
 ```
 
 If you want to make sure that an adversary does not spoof your source IP address, you can get your external IP address
-from a service and set `--strict true` (the default) - the ruroco server will make sure that the IP addresses match:
+from a service - the ruroco server will make sure that the IP addresses match:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_ssh --ip $(curl -s https://api64.ipify.org) --strict true
+ruroco-client send --address host.domain:8080 --command open_ssh --ip $(curl -s https://api64.ipify.org)
 ```
 
 the server will validate that the client is authorized to execute that command by using public-key cryptography (RSA)
