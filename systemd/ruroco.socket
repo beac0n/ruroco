@@ -3,7 +3,9 @@ Description=ruroco socket
 PartOf=ruroco.service
 
 [Socket]
-ListenDatagram=0.0.0.0:80
+# This listens for both IPv4 and IPv6 if IPV6_V6ONLY is disabled, which is the default on linux,
+# see https://man7.org/linux/man-pages/man7/ipv6.7.html => /proc/sys/net/ipv6/bindv6only == 0
+ListenDatagram=[::]:80
 
 [Install]
 WantedBy=sockets.target
