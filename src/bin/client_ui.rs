@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .downcast_ref()
                 .expect("Expected an initialized commands_list, found None");
 
-            commands_list.push(cmd.into());
+            commands_list.push(cmd);
         }
     });
 
