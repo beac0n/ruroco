@@ -1,0 +1,132 @@
+import { Button, VerticalBox, ComboBox, ListView, StandardTableView, GridBox, Slider } from "std-widgets.slint";
+import { ArgRowText, ArgRowInput } from "./arg-row.slint";
+
+export component AppWindow inherits Window {
+    in-out property <[string]> commands_list: [];
+
+    property <string> sub_command: "gen";
+    property <string> private_pem_path: "";
+    property <string> public_pem_path: "";
+    property <string> key_size: "";
+
+    callback add_command(string);
+    callback exec_command(string);
+    callback del_command(string);
+
+    preferred-width: 600px;
+    preferred-height: 800px;
+
+    // parent layout
+    VerticalLayout {
+        padding: 10px;
+        GridBox {
+            spacing-vertical: 25px;
+            Row {
+                Text {
+                    text: "subcommand";
+                    overflow: TextOverflow.clip;
+                    horizontal-alignment: TextHorizontalAlignment.left;
+                    vertical-alignment: TextVerticalAlignment.center;
+                }
+
+                ComboBox {
+                    current-value <=> root.sub_command;
+
+                    height: 50px;
+                    model: ["gen", "send"];
+                }
+            }
+
+            Row {
+                ArgRowText {
+                    text: "private_pem_path";
+                }
+
+                ArgRowInput {
+                    input <=> root.private_pem_path;
+                }
+            }
+
+            Row {
+                ArgRowText {
+                    text: "public_pem_path";
+                }
+
+                ArgRowInput {
+                    input <=> root.public_pem_path;
+                }
+            }
+
+            Row {
+                ArgRowText {
+                    text: "key_size";
+                }
+
+                ArgRowInput {
+                    input <=> root.key_size;
+                }
+            }
+
+            Row {
+                Rectangle {
+                    colspan: 2;
+                    Button {
+                        height: 50px;
+                        width: 100%;
+                        text: "+";
+                        clicked => {
+                            root.add_command(
+                                root.sub_command + " --private_pem_path=" + root.private_pem_path + " --public_pem_path=" + root.public_pem_path + " --key_size=" + root.key_size)
+                        }
+                    }
+                }
+            }
+        }
+
+        // saved commands list
+        VerticalLayout {
+            Text {
+                height: 50px;
+                text: "Saved Commands:";
+                overflow: TextOverflow.clip;
+                horizontal-alignment: TextHorizontalAlignment.center;
+                vertical-alignment: TextVerticalAlignment.center;
+            }
+
+            ListView {
+
+                for text in commands_list: HorizontalLayout {
+                    Button {
+                        height: 50px;
+                        width: 100px;
+                        text: "▶";
+                        clicked => {
+                            root.exec_command(text)
+                        }
+                    }
+
+                    Rectangle {
+                        horizontal-stretch: 1.0;
+                        Text {
+                            x: 10px;
+                            width: parent.width - self.x;
+                            horizontal-alignment: TextHorizontalAlignment.left;
+                            vertical-alignment: TextVerticalAlignment.center;
+                            text: text;
+                            overflow: TextOverflow.elide;
+                        }
+                    }
+
+                    Button {
+                        height: 50px;
+                        width: 100px;
+                        text: "🗑";
+                        clicked => {
+                            root.del_command(text)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

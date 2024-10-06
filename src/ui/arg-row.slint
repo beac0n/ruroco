@@ -1,0 +1,25 @@
+import { Button, VerticalBox, ComboBox, ListView, StandardTableView, GridBox, Slider } from "std-widgets.slint";
+
+export component ArgRowText inherits Text {
+    overflow: TextOverflow.clip;
+    horizontal-alignment: TextHorizontalAlignment.left;
+    vertical-alignment: TextVerticalAlignment.center;
+}
+
+export component ArgRowInput inherits Rectangle {
+    in-out property <string> input;
+
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: navy;
+    height: 50px;
+    TextInput {
+        x: 10px;
+        width: parent.width - self.x;
+        height: 50px;
+        horizontal-alignment: TextHorizontalAlignment.left;
+        vertical-alignment: TextVerticalAlignment.center;
+        input-type: InputType.text;
+        text <=> parent.input;
+    }
+}
