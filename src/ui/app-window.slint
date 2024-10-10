@@ -1,13 +1,24 @@
-import { Button, VerticalBox, ComboBox, ListView, StandardTableView, GridBox, Slider } from "std-widgets.slint";
-import { ArgRowText, ArgRowInput } from "./arg-row.slint";
+import { Button, VerticalBox, HorizontalBox, ComboBox, ListView, StandardTableView, GridBox, Slider } from "std-widgets.slint";
+import { ArgRowText, ArgRowTextInput, ArgRowIntInput, ArgRowBoolInput } from "./arg-row.slint";
 
 export component AppWindow inherits Window {
     in-out property <[string]> commands_list: [];
 
     property <string> sub_command: "gen";
-    property <string> private_pem_path: "";
-    property <string> public_pem_path: "";
-    property <string> key_size: "";
+    // gen args
+    in-out property <string> private_pem_path: "";
+    in-out property <string> public_pem_path: "";
+    in-out property <int> key_size: 0;
+    in property <int> min_key_size;
+    // send args
+    property <string> address: "";
+    in-out property <string> command: "";
+    in-out property <int> deadline: 1;
+    property <bool> permissive: false;
+    property <string> ip: "";
+    in-out property <string> ntp: "";
+    property <bool> ipv4: false;
+    property <bool> ipv6: false;
 
     callback add_command(string);
     callback exec_command(string);
@@ -17,66 +28,155 @@ export component AppWindow inherits Window {
     preferred-height: 800px;
 
     // parent layout
-    VerticalLayout {
+    VerticalBox {
         padding: 10px;
-        GridBox {
-            spacing-vertical: 25px;
-            Row {
-                Text {
-                    text: "subcommand";
-                    overflow: TextOverflow.clip;
-                    horizontal-alignment: TextHorizontalAlignment.left;
-                    vertical-alignment: TextVerticalAlignment.center;
-                }
 
-                ComboBox {
-                    current-value <=> root.sub_command;
+        HorizontalBox {
+            ArgRowText {
+                text: "subcommand";
+            }
 
+            ComboBox {
+                current-value <=> root.sub_command;
+
+                height: 50px;
+                model: ["gen", "send"];
+            }
+        }
+
+        if root.sub_command == "send": HorizontalBox {
+            ArgRowText {
+                text: "address";
+            }
+
+            ArgRowTextInput {
+                input <=> root.address;
+            }
+        }
+
+        HorizontalBox {
+            ArgRowText {
+                text: "private_pem_path";
+            }
+
+            ArgRowTextInput {
+                input <=> root.private_pem_path;
+            }
+        }
+
+        if root.sub_command == "gen": HorizontalBox {
+            ArgRowText {
+                text: "public_pem_path";
+            }
+
+            ArgRowTextInput {
+                input <=> root.public_pem_path;
+            }
+        }
+
+        if root.sub_command == "gen": HorizontalBox {
+            ArgRowText {
+                text: "key_size";
+            }
+
+            ArgRowIntInput {
+                input <=> root.key_size;
+                minimum: root.min_key_size;
+            }
+        }
+        if root.sub_command == "send": HorizontalBox {
+            ArgRowText {
+                text: "command";
+            }
+
+            ArgRowTextInput {
+                input <=> root.command;
+            }
+        }
+        if root.sub_command == "send": HorizontalBox {
+            ArgRowText {
+                text: "deadline";
+            }
+
+            ArgRowIntInput {
+                input <=> root.deadline;
+                minimum: 1;
+            }
+        }
+        if root.sub_command == "send": HorizontalBox {
+            ArgRowText {
+                text: "permissive";
+            }
+
+            ArgRowBoolInput {
+                input <=> root.permissive;
+            }
+        }
+        if root.sub_command == "send": HorizontalBox {
+            ArgRowText {
+                text: "ip";
+            }
+
+            ArgRowTextInput {
+                input <=> root.ip;
+            }
+        }
+        if root.sub_command == "send": HorizontalBox {
+            ArgRowText {
+                text: "ntp";
+            }
+
+            ArgRowTextInput {
+                input <=> root.ntp;
+            }
+        }
+        if root.sub_command == "send": HorizontalBox {
+            ArgRowText {
+                text: "ipv4";
+            }
+
+            ArgRowBoolInput {
+                input <=> root.ipv4;
+            }
+        }
+        if root.sub_command == "send": HorizontalBox {
+            ArgRowText {
+                text: "ipv6";
+            }
+
+            ArgRowBoolInput {
+                input <=> root.ipv6;
+            }
+        }
+
+        HorizontalBox {
+            Rectangle {
+                Button {
                     height: 50px;
-                    model: ["gen", "send"];
-                }
-            }
-
-            Row {
-                ArgRowText {
-                    text: "private_pem_path";
-                }
-
-                ArgRowInput {
-                    input <=> root.private_pem_path;
-                }
-            }
-
-            Row {
-                ArgRowText {
-                    text: "public_pem_path";
-                }
-
-                ArgRowInput {
-                    input <=> root.public_pem_path;
-                }
-            }
-
-            Row {
-                ArgRowText {
-                    text: "key_size";
-                }
-
-                ArgRowInput {
-                    input <=> root.key_size;
-                }
-            }
-
-            Row {
-                Rectangle {
-                    colspan: 2;
-                    Button {
-                        height: 50px;
-                        width: 100%;
-                        text: "+";
-                        clicked => {
+                    width: 100%;
+                    text: "+";
+                    clicked => {
+                        if (root.sub_command == "gen") {
                             root.add_command(
-                                root.sub_command + " --private_pem_path=" + root.private_pem_path + " --public_pem_path=" + root.public_pem_path + " --key_size=" + root.key_size)
+                                "gen"//
+                                + (root.private_pem_path == "" ? "" : " --private-pem-path " + root.private_pem_path)//
+                                + (root.public_pem_path == "" ? "" : " --public-pem-path " + root.public_pem_path)//
+                                + " --key-size " + root.key_size//
+                            )
+                        }
+                        if (root.sub_command == "send") {
+                            root.add_command(
+                                "send"//
+                                + (root.address == "" ? "" : " --address " + root.address)//
+                                + (root.private_pem_path == "" ? "" : " --private-pem-path " + root.private_pem_path)//
+                                + (root.command == "" ? "" : " --command " + root.command)//
+                                + " --deadline " + root.deadline//
+                                + (root.permissive ? "--permissive" : "")//
+                                + (root.ip == "" ? "" : " --ip " + root.ip)//
+                                + (root.ntp == "" ? "" : " --ntp " + root.ntp)//
+                                + (root.ipv4 ? " --ipv4" : "")//
+                                + (root.ipv6 ? " --ipv6" : "")//
+                            )
                         }
                     }
                 }
@@ -84,7 +184,7 @@ export component AppWindow inherits Window {
         }
 
         // saved commands list
-        VerticalLayout {
+        VerticalBox {
             Text {
                 height: 50px;
                 text: "Saved Commands:";

@@ -1,25 +1,30 @@
-import { Button, VerticalBox, ComboBox, ListView, StandardTableView, GridBox, Slider } from "std-widgets.slint";
+import { LineEdit, SpinBox, Switch } from "std-widgets.slint";
 
 export component ArgRowText inherits Text {
     overflow: TextOverflow.clip;
+    width: 25%;
     horizontal-alignment: TextHorizontalAlignment.left;
     vertical-alignment: TextVerticalAlignment.center;
 }
 
-export component ArgRowInput inherits Rectangle {
+export component ArgRowTextInput inherits LineEdit {
     in-out property <string> input;
 
-    border-width: 1px;
-    border-radius: 5px;
-    border-color: navy;
     height: 50px;
-    TextInput {
-        x: 10px;
-        width: parent.width - self.x;
-        height: 50px;
-        horizontal-alignment: TextHorizontalAlignment.left;
-        vertical-alignment: TextVerticalAlignment.center;
-        input-type: InputType.text;
-        text <=> parent.input;
-    }
+    input-type: InputType.text;
+    text <=> self.input;
+}
+
+export component ArgRowIntInput inherits SpinBox {
+    in-out property <int> input;
+
+    height: 50px;
+    value <=> self.input;
+}
+
+export component ArgRowBoolInput inherits Switch {
+    in-out property <bool> input;
+
+    height: 50px;
+    checked <=> self.input;
 }

@@ -9,10 +9,23 @@ use openssl::pkey::Private;
 use openssl::rsa::Rsa;
 use openssl::version::version;
 
-use crate::common::{hash_public_key, info, PADDING_SIZE, RSA_PADDING};
-use crate::config_client::SendCommand;
+use crate::common::{hash_public_key, info, time_from_ntp, PADDING_SIZE, RSA_PADDING};
+use crate::config_client::{CliClient, CommandsClient, SendCommand};
 use crate::data::ClientData;
 use std::net::ToSocketAddrs;
+
+// TODO: write test
+pub fn exec_cli_client(client: CliClient) -> Result<(), String> {
+    match client.command {
+        CommandsClient::Gen(gen_command) => {
+            gen(gen_command.private_pem_path, gen_command.public_pem_path, gen_command.key_size)
+        }
+        CommandsClient::Send(send_command) => {
+            let ntp = send_command.ntp.clone();
+            send(send_command, time_from_ntp(&ntp)?)
+        }
+    }
+}
 
 /// Send data to the server to execute a predefined command
 ///
