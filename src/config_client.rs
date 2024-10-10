@@ -99,11 +99,10 @@ pub fn default_public_pem_path() -> PathBuf {
 }
 
 fn get_default_pem_path(pem_name: &str) -> PathBuf {
-    let pem_path = match env::var("HOME") {
+    match env::var("HOME") {
         Ok(home_dir) => get_conf_dir(home_dir).join(pem_name),
         Err(_) => PathBuf::from(pem_name),
-    };
-    pem_path
+    }
 }
 
 fn get_conf_dir(home_dir: String) -> PathBuf {
