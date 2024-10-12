@@ -58,7 +58,7 @@ install_server: release
 
 test_end_to_end: clean_test_end_to_end build
 	sudo useradd --system ruroco --shell /bin/false || true
-	./target/debug/client gen -k 4096
+	./target/debug/client gen -k 4096 -r ruroco_private.pem -u ruroco_public.pem
 
 	mkdir /tmp/ruroco_test
 	cp ./target/debug/server /tmp/ruroco_test/server
