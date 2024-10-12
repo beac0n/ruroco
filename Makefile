@@ -8,18 +8,10 @@ hooks:
 
 build:
 	cargo build --color=always --package ruroco
-	# make sure clap is configured correctly
-	./target/debug/client --help
-	./target/debug/client gen --help
-	./target/debug/client send --help
 
 release:
 	# see https://github.com/johnthagen/min-sized-rust
 	cargo build --color=always --release --package ruroco --features release-build
-	# make sure clap is configured correctly
-	./target/release/client --help
-	./target/release/client gen --help
-	./target/release/client send --help
 	upx --best --lzma target/release/client
 	upx --best --lzma target/release/server
 	upx --best --lzma target/release/commander

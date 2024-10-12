@@ -1,24 +1,22 @@
-use std::fs;
-use std::path::PathBuf;
-
-use ruroco::client::send;
-
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-
+    use clap::error::ErrorKind::DisplayHelp;
+    use clap::Parser;
     use rand::distributions::{Alphanumeric, DistString};
-
-    use super::*;
     use ruroco::client::gen;
+    use ruroco::client::send;
     use ruroco::common::time;
-    use ruroco::config_client::SendCommand;
+    use ruroco::config_client::{CliClient, SendCommand};
+    use std::fs;
+    use std::fs::File;
+    use std::path::PathBuf;
 
     const IP: &str = "192.168.178.123";
 
-    fn gen_file_name(suffix: &str) -> String {
-        let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-        format!("{rand_str}{suffix}")
+    #[test]
+    fn test_send_print_help() {
+        let result = CliClient::try_parse_from(vec!["ruroco", "send", "--help"]);
+        assert_eq!(result.unwrap_err().kind(), DisplayHelp);
     }
 
     #[test]
@@ -185,5 +183,10 @@ mod tests {
         let _ = fs::remove_file(&public_file);
 
         result
+    }
+
+    fn gen_file_name(suffix: &str) -> String {
+        let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+        format!("{rand_str}{suffix}")
     }
 }

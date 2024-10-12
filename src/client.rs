@@ -14,7 +14,6 @@ use crate::config_client::{CliClient, CommandsClient, SendCommand};
 use crate::data::ClientData;
 use std::net::ToSocketAddrs;
 
-// TODO: write test
 pub fn exec_cli_client(client: CliClient) -> Result<(), String> {
     match client.command {
         CommandsClient::Gen(gen_command) => {
@@ -194,7 +193,16 @@ fn validate_pem_path(path: &PathBuf) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use crate::config_client::CliClient;
     use crate::data::ClientData;
+    use clap::error::ErrorKind::DisplayHelp;
+    use clap::Parser;
+
+    #[test]
+    fn test_print_help() {
+        let result = CliClient::try_parse_from(vec!["ruroco", "--help"]);
+        assert_eq!(result.unwrap_err().kind(), DisplayHelp);
+    }
 
     #[test]
     fn test_get_minified_server_data() {
