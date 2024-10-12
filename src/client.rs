@@ -14,7 +14,7 @@ use crate::config_client::{CliClient, CommandsClient, SendCommand};
 use crate::data::ClientData;
 use std::net::ToSocketAddrs;
 
-pub fn exec_cli_client(client: CliClient) -> Result<(), String> {
+pub fn run_client(client: CliClient) -> Result<(), String> {
     match client.command {
         CommandsClient::Gen(gen_command) => {
             gen(gen_command.private_pem_path, gen_command.public_pem_path, gen_command.key_size)

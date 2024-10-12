@@ -3,7 +3,7 @@ mod tests {
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
     use rand::distributions::{Alphanumeric, DistString};
-    use ruroco::client::exec_cli_client;
+    use ruroco::client::run_client;
     use ruroco::config_client::CliClient;
     use std::fs;
     use std::fs::File;
@@ -88,7 +88,7 @@ mod tests {
     }
 
     fn gen(private_file_name: &String, public_file_name: &String) -> Result<(), String> {
-        exec_cli_client(CliClient::parse_from(vec![
+        run_client(CliClient::parse_from(vec![
             "ruroco",
             "gen",
             "-r",

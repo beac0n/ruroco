@@ -1,6 +1,6 @@
 use crate::blocklist::Blocklist;
 use crate::common::{error, info, time_from_ntp, RSA_PADDING, SHA256_DIGEST_LENGTH};
-use crate::config_server::ConfigServer;
+use crate::config_server::{CliServer, ConfigServer};
 use crate::data::{ClientData, CommanderData};
 use openssl::pkey::Public;
 use openssl::rsa::Rsa;
@@ -183,6 +183,10 @@ impl Server {
             Err(e) => Err(e),
         }
     }
+}
+
+pub fn run_server(server: CliServer) -> Result<(), String> {
+    Server::create_from_path(server.config)?.run()
 }
 
 #[cfg(test)]

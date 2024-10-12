@@ -1,0 +1,157 @@
+import { Button,  ComboBox, ListView, StandardTableView, GridBox, Slider } from "std-widgets.slint";
+import { ArgRowText, ArgRowTextInput, ArgRowIntInput, ArgRowBoolInput } from "./arg-row.slint";
+
+export component CommandsInput inherits VerticalLayout {
+    in-out property <string> sub_command: "gen";
+    // gen args
+    in-out property <string> private_pem_path: "";
+    in-out property <string> public_pem_path: "";
+    in-out property <int> key_size: 0;
+    in property <int> min_key_size;
+    // send args
+    in-out property <string> address: "";
+    in-out property <string> command: "";
+    in-out property <int> deadline: 1;
+    in-out property <bool> permissive: false;
+    in-out property <string> ip: "";
+    in-out property <string> ntp: "";
+    in-out property <bool> ipv4: false;
+    in-out property <bool> ipv6: false;
+    height: 60%;
+
+    Flickable {
+        VerticalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "subcommand";
+                }
+
+                ComboBox {
+                    current-value <=> root.sub_command;
+
+                    height: 50px;
+                    model: ["gen", "send"];
+                }
+            }
+
+            if root.sub_command == "send": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "address";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.address;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "private_pem_path";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.private_pem_path;
+                }
+            }
+
+            if root.sub_command == "gen": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "public_pem_path";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.public_pem_path;
+                }
+            }
+
+            if root.sub_command == "gen": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "key_size";
+                }
+
+                ArgRowIntInput {
+                    input <=> root.key_size;
+                    minimum: root.min_key_size;
+                }
+            }
+            if root.sub_command == "send": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "command";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.command;
+                }
+            }
+            if root.sub_command == "send": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "deadline";
+                }
+
+                ArgRowIntInput {
+                    input <=> root.deadline;
+                    minimum: 1;
+                }
+            }
+            if root.sub_command == "send": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "permissive";
+                }
+
+                ArgRowBoolInput {
+                    input <=> root.permissive;
+                }
+            }
+            if root.sub_command == "send": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ip";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.ip;
+                }
+            }
+            if root.sub_command == "send": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ntp";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.ntp;
+                }
+            }
+            if root.sub_command == "send": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ipv4";
+                }
+
+                ArgRowBoolInput {
+                    input <=> root.ipv4;
+                }
+            }
+            if root.sub_command == "send": HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ipv6";
+                }
+
+                ArgRowBoolInput {
+                    input <=> root.ipv6;
+                }
+            }
+        }
+    }
+}

@@ -7,14 +7,14 @@ hooks:
 	chmod +x .git/hooks/pre-push
 
 build:
-	cargo build --color=always --package ruroco
+	cargo build --color=always --package ruroco --target x86_64-unknown-linux-gnu
 
 release:
 	# see https://github.com/johnthagen/min-sized-rust
-	cargo build --color=always --release --package ruroco --features release-build
-	upx --best --lzma target/release/client
-	upx --best --lzma target/release/server
-	upx --best --lzma target/release/commander
+	cargo build --color=always --release --package ruroco --features release-build --target x86_64-unknown-linux-gnu
+	upx --best --lzma target/x86_64-unknown-linux-gnu/release/client
+	upx --best --lzma target/x86_64-unknown-linux-gnu/release/server
+	upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander
 
 test:
 	cargo test --verbose -- --test-threads=1

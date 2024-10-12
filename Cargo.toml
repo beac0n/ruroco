@@ -9,17 +9,20 @@ clap = { version = "4.5.19", features = ["derive", "string"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8.13"
 sntpc = { version = "0.3.9", features = ["std"] }
-slint = "1.8.0"
+slint = { version = "1.8.0" }
+
+[lib]
+crate-type = ["lib", "cdylib"]
 
 [features]
 release-build = ["openssl/vendored"]
+android-build = ["slint/backend-android-activity-06"]
 
 [build-dependencies]
 slint-build = "1.8.0"
 
 [dev-dependencies]
 rand = "0.8.5"
-rusty-fork = "0.3.0"
 
 [profile.release]
 opt-level = "z"       # Optimize for binary size
