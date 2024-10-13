@@ -1,29 +1,44 @@
-use crate::client::run_client;
-use crate::common::{error, NTP_SYSTEM};
-use crate::config_client::{
-    default_private_pem_path, default_public_pem_path, CliClient, DEFAULT_COMMAND,
-    DEFAULT_DEADLINE, DEFAULT_KEY_SIZE, MIN_KEY_SIZE,
-};
+use crate::client::{gen, run_client};
+use crate::common::{error, info, NTP_SYSTEM};
+use crate::config_client::{CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE, DEFAULT_KEY_SIZE};
 use clap::Parser;
+
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::error::Error;
+use std::path::PathBuf;
 use std::rc::Rc;
+use std::{env, fs};
 
 slint::include_modules!();
-pub fn run_ui() -> Result<(), Box<dyn Error>> {
+pub fn run_ui(private_files_path: String) -> Result<(), Box<dyn Error>> {
     let ui = AppWindow::new()?;
-    let private_pem_path = default_private_pem_path().to_str().unwrap_or("").to_string();
-    let public_pem_path = default_public_pem_path().to_str().unwrap_or("").to_string();
+    let private_pem_path_str = format!("{private_files_path}/ruroco_private.pem").to_string();
+    let public_pem_path_str = format!("{private_files_path}/ruroco_public.pem").to_string();
+
+    let public_pem_path = PathBuf::from(public_pem_path_str);
+    match (PathBuf::from(&private_pem_path_str), public_pem_path.clone()) {
+        (pr, pu) if !pr.exists() && !pu.exists() => {
+            gen(pr, pu, DEFAULT_KEY_SIZE as u32)?;
+        }
+        (pr, pu) if pr.exists() && pu.exists() => {}
+        (pr, pu) if pr.exists() && !pu.exists() => {
+            fs::remove_file(&pr)?;
+            gen(pr, pu, DEFAULT_KEY_SIZE as u32)?;
+        }
+        (pr, pu) => {
+            fs::remove_file(&pu)?;
+            gen(pr, pu, DEFAULT_KEY_SIZE as u32)?;
+        }
+    }
 
     // TODO: load commands list from disk
     // TODO: figure out which path to use on android
     ui.set_commands_list(ModelRc::from(Rc::new(VecModel::from(vec![]))));
-    ui.set_private_pem_path(SharedString::from(private_pem_path));
-    ui.set_public_pem_path(SharedString::from(public_pem_path));
-    ui.set_key_size(DEFAULT_KEY_SIZE.into());
-    ui.set_min_key_size(MIN_KEY_SIZE.into());
+    ui.set_private_pem_path(SharedString::from(private_pem_path_str));
+    ui.set_public_key(fs::read_to_string(&public_pem_path)?.into());
+
     ui.set_command(SharedString::from(DEFAULT_COMMAND));
-    ui.set_deadline(DEFAULT_DEADLINE.into());
+    ui.set_deadline(DEFAULT_DEADLINE.to_string().into());
     ui.set_ntp(SharedString::from(NTP_SYSTEM));
 
     ui.on_add_command({
@@ -34,6 +49,8 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
                 .as_any()
                 .downcast_ref()
                 .expect("Expected an initialized commands_list, found None");
+
+            info(&format!("Adding new command: {cmd}"));
 
             commands_list.push(cmd);
             // TODO: save cmd to disk in config file
@@ -49,6 +66,8 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
                 .downcast_ref()
                 .expect("Expected an initialized commands_list, found None");
 
+            info(&format!("Removing command: {cmd}"));
+
             commands_list
                 .iter()
                 .enumerate()
@@ -63,6 +82,9 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
         let cmd_str = cmd.to_string();
         let mut cmd_vec: Vec<&str> = cmd_str.split(" ").collect();
         cmd_vec.insert(0, "ruroco");
+
+        info(&format!("Executing command: {cmd}"));
+
         match CliClient::try_parse_from(cmd_vec) {
             Ok(cli_client) => run_client(cli_client)
                 .unwrap_or_else(|e| error(&format!("Failed to execute \"{cmd_str}\": {e}"))),
