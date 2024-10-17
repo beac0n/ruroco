@@ -4,7 +4,7 @@ version = "0.4.0"
 edition = "2021"
 
 [dependencies]
-openssl = { version = "0.10.64" }
+openssl = { version = "0.10.68" }
 clap = { version = "4.5.20", features = ["derive", "string"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8.13"
