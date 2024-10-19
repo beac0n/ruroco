@@ -3,8 +3,6 @@ use jni::objects::{JObject, JString};
 
 #[no_mangle]
 unsafe fn android_main(app: slint::android::AndroidApp) {
-    // TODO: add network permissions: https://developer.android.com/develop/connectivity/network-ops/connecting?hl=de
-
     let private_files_path =
         get_files_path().map_err(|e| format!("Could not get files path: {e:?}")).unwrap();
 
