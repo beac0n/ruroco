@@ -1,6 +1,7 @@
 use crate::client::{gen, run_client};
 use crate::common::{error, info, NTP_SYSTEM};
 use crate::config_client::{CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE, DEFAULT_KEY_SIZE};
+use crate::saved_command_list::CommandsList;
 use clap::Parser;
 
 use slint::{Model, ModelRc, SharedString, VecModel};
@@ -31,9 +32,8 @@ pub fn run_ui(private_files_path: String) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // TODO: load commands list from disk
-    // TODO: figure out which path to use on android
-    ui.set_commands_list(ModelRc::from(Rc::new(VecModel::from(vec![]))));
+    let commands_list = CommandsList::create(&PathBuf::from(&private_files_path));
+    ui.set_commands_list(ModelRc::from(Rc::new(VecModel::from(commands_list.get()))));
     ui.set_private_pem_path(SharedString::from(private_pem_path_str));
     ui.set_public_key(fs::read_to_string(&public_pem_path)?.into());
 
@@ -43,6 +43,8 @@ pub fn run_ui(private_files_path: String) -> Result<(), Box<dyn Error>> {
 
     ui.on_add_command({
         let ui_handle = ui.as_weak();
+        let mut persistent_commands_list =
+            CommandsList::create(&PathBuf::from(&private_files_path));
         move |cmd| {
             let commands_list_rc = ui_handle.unwrap().get_commands_list();
             let commands_list: &VecModel<SharedString> = commands_list_rc
@@ -51,14 +53,15 @@ pub fn run_ui(private_files_path: String) -> Result<(), Box<dyn Error>> {
                 .expect("Expected an initialized commands_list, found None");
 
             info(&format!("Adding new command: {cmd}"));
-
+            persistent_commands_list.add(cmd.clone());
             commands_list.push(cmd);
-            // TODO: save cmd to disk in config file
         }
     });
 
     ui.on_del_command({
         let ui_handle = ui.as_weak();
+        let mut persistent_commands_list =
+            CommandsList::create(&PathBuf::from(&private_files_path));
         move |cmd| {
             let commands_list_rc = ui_handle.unwrap().get_commands_list();
             let commands_list: &VecModel<SharedString> = commands_list_rc
@@ -67,14 +70,12 @@ pub fn run_ui(private_files_path: String) -> Result<(), Box<dyn Error>> {
                 .expect("Expected an initialized commands_list, found None");
 
             info(&format!("Removing command: {cmd}"));
-
+            persistent_commands_list.remove(cmd.clone());
             commands_list
                 .iter()
                 .enumerate()
                 .find_map(|(idx, entry)| if entry == cmd { Some(idx) } else { None })
                 .map(|idx| commands_list.remove(idx));
-
-            // TODO: remove cmd on disk in config file
         }
     });
 
@@ -84,7 +85,6 @@ pub fn run_ui(private_files_path: String) -> Result<(), Box<dyn Error>> {
         cmd_vec.insert(0, "ruroco");
 
         info(&format!("Executing command: {cmd}"));
-
         match CliClient::try_parse_from(cmd_vec) {
             Ok(cli_client) => run_client(cli_client)
                 .unwrap_or_else(|e| error(&format!("Failed to execute \"{cmd_str}\": {e}"))),

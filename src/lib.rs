@@ -17,7 +17,10 @@ pub mod config_client;
 /// data structures for loading configuration files and using CLI arguments for server services
 pub mod config_server;
 pub mod data;
+/// saves commands configured in ui
+pub mod saved_command_list;
 /// responsible for receiving data from the client and sending that data to the commander
 pub mod server;
-// includes everything needed to run the user interface
+
+/// includes everything needed to run the user interface
 pub mod ui;
