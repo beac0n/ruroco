@@ -1,0 +1,30 @@
+import { LineEdit, SpinBox, Switch } from "std-widgets.slint";
+
+export component ArgRowText inherits Text {
+    overflow: TextOverflow.clip;
+    width: 25%;
+    horizontal-alignment: TextHorizontalAlignment.left;
+    vertical-alignment: TextVerticalAlignment.center;
+}
+
+export component ArgRowTextInput inherits LineEdit {
+    in-out property <string> input;
+
+    height: 50px;
+    input-type: InputType.text;
+    text <=> self.input;
+}
+
+export component ArgRowIntInput inherits SpinBox {
+    in-out property <int> input;
+
+    height: 50px;
+    value <=> self.input;
+}
+
+export component ArgRowBoolInput inherits Switch {
+    in-out property <bool> input;
+
+    height: 50px;
+    checked <=> self.input;
+}

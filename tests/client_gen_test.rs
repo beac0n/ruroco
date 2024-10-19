@@ -1,19 +1,18 @@
-use std::fs;
-use std::path::PathBuf;
-
-use ruroco::client::gen;
-
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-
+    use clap::error::ErrorKind::DisplayHelp;
+    use clap::Parser;
     use rand::distributions::{Alphanumeric, DistString};
+    use ruroco::client::run_client;
+    use ruroco::config_client::CliClient;
+    use std::fs;
+    use std::fs::File;
+    use std::path::PathBuf;
 
-    use super::*;
-
-    fn gen_file_name(suffix: &str) -> String {
-        let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-        format!("{rand_str}{suffix}")
+    #[test]
+    fn test_send_print_help() {
+        let result = CliClient::try_parse_from(vec!["ruroco", "gen", "--help"]);
+        assert_eq!(result.unwrap_err().kind(), DisplayHelp);
     }
 
     #[test]
@@ -21,13 +20,8 @@ mod tests {
         let private_file_name = gen_file_name("");
         let public_file_name = gen_file_name(".pem");
 
-        let private_path = PathBuf::from(&private_file_name);
-        let public_path = PathBuf::from(&public_file_name);
-
-        let result = gen(private_path, public_path, 8192);
-
         assert_eq!(
-            result.unwrap_err().to_string(),
+            gen(&private_file_name, &public_file_name).unwrap_err().to_string(),
             format!("Could not read PEM file: {private_file_name} does not end with .pem")
         );
     }
@@ -37,13 +31,8 @@ mod tests {
         let private_file_name = gen_file_name(".pem");
         let public_file_name = gen_file_name("");
 
-        let private_path = PathBuf::from(&private_file_name);
-        let public_path = PathBuf::from(&public_file_name);
-
-        let result = gen(private_path, public_path, 8192);
-
         assert_eq!(
-            result.unwrap_err().to_string(),
+            gen(&private_file_name, &public_file_name).unwrap_err().to_string(),
             format!("Could not read PEM file: {public_file_name} does not end with .pem")
         );
     }
@@ -55,10 +44,7 @@ mod tests {
 
         File::create(&private_file_name).unwrap();
 
-        let private_path = PathBuf::from(&private_file_name);
-        let public_path = PathBuf::from(&public_file_name);
-
-        let result = gen(private_path, public_path, 8192);
+        let result = gen(&private_file_name, &public_file_name);
 
         let _ = fs::remove_file(&private_file_name);
 
@@ -75,10 +61,7 @@ mod tests {
 
         File::create(&public_file_name).unwrap();
 
-        let private_path = PathBuf::from(&private_file_name);
-        let public_path = PathBuf::from(&public_file_name);
-        let result = gen(private_path, public_path, 8192);
-
+        let result = gen(&private_file_name, &public_file_name);
         let _ = fs::remove_file(&public_file_name);
 
         assert_eq!(
@@ -92,13 +75,28 @@ mod tests {
         let private_file_name = gen_file_name(".pem");
         let public_file_name = gen_file_name(".pem");
 
-        let private_path = PathBuf::from(&private_file_name);
-        let public_path = PathBuf::from(&public_file_name);
-        let result = gen(private_path, public_path, 1024);
-
+        let result = gen(&private_file_name, &public_file_name);
         let _ = fs::remove_file(&private_file_name);
         let _ = fs::remove_file(&public_file_name);
 
         assert!(result.is_ok());
+    }
+
+    fn gen_file_name(suffix: &str) -> String {
+        let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+        format!("{rand_str}{suffix}")
+    }
+
+    fn gen(private_file_name: &String, public_file_name: &String) -> Result<(), String> {
+        run_client(CliClient::parse_from(vec![
+            "ruroco",
+            "gen",
+            "-r",
+            PathBuf::from(&private_file_name).to_str().unwrap(),
+            "-u",
+            PathBuf::from(&public_file_name).to_str().unwrap(),
+            "-k",
+            "8192",
+        ]))
     }
 }

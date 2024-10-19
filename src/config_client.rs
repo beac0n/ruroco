@@ -8,16 +8,21 @@ use std::path::PathBuf;
 use crate::common::NTP_SYSTEM;
 use clap::{Parser, Subcommand};
 
+pub const DEFAULT_KEY_SIZE: u16 = 8192;
+pub const DEFAULT_COMMAND: &str = "default";
+pub const DEFAULT_DEADLINE: u16 = 5;
+pub const MIN_KEY_SIZE: u16 = 4096;
+
 #[derive(Parser, Debug)]
 pub struct GenCommand {
     /// Path to the private PEM file
-    #[arg(short = 'r', long, default_value = env::current_dir().unwrap().join("ruroco_private.pem").into_os_string())]
+    #[arg(short = 'r', long, default_value = default_private_pem_path().into_os_string())]
     pub private_pem_path: PathBuf,
     /// Path to the public PEM file
-    #[arg(short = 'u', long, default_value = env::current_dir().unwrap().join("ruroco_public.pem").into_os_string())]
+    #[arg(short = 'u', long, default_value = default_public_pem_path().into_os_string())]
     pub public_pem_path: PathBuf,
     /// Key size for the PEM file
-    #[arg(short = 'k', long, default_value_t = 8192, value_parser = validate_key_size)]
+    #[arg(short = 'k', long, default_value_t = DEFAULT_KEY_SIZE.into(), value_parser = validate_key_size)]
     pub key_size: u32,
 }
 
@@ -27,13 +32,13 @@ pub struct SendCommand {
     #[arg(short, long)]
     pub address: String,
     /// Path to the private PEM file.
-    #[arg(short, long, default_value = default_private_pem_path())]
+    #[arg(short, long, default_value = default_private_pem_path().into_os_string())]
     pub private_pem_path: PathBuf,
     /// Command to send
-    #[arg(short, long, default_value = "default")]
+    #[arg(short, long, default_value = DEFAULT_COMMAND)]
     pub command: String,
     /// Deadline from now in seconds
-    #[arg(short, long, default_value = "5")]
+    #[arg(short, long, default_value_t = DEFAULT_DEADLINE)]
     pub deadline: u16,
     #[arg(short = 'e', long)]
     /// Allow permissive IP validation - source IP does not have to match provided IP.
@@ -58,7 +63,7 @@ impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
             address: "127.0.0.1:1234".to_string(),
-            private_pem_path: PathBuf::from(default_private_pem_path()),
+            private_pem_path: default_private_pem_path(),
             command: "default".to_string(),
             deadline: 5,
             permissive: false,
@@ -85,24 +90,30 @@ pub enum CommandsClient {
     Send(SendCommand),
 }
 
-fn default_private_pem_path() -> std::ffi::OsString {
-    let private_pem_name = "ruroco_private.pem";
-    let private_pem_path = match env::var("HOME") {
-        Ok(home_dir) => {
-            PathBuf::from(home_dir).join(".config").join("ruroco").join(private_pem_name)
-        }
-        Err(_) => PathBuf::from(private_pem_name),
-    };
+pub fn default_private_pem_path() -> PathBuf {
+    get_default_pem_path("ruroco_private.pem")
+}
 
-    private_pem_path.into_os_string()
+pub fn default_public_pem_path() -> PathBuf {
+    get_default_pem_path("ruroco_public.pem")
+}
+
+fn get_default_pem_path(pem_name: &str) -> PathBuf {
+    match env::var("HOME") {
+        Ok(home_dir) => get_conf_dir(home_dir).join(pem_name),
+        Err(_) => PathBuf::from(pem_name),
+    }
+}
+
+fn get_conf_dir(home_dir: String) -> PathBuf {
+    PathBuf::from(home_dir).join(".config").join("ruroco")
 }
 
 fn validate_key_size(key_str: &str) -> Result<u32, String> {
-    let min_key_size = 4096;
     match key_str.parse() {
-        Ok(size) if size >= min_key_size => Ok(size),
+        Ok(size) if size >= MIN_KEY_SIZE as u32 => Ok(size),
         Ok(size) => {
-            Err(format!("Key size must be at least {min_key_size}, but {size} was provided"))
+            Err(format!("Key size must be at least {MIN_KEY_SIZE}, but {size} was provided"))
         }
         Err(e) => Err(format!("Could not parse {key_str} to u32: {e}")),
     }
@@ -126,7 +137,7 @@ mod tests {
     #[test]
     fn test_default_private_pem_path() {
         assert_eq!(
-            default_private_pem_path(),
+            default_private_pem_path().into_os_string(),
             PathBuf::from(env::var("HOME").unwrap()).join(".config/ruroco/ruroco_private.pem")
         );
     }

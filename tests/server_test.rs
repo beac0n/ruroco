@@ -1,9 +1,17 @@
 #[cfg(test)]
 mod tests {
-    use ruroco::config_server::ConfigServer;
+    use clap::error::ErrorKind::DisplayHelp;
+    use clap::Parser;
+    use ruroco::config_server::{CliServer, ConfigServer};
     use ruroco::server::Server;
     use std::env;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_print_help() {
+        let result = CliServer::try_parse_from(vec!["ruroco", "--help"]);
+        assert_eq!(result.unwrap_err().kind(), DisplayHelp);
+    }
 
     #[test]
     fn test_create_server_udp_socket() {

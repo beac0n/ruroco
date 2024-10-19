@@ -170,6 +170,51 @@ See make goal `install_server`, which
     2. `sudo systemctl start ruroco.socket`
     3. `sudo systemctl start ruroco.service`
 
+## android
+
+Building for android requires the following tools
+
+- adb
+- android sdk
+- android ndk
+
+For arch linux, the tools can be installed with the following commands. We use java 17, because that seem to be more
+stable than newer ones.
+
+```shell
+sudo pacman -S android-tools android-udev jdk17-openjdk
+sudo archlinux-java set java-17-openjdk
+yay -S android-ndk android-sdk android-sdk-build-tools android-sdk-platform-tools android-sdk-cmdline-tools-latest
+```
+
+You also have to install a platform. For arch linux, this can be done with the following commands.
+If sdk manager prints a java error, you might have to set your `JAVA_HOME` env var:
+
+```shell
+export JAVA_HOME=/usr/lib/jvm/default
+sdkmanager --install "platforms;android-35"
+```
+
+you might have to set env vars:
+
+```shell
+export ANDROID_HOME=/opt/android-sdk
+export NDK_HOME=/opt/android-ndk
+
+export PATH=$PATH:$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+export PATH=$PATH:$ANDROID_HOME/tools
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+```
+
+Install `xbuild` (see https://github.com/rust-mobile/xbuild): `cargo install xbuild` and run `x devices` to check your
+devices connected with `adb`. Don't forget to put your android device in usb debugging mode.
+
+Run the app on your device:
+
+```shell
+x run --device adb:<device-id>
+```
+
 # use cases
 
 ## single packet authorization (SPA)

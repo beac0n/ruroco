@@ -1,3 +1,6 @@
+use crate::common::{error, get_commander_unix_socket_path, info};
+use crate::config_server::{CliServer, ConfigServer};
+use crate::data::CommanderData;
 use std::fs::Permissions;
 use std::io::Read;
 use std::os::unix::fs::{chown, PermissionsExt};
@@ -5,10 +8,6 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::process::Command;
 use std::{fs, str};
-
-use crate::common::{error, get_commander_unix_socket_path, info};
-use crate::config_server::ConfigServer;
-use crate::data::CommanderData;
 
 const ENV_PREFIX: &str = "RUROCO_";
 
@@ -166,6 +165,10 @@ impl Commander {
     fn vec_to_str(stdout: &[u8]) -> &str {
         str::from_utf8(stdout).unwrap_or("")
     }
+}
+
+pub fn run_commander(server: CliServer) -> Result<(), String> {
+    Commander::create_from_path(server.config)?.run()
 }
 
 #[cfg(test)]

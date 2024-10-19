@@ -1,8 +1,7 @@
 use clap::Parser;
-
 use ruroco::config_server::CliServer;
-use ruroco::server::Server;
+use ruroco::server::run_server;
 
 fn main() -> Result<(), String> {
-    Server::create_from_path(CliServer::parse().config)?.run()
+    run_server(CliServer::parse())
 }

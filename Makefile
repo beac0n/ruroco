@@ -7,20 +7,14 @@ hooks:
 	chmod +x .git/hooks/pre-push
 
 build:
-	cargo build --color=always --package ruroco
-	# make sure clap is configured correctly
-	./target/debug/client --help
-	./target/debug/client send --help
+	cargo build --color=always --package ruroco --target x86_64-unknown-linux-gnu
 
 release:
 	# see https://github.com/johnthagen/min-sized-rust
-	cargo build --color=always --release --package ruroco --features release-build
-	# make sure clap is configured correctly
-	./target/release/client --help
-	./target/release/client send --help
-	upx --best --lzma target/release/client
-	upx --best --lzma target/release/server
-	upx --best --lzma target/release/commander
+	cargo build --color=always --release --package ruroco --features release-build --target x86_64-unknown-linux-gnu
+	upx --best --lzma target/x86_64-unknown-linux-gnu/release/client
+	upx --best --lzma target/x86_64-unknown-linux-gnu/release/server
+	upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander
 
 test:
 	cargo test --verbose -- --test-threads=1
@@ -64,7 +58,7 @@ install_server: release
 
 test_end_to_end: clean_test_end_to_end build
 	sudo useradd --system ruroco --shell /bin/false || true
-	./target/debug/client gen -k 4096
+	./target/debug/client gen -k 4096 -r ruroco_private.pem -u ruroco_public.pem
 
 	mkdir /tmp/ruroco_test
 	cp ./target/debug/server /tmp/ruroco_test/server

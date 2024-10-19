@@ -1,0 +1,6 @@
+# see https://github.com/rust-mobile/xbuild/issues/125
+android:
+  manifest:
+    uses_permission:
+      - name: android.permission.INTERNET
+      - name: android.permission.ACCESS_NETWORK_STATE

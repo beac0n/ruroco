@@ -1,0 +1,109 @@
+import { Button,  ComboBox, ListView, StandardTableView, GridBox, Slider } from "std-widgets.slint";
+import { ArgRowText, ArgRowTextInput, ArgRowIntInput, ArgRowBoolInput } from "./arg-row.slint";
+
+export component CommandsInput inherits VerticalLayout {
+    in-out property <string> address: "";
+    in-out property <string> command: "";
+    in-out property <string> deadline: "";
+    in-out property <bool> permissive: false;
+    in-out property <string> ip: "";
+    in-out property <string> ntp: "";
+    in-out property <bool> ipv4: false;
+    in-out property <bool> ipv6: false;
+    height: 60%;
+
+    Flickable {
+        VerticalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "address";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.address;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "command";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.command;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "deadline";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.deadline;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "permissive";
+                }
+
+                ArgRowBoolInput {
+                    input <=> root.permissive;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ip";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.ip;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ntp";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.ntp;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ipv4";
+                }
+
+                ArgRowBoolInput {
+                    input <=> root.ipv4;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ipv6";
+                }
+
+                ArgRowBoolInput {
+                    input <=> root.ipv6;
+                }
+            }
+        }
+    }
+}
