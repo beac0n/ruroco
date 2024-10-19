@@ -23,7 +23,7 @@ impl CommandsList {
     }
 
     pub fn get(&self) -> Vec<SharedString> {
-        (&self.list).into_iter().map(SharedString::from).collect()
+        self.list.iter().map(SharedString::from).collect()
     }
 
     pub fn add(&mut self, entry: SharedString) {
