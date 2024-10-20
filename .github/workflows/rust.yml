@@ -41,8 +41,20 @@ jobs:
       - name: Check typos
         uses: crate-ci/typos@master
 
+
   test:
     name: Test
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tests end to end
+        run: make test_end_to_end
+
+  coverage:
+    name: Coverage
     runs-on: ubuntu-latest
     container:
       image: xd009642/tarpaulin:develop-nightly
@@ -50,8 +62,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      - name: Run tests end to end
-        run: make test_end_to_end
       - name: Generate code coverage
         run: cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out xml --jobs 1
       - name: Upload to codecov.io
