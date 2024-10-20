@@ -9,6 +9,9 @@ hooks:
 build:
 	cargo build --color=always --package ruroco --target x86_64-unknown-linux-gnu
 
+release_android:
+	x build --features release-build --features android-build --release --platform android --arch arm64 --format apk --verbose
+
 release:
 	# see https://github.com/johnthagen/min-sized-rust
 	cargo build --color=always --release --package ruroco --features release-build --target x86_64-unknown-linux-gnu
