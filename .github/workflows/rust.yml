@@ -43,35 +43,22 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
+      - name: Checkout repository
+        uses: actions/checkout@v2
       - name: Run tests end to end
         run: make test_end_to_end
-        env:
-          RUST_BACKTRACE: 'full'
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Cinstrument-coverage -Ccodegen-units=1 -Copt-level=0 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Cinstrument-coverage -Ccodegen-units=1 -Copt-level=0 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-      - name: Run tests
-        run: make test
-        env:
-          RUST_BACKTRACE: 'full'
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Cinstrument-coverage -Ccodegen-units=1 -Copt-level=0 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Cinstrument-coverage -Ccodegen-units=1 -Copt-level=0 -Cllvm-args=--inline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-      - name: rust-grcov
-        uses: actions-rs/grcov@v0.1
-      - name: Codecov
-        uses: codecov/codecov-action@v4
+      - name: Generate code coverage
+        run: cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out xml --jobs 1
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v2
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          verbose: true
           fail_ci_if_error: true
 
   clippy:
