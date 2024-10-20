@@ -114,7 +114,7 @@ mod tests {
                 .run()
                 .expect("commander terminated")
             });
-            thread::sleep(Duration::from_secs(1));
+            thread::sleep(Duration::from_secs(2));
         }
 
         fn run_server(&self) {
@@ -133,6 +133,7 @@ mod tests {
                 .run()
                 .expect("server terminated")
             });
+            thread::sleep(Duration::from_secs(2));
         }
 
         fn with_ipv6(&mut self) -> &mut TestData {
