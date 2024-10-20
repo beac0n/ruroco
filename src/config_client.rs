@@ -8,6 +8,9 @@ use std::path::PathBuf;
 use crate::common::NTP_SYSTEM;
 use clap::{Parser, Subcommand};
 
+#[cfg(target_os = "android")]
+use jni::objects::{JObject, JString};
+
 pub const DEFAULT_KEY_SIZE: u16 = 8192;
 pub const DEFAULT_COMMAND: &str = "default";
 pub const DEFAULT_DEADLINE: u16 = 5;
@@ -99,14 +102,71 @@ pub fn default_public_pem_path() -> PathBuf {
 }
 
 fn get_default_pem_path(pem_name: &str) -> PathBuf {
-    match env::var("HOME") {
-        Ok(home_dir) => get_conf_dir(home_dir).join(pem_name),
-        Err(_) => PathBuf::from(pem_name),
-    }
+    get_conf_dir().join(pem_name)
 }
 
-fn get_conf_dir(home_dir: String) -> PathBuf {
-    PathBuf::from(home_dir).join(".config").join("ruroco")
+pub fn get_conf_dir() -> PathBuf {
+    let current_dir = PathBuf::from(".");
+
+    #[cfg(target_os = "linux")]
+    {
+        match (env::var("HOME"), env::current_dir()) {
+            (Ok(home_dir), _) => PathBuf::from(home_dir).join(".config").join("ruroco"),
+            (_, Ok(current_dir)) => current_dir,
+            (_, _) => current_dir,
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        let ctx = ndk_context::android_context();
+        let vm = match unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) } {
+            Ok(vm) => vm,
+            Err(_) => return current_dir,
+        };
+
+        let mut env = match vm.attach_current_thread() {
+            Ok(env) => env,
+            Err(_) => return current_dir,
+        };
+
+        let context = unsafe { JObject::from_raw(ctx.context().cast()) };
+        let get_files_dir_value =
+            match env.call_method(context, "getFilesDir", "()Ljava/io/File;", &[]) {
+                Ok(m) => m,
+                Err(_) => return current_dir,
+            };
+
+        let files_dir_obj = match get_files_dir_value.l() {
+            Ok(d) => d,
+            Err(_) => return current_dir,
+        };
+
+        let get_absolute_path_value =
+            match env.call_method(files_dir_obj, "getAbsolutePath", "()Ljava/lang/String;", &[]) {
+                Ok(m) => m,
+                Err(_) => return current_dir,
+            };
+
+        let path_obj = match get_absolute_path_value.l() {
+            Ok(p) => p,
+            Err(_) => return current_dir,
+        };
+
+        let path_jstring: JString = match path_obj.try_into() {
+            Ok(p) => p,
+            Err(_) => return current_dir,
+        };
+
+        let result = match env.get_string(&path_jstring) {
+            Ok(p) => {
+                let p_str: String = p.into();
+                PathBuf::from(p_str)
+            }
+            Err(_) => current_dir,
+        };
+        result
+    }
 }
 
 fn validate_key_size(key_str: &str) -> Result<u32, String> {
