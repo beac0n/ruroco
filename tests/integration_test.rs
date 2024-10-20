@@ -94,7 +94,7 @@ mod tests {
                 self.now.unwrap_or_else(|| time().unwrap()),
             )
             .unwrap();
-            thread::sleep(Duration::from_secs(1)); // wait for files to be written and blocklist to be updated
+            thread::sleep(Duration::from_secs(10)); // wait for files to be written and blocklist to be updated
         }
 
         fn run_commander(&self) {
