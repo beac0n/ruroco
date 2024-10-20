@@ -62,7 +62,7 @@ jobs:
       - name: Generate code coverage
         run: |
           cargo install cargo-tarpaulin
-          cargo tarpaulin --verbose --timeout 360 --out xml -- --test-threads 1
+          cargo tarpaulin --verbose --timeout 360 --out xml --jobs 1 -- --test-threads 1
         env:
           RUST_BACKTRACE: 'full'
       - name: Upload to codecov.io
