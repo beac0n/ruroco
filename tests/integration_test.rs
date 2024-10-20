@@ -94,7 +94,7 @@ mod tests {
                 self.now.unwrap_or_else(|| time().unwrap()),
             )
             .unwrap();
-            thread::sleep(Duration::from_secs(10)); // wait for files to be written and blocklist to be updated
+            thread::sleep(Duration::from_secs(1)); // wait for files to be written and blocklist to be updated
         }
 
         fn run_commander(&self) {
@@ -114,6 +114,7 @@ mod tests {
                 .run()
                 .expect("commander terminated")
             });
+            thread::sleep(Duration::from_secs(1));
         }
 
         fn run_server(&self) {
@@ -196,8 +197,8 @@ mod tests {
         let mut test_data: TestData = TestData::create();
 
         test_data.run_client_gen();
-        test_data.run_server();
         test_data.run_commander();
+        test_data.run_server();
 
         test_data.with_deadline(0).run_client_send();
 
@@ -209,8 +210,8 @@ mod tests {
         let mut test_data: TestData = TestData::create();
 
         test_data.run_client_gen();
-        test_data.run_server();
         test_data.run_commander();
+        test_data.run_server();
 
         let now = time().unwrap();
         test_data.with_deadline(5).with_now(now).run_client_send();
@@ -234,8 +235,8 @@ mod tests {
 
     fn ip_mismatch_test(mut test_data: TestData, ip: &str) {
         test_data.run_client_gen();
-        test_data.run_server();
         test_data.run_commander();
+        test_data.run_server();
 
         test_data.with_ip(ip).run_client_send();
         test_data.assert_file_paths();
@@ -255,8 +256,8 @@ mod tests {
 
     fn ip_mismatch_not_strict_test(mut test_data: TestData, ip: &str) {
         test_data.run_client_gen();
-        test_data.run_server();
         test_data.run_commander();
+        test_data.run_server();
 
         test_data.with_ip(ip).with_strict(false).run_client_send();
 
@@ -280,8 +281,8 @@ mod tests {
 
     fn ip_match_test(mut test_data: TestData, ip: &str) {
         test_data.run_client_gen();
-        test_data.run_server();
         test_data.run_commander();
+        test_data.run_server();
 
         test_data.with_ip(ip).run_client_send();
 
@@ -303,8 +304,8 @@ mod tests {
 
     fn is_valid_test(mut test_data: TestData) {
         test_data.run_client_gen();
-        test_data.run_server();
         test_data.run_commander();
+        test_data.run_server();
 
         test_data.run_client_send();
         let blocked_list_0 = test_data.get_blocked_list();

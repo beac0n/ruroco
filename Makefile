@@ -17,7 +17,7 @@ release:
 	upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander
 
 test:
-	cargo test --verbose -- --test-threads=1
+	cargo test -- --test-threads=1
 
 format:
 	cargo fmt && cargo clippy --fix
