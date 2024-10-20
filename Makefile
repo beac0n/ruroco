@@ -58,11 +58,11 @@ install_server: release
 
 test_end_to_end: clean_test_end_to_end build
 	sudo useradd --system ruroco --shell /bin/false || true
-	./target/debug/client gen -k 4096 -r ruroco_private.pem -u ruroco_public.pem
+	./target/x86_64-unknown-linux-gnu/debug/client gen -k 4096 -r ruroco_private.pem -u ruroco_public.pem
 
 	mkdir /tmp/ruroco_test
-	cp ./target/debug/server /tmp/ruroco_test/server
-	cp ./target/debug/commander /tmp/ruroco_test/commander
+	cp ./target/x86_64-unknown-linux-gnu/debug/server /tmp/ruroco_test/server
+	cp ./target/x86_64-unknown-linux-gnu/debug/commander /tmp/ruroco_test/commander
 
 	mv ./ruroco_private.pem /tmp/ruroco_test
 
@@ -83,7 +83,7 @@ test_end_to_end: clean_test_end_to_end build
 	sudo systemctl start ruroco-commander.service
 	sudo systemctl start ruroco.service
 
-	./target/debug/client send -a 127.0.0.1:80 -p /tmp/ruroco_test/ruroco_private.pem
+	./target/x86_64-unknown-linux-gnu/debug/client send -a 127.0.0.1:80 -p /tmp/ruroco_test/ruroco_private.pem
 
 	sleep 2
 
