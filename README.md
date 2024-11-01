@@ -6,9 +6,10 @@
 
 ruroco is a tool that lets you execute commands on a server by sending UDP packets.
 
-the tool consist of 3 binaries:
+the tool consist of 4 binaries:
 
 - `client`: runs on your notebook/computer and sends the UDP packets
+- `client-ui`: presents all the functionality of `client` in an easier to use user interface.
 - `server`: receives the UDP packets and makes sure that they are valid
 - `commander`: runs the command encoded by the data of the UDP packet if it's valid
 
@@ -29,6 +30,9 @@ picks from existing commands.
 ```shell
 ruroco-client-ui
 ```
+
+When first executed, a public-private key pair is generated and saved in the default config folder.
+The public key can then be copied from the user interface and saved on the server in the respective config.
 
 ## client usage
 
