@@ -15,6 +15,7 @@ release_android:
 release: release_android
 	# see https://github.com/johnthagen/min-sized-rust
 	cargo build --color=always --release --package ruroco --features release-build --target x86_64-unknown-linux-gnu
+	upx --best --lzma target/x86_64-unknown-linux-gnu/release/client_ui
 	upx --best --lzma target/x86_64-unknown-linux-gnu/release/client
 	upx --best --lzma target/x86_64-unknown-linux-gnu/release/server
 	upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander
@@ -26,12 +27,13 @@ format:
 	cargo fmt && cargo clippy --fix
 
 install_client: release
-	sudo cp ./target/release/client /usr/local/bin/ruroco-client
+	sudo cp ./target/x86_64-unknown-linux-gnu/release/client /usr/local/bin/ruroco-client
+	sudo cp ./target/x86_64-unknown-linux-gnu/release/client_ui /usr/local/bin/ruroco-client-ui
 
 install_server: release
-	sudo cp ./target/release/server /usr/local/bin/ruroco-server
-	sudo cp ./target/release/commander /usr/local/bin/ruroco-commander
-	sudo cp ./target/release/client /usr/local/bin/ruroco-client
+	sudo cp ./target/x86_64-unknown-linux-gnu/release/server /usr/local/bin/ruroco-server
+	sudo cp ./target/x86_64-unknown-linux-gnu/release/commander /usr/local/bin/ruroco-commander
+	sudo cp ./target/x86_64-unknown-linux-gnu/release/client /usr/local/bin/ruroco-client
 
 	sudo useradd --system ruroco --shell /bin/false || true
 	sudo cp ./systemd/* /etc/systemd/system
