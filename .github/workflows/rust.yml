@@ -115,7 +115,9 @@ jobs:
         id: extract_tag
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       - name: Build Release Files
-        run: make release
+        run: |
+          cargo install xbuild
+          make release
       - name: Publish Release
         id: create_release
         uses: actions/create-release@v1
