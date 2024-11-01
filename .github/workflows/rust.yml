@@ -136,7 +136,8 @@ jobs:
           link-to-sdk: true
       - run: |
           echo $PATH
-          ls -la /opt/hostedtoolcache/ndk/r27c/x64
+          export PATH=/opt/hostedtoolcache/ndk/r27c/x64/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          ls -la /opt/hostedtoolcache/ndk/r27c/x64/toolchains/llvm/prebuilt/linux-x86_64/bin
           x doctor
           make release
       - name: Publish Release
