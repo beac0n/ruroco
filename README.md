@@ -24,6 +24,12 @@ picks from existing commands.
 - **replay protection** by adding every packet that the server received to a blocklist
 - (WIP) DoS protection
 
+## client ui usage
+
+```shell
+ruroco-client-ui
+```
+
 ## client usage
 
 ### commands
@@ -116,7 +122,8 @@ download binaries from the [releases page](https://github.com/beac0n/ruroco/rele
 make release
 ```
 
-you can find the binaries in `target/release/client`, `target/release/server` and `target/release/commander`
+you can find the binaries in `target/release/client`, `target/release/client_ui`, `target/release/server` and
+`target/release/commander`
 
 ## client
 
