@@ -124,6 +124,11 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install xbuild
+        uses: rust-mobile/setup-xbuild-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Release
         uses: nttld/setup-ndk@v1.5.0
         with:
@@ -131,7 +136,7 @@ jobs:
           link-to-sdk: true
       - run: |
           echo $PATH
-          cargo install xbuild
+          ls -la /opt/hostedtoolcache/ndk/r27c/x64
           x doctor
           make release
       - name: Publish Release
