@@ -121,6 +121,7 @@ jobs:
           ndk-version: r27c
           link-to-sdk: true
       - run: |
+          echo $PATH
           cargo install xbuild
           x doctor
           make release
