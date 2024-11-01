@@ -115,6 +115,7 @@ jobs:
         id: extract_tag
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
       - uses: nttld/setup-ndk@v1.5.0
         id: build_release
         with:
