@@ -3732,9 +3732,9 @@ dependencies = [
 
 [[package]]
 name = "sntpc"
-version = "0.3.9"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de6292f240a2bf33ae7156cb354802bca8ecfacf96b820a6ec2f2e9f5c01f260"
+checksum = "3804b3a3c1c93514851c6304eede51722be22ed642458ad5de7dce8d26b7eca7"
 dependencies = [
  "no-std-net",
 ]
