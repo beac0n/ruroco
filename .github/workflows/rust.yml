@@ -127,6 +127,15 @@ jobs:
           release_name: Release ${{ env.TAG_NAME }}
           draft: false
           prerelease: false
+      - name: Upload Release Asset - Android
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/x/release/android/ruroco.apk
+          asset_name: client-${{ env.TAG_NAME }}-aarch64-linux-android-apk
+          asset_content_type: application/octet-stream
       - name: Upload Release Asset - Client
         uses: actions/upload-release-asset@v1
         env:
