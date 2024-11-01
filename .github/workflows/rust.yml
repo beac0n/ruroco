@@ -117,11 +117,16 @@ jobs:
       - uses: nttld/setup-ndk@v1.5.0
         with:
           ndk-version: r27c
+          add-to-path: false
       - name: Build Release Files
         run: |
+          echo $ANDROID_NDK_HOME
+          ls -la $ANDROID_NDK_HOME
           cargo install xbuild
           x doctor
           make release
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Publish Release
         id: create_release
         uses: actions/create-release@v1
