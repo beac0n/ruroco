@@ -114,13 +114,17 @@ jobs:
       - uses: nttld/setup-ndk@v1.5.0
         with:
           ndk-version: r27c
+          add-to-path: false
       - name: Extract Tag Name
         id: extract_tag
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       - name: Build Release Files
         run: |
           cargo install xbuild
+          x doctor
           make release
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Publish Release
         id: create_release
         uses: actions/create-release@v1
