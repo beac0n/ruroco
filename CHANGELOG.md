@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - 2024-11-01
 
+## Added
+
+- Release build of Android `.apk`
+- Release build of client UI binary
+- Save and load commands added in UI to disk
+- Auto Generate PEM files on android
+
+## Changed
+
+- Fixed Android Internet Permissions
+
 ## [0.4.0] - 2024-10-05
 
 ### Added
