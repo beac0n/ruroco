@@ -14,7 +14,7 @@ use std::{env, fs};
 
 slint::include_modules!();
 pub fn run_ui() -> Result<(), Box<dyn Error>> {
-    let ui = AppWindow::new()?;
+    let app = App::new()?;
 
     let public_pem_path = default_public_pem_path();
     let private_pem_path = default_private_pem_path();
@@ -29,22 +29,23 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     }
 
     let commands_list = CommandsList::create(&get_conf_dir());
-    ui.set_commands_list(ModelRc::from(Rc::new(VecModel::from(commands_list.get()))));
 
-    ui.set_private_pem_path(SharedString::from(
+    let globals = app.global::<CommandLogic>();
+    globals.set_commands_list(ModelRc::from(Rc::new(VecModel::from(commands_list.get()))));
+    globals.set_private_pem_path(SharedString::from(
         private_pem_path.to_str().ok_or("Could not convert path to string")?,
     ));
-    ui.set_public_key(fs::read_to_string(&public_pem_path)?.into());
+    globals.set_public_key(fs::read_to_string(&public_pem_path)?.into());
+    globals.set_command(SharedString::from(DEFAULT_COMMAND));
+    globals.set_deadline(DEFAULT_DEADLINE.to_string().into());
+    globals.set_ntp(SharedString::from(NTP_SYSTEM));
 
-    ui.set_command(SharedString::from(DEFAULT_COMMAND));
-    ui.set_deadline(DEFAULT_DEADLINE.to_string().into());
-    ui.set_ntp(SharedString::from(NTP_SYSTEM));
-
-    ui.on_add_command({
-        let ui_handle = ui.as_weak();
+    globals.on_add_command({
+        let app_handle = app.as_weak();
         let mut persistent_commands_list = CommandsList::create(&get_conf_dir());
         move |cmd| {
-            let commands_list_rc = ui_handle.unwrap().get_commands_list();
+            let binding = app_handle.unwrap();
+            let commands_list_rc = binding.global::<CommandLogic>().get_commands_list();
             let commands_list: &VecModel<SharedString> = commands_list_rc
                 .as_any()
                 .downcast_ref()
@@ -56,11 +57,12 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    ui.on_del_command({
-        let ui_handle = ui.as_weak();
+    globals.on_del_command({
+        let app_handle = app.as_weak();
         let mut persistent_commands_list = CommandsList::create(&get_conf_dir());
         move |cmd| {
-            let commands_list_rc = ui_handle.unwrap().get_commands_list();
+            let binding = app_handle.unwrap();
+            let commands_list_rc = binding.global::<CommandLogic>().get_commands_list();
             let commands_list: &VecModel<SharedString> = commands_list_rc
                 .as_any()
                 .downcast_ref()
@@ -76,7 +78,7 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    ui.on_exec_command(|cmd| {
+    globals.on_exec_command(|cmd| {
         let cmd_str = cmd.to_string();
         let mut cmd_vec: Vec<&str> = cmd_str.split(" ").collect();
         cmd_vec.insert(0, "ruroco");
@@ -89,7 +91,7 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
         };
     });
 
-    ui.run()?;
+    app.run()?;
 
     Ok(())
 }

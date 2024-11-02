@@ -1,0 +1,22 @@
+import { Button, TextEdit } from "std-widgets.slint";
+import { CommandLogic } from "command-logic.slint";
+
+export component PublicKey inherits HorizontalLayout {
+    Button {
+        height: 100%;
+        width: 50%;
+        text: "⎘";
+        clicked => {
+            public_key_box.select-all();
+            public_key_box.copy();
+            public_key_box.clear-selection()
+        }
+    }
+
+    public_key_box := TextEdit {
+        height: 100%;
+        width: 50%;
+        enabled: false;
+        text <=> CommandLogic.public_key;
+    }
+}

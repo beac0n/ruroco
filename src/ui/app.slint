@@ -1,0 +1,30 @@
+import { TabWidget } from "std-widgets.slint";
+import { Create } from "create.slint";
+import { CommandLogic } from "command-logic.slint";
+import { PublicKey } from "public-key.slint";
+import { Execute } from "execute.slint";
+
+export component App inherits Window {
+    title: "ruroco";
+    preferred-height: 1200px;
+    preferred-width: 540px;
+
+    TabWidget {
+        Tab {
+            title: "Public PEM key";
+            PublicKey { }
+        }
+
+        Tab {
+            title: "Create";
+            Create { }
+        }
+
+        Tab {
+            title: "Execute";
+            Execute { }
+        }
+    }
+}
+
+export { CommandLogic }

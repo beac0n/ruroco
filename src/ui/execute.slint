@@ -1,0 +1,39 @@
+import { Button, ListView } from "std-widgets.slint";
+import { CommandLogic } from "command-logic.slint";
+
+export component Execute inherits VerticalLayout {
+    ListView {
+
+        for text in CommandLogic.commands_list: HorizontalLayout {
+            Button {
+                height: 50px;
+                width: 50px;
+                text: "▶";
+                clicked => {
+                    CommandLogic.exec_command(text)
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1.0;
+                Text {
+                    x: 10px;
+                    width: parent.width - self.x;
+                    horizontal-alignment: TextHorizontalAlignment.left;
+                    vertical-alignment: TextVerticalAlignment.center;
+                    text: text;
+                    overflow: TextOverflow.elide;
+                }
+            }
+
+            Button {
+                height: 50px;
+                width: 50px;
+                text: "🗑";
+                clicked => {
+                    CommandLogic.del_command(text)
+                }
+            }
+        }
+    }
+}

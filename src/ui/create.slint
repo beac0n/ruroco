@@ -1,0 +1,137 @@
+import { Button } from "std-widgets.slint";
+import { ArgRowText, ArgRowTextInput, ArgRowBoolInput } from "./arg-row.slint";
+import { CommandLogic } from "command-logic.slint";
+
+export component Create inherits VerticalLayout {
+    property <string> address: "";
+    property <bool> permissive: false;
+    property <string> ip: "";
+    property <bool> ipv4: false;
+    property <bool> ipv6: false;
+
+    Flickable {
+        VerticalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "address";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.address;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "command";
+                }
+
+                ArgRowTextInput {
+                    input <=> CommandLogic.command;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "deadline";
+                }
+
+                ArgRowTextInput {
+                    input <=> CommandLogic.deadline;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ip";
+                }
+
+                ArgRowTextInput {
+                    input <=> root.ip;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                ArgRowText {
+                    text: "ntp";
+                }
+
+                ArgRowTextInput {
+                    input <=> CommandLogic.ntp;
+                }
+            }
+
+            HorizontalLayout {
+                padding-bottom: 10px;
+                VerticalLayout {
+                    height: 50px;
+                    padding-right: 10px;
+                    ArgRowText {
+                        text: "permissive";
+                    }
+
+                    ArgRowBoolInput {
+                        input <=> root.permissive;
+                    }
+                }
+
+                VerticalLayout {
+                    height: 50px;
+                    padding-right: 10px;
+                    ArgRowText {
+                        text: "ipv4";
+                    }
+
+                    ArgRowBoolInput {
+                        input <=> root.ipv4;
+                    }
+                }
+
+                VerticalLayout {
+                    height: 50px;
+                    padding-right: 10px;
+                    ArgRowText {
+                        text: "ipv6";
+                    }
+
+                    ArgRowBoolInput {
+                        input <=> root.ipv6;
+                    }
+                }
+            }
+
+            Rectangle {
+                vertical-stretch: 2;
+            }
+
+            HorizontalLayout {
+                Button {
+                    height: 50px;
+                    text: "Add Command";
+                    clicked => {
+                        CommandLogic.add_command(
+                            "send"//
+                            + (root.address == "" ? "" : " --address " + root.address)//
+                            + (CommandLogic.private_pem_path == "" ? "" : " --private-pem-path " + CommandLogic.private_pem_path)//
+                            + (CommandLogic.command == "" ? "" : " --command " + CommandLogic.command)//
+                            + " --deadline " + CommandLogic.deadline//
+                            + (root.permissive ? "--permissive" : "")//
+                            + (root.ip == "" ? "" : " --ip " + root.ip)//
+                            + (CommandLogic.ntp == "" ? "" : " --ntp " + CommandLogic.ntp)//
+                            + (root.ipv4 ? " --ipv4" : "")//
+                            + (root.ipv6 ? " --ipv6" : "")//
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
