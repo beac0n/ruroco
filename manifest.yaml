@@ -1,6 +1,11 @@
 # see https://github.com/rust-mobile/xbuild/issues/125
+
+icon: "ruroco.webp"
+
 android:
   manifest:
+    application:
+      label: "Ruroco"
     uses_permission:
       - name: android.permission.INTERNET
       - name: android.permission.ACCESS_NETWORK_STATE
