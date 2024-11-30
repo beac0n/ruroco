@@ -1,6 +1,6 @@
 # see https://github.com/rust-mobile/xbuild/issues/125
 
-icon: "ruroco.webp"
+icon: "icon.png"
 
 android:
   manifest:
