@@ -2,8 +2,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::common::{error, resolve_path};
+use crate::slint_bridge;
 use serde::{Deserialize, Serialize};
 use slint::SharedString;
+use slint_bridge::CommandTuple;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct CommandsList {
@@ -22,19 +24,65 @@ impl CommandsList {
         })
     }
 
-    pub fn get(&self) -> Vec<SharedString> {
-        self.list.iter().map(SharedString::from).collect()
+    pub fn create_command_tuple(command: SharedString) -> CommandTuple {
+        let command_string: String = command.into();
+        CommandsList::create_command_tuple_from_string(&command_string)
     }
 
-    pub fn add(&mut self, entry: SharedString) {
-        self.list.push(entry.into());
+    pub fn get(&self) -> Vec<CommandTuple> {
+        self.list.iter().map(CommandsList::create_command_tuple_from_string).collect()
+    }
+
+    pub fn add(&mut self, command: SharedString) {
+        self.list.push(command.into());
         self.save()
     }
 
-    pub fn remove(&mut self, entry: SharedString) {
-        let entry_str = String::from(entry);
+    pub fn remove(&mut self, command: SharedString) {
+        let entry_str = String::from(command);
         self.list.retain(|value| value != &entry_str);
         self.save()
+    }
+    fn create_command_tuple_from_string(command: &String) -> CommandTuple {
+        CommandTuple {
+            command: SharedString::from(command.clone()),
+            name: SharedString::from(CommandsList::command_to_name(command)),
+        }
+    }
+
+    fn command_to_name(command: &String) -> String {
+        let arguments: Vec<&str> = command.split_whitespace().filter(|&x| x != "send").collect();
+        let mut parts: Vec<String> = arguments
+            .iter()
+            .enumerate()
+            .map(|(idx, val)| match (val, arguments.get(idx + 1)) {
+                (val, None) if val.starts_with("--") => {
+                    format!("[{}]", val.replace("--", ""))
+                }
+                (val, Some(next_val)) if val.starts_with("--") && next_val.starts_with("--") => {
+                    format!("[{}]", val.replace("--", ""))
+                }
+                (val, Some(_)) if val.starts_with("--") => {
+                    format!(
+                        "[{}:",
+                        val.replace("--", "").replace("command", "cmd").replace("address", "addr")
+                    )
+                }
+                (_, _) => {
+                    format!("{val}]")
+                }
+            })
+            .collect();
+
+        match parts.iter().position(|x| x.contains("private-pem-path")) {
+            Some(i) => {
+                parts.remove(i); // remove --private-pem-path
+                parts.remove(i); // remove the private pem path
+            }
+            None => {}
+        };
+
+        parts.join("").replace("][", "] [")
     }
 
     fn save(&self) {

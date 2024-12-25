@@ -21,6 +21,7 @@ pub mod data;
 pub mod saved_command_list;
 /// responsible for receiving data from the client and sending that data to the commander
 pub mod server;
-
+/// used to import everything that is slint related
+pub mod slint_bridge;
 /// includes everything needed to run the user interface
 pub mod ui;

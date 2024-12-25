@@ -5,14 +5,15 @@ use crate::config_client::{
     DEFAULT_DEADLINE, DEFAULT_KEY_SIZE,
 };
 use crate::saved_command_list::CommandsList;
+use crate::slint_bridge;
+use crate::slint_bridge::CommandTuple;
 use clap::Parser;
-
-use slint::{Model, ModelRc, SharedString, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
+use slint_bridge::{App, CommandLogic};
 use std::error::Error;
+use std::fs;
 use std::rc::Rc;
-use std::{env, fs};
 
-slint::include_modules!();
 pub fn run_ui() -> Result<(), Box<dyn Error>> {
     let app = App::new()?;
 
@@ -46,14 +47,14 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
         move |cmd| {
             let binding = app_handle.unwrap();
             let commands_list_rc = binding.global::<CommandLogic>().get_commands_list();
-            let commands_list: &VecModel<SharedString> = commands_list_rc
+            let commands_list: &VecModel<CommandTuple> = commands_list_rc
                 .as_any()
                 .downcast_ref()
                 .expect("Expected an initialized commands_list, found None");
 
             info(&format!("Adding new command: {cmd}"));
             persistent_commands_list.add(cmd.clone());
-            commands_list.push(cmd);
+            commands_list.push(CommandsList::create_command_tuple(cmd));
         }
     });
 
@@ -63,7 +64,7 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
         move |cmd| {
             let binding = app_handle.unwrap();
             let commands_list_rc = binding.global::<CommandLogic>().get_commands_list();
-            let commands_list: &VecModel<SharedString> = commands_list_rc
+            let commands_list: &VecModel<CommandTuple> = commands_list_rc
                 .as_any()
                 .downcast_ref()
                 .expect("Expected an initialized commands_list, found None");
@@ -73,7 +74,13 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
             commands_list
                 .iter()
                 .enumerate()
-                .find_map(|(idx, entry)| if entry == cmd { Some(idx) } else { None })
+                .find_map(|(idx, entry)| {
+                    if entry.command == cmd {
+                        Some(idx)
+                    } else {
+                        None
+                    }
+                })
                 .map(|idx| commands_list.remove(idx));
         }
     });

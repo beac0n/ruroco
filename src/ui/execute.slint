@@ -4,25 +4,33 @@ import { CommandLogic } from "command-logic.slint";
 export component Execute inherits VerticalLayout {
     ListView {
 
-        for text in CommandLogic.commands_list: HorizontalLayout {
+        for text[i] in CommandLogic.commands_list: HorizontalLayout {
+            padding-top: 10px;
+            padding-bottom: 10px;
+
             Button {
                 height: 50px;
                 width: 50px;
                 text: "▶";
                 clicked => {
-                    CommandLogic.exec_command(text)
+                    box.border-color = #1976d2;
+                    CommandLogic.exec_command(text.command);
+                    box.border-color = #388e3c;
                 }
             }
 
-            Rectangle {
+            box := Rectangle {
                 horizontal-stretch: 1.0;
+                border-color: #cccccc;
+                border-width: 2px;
+                border-radius: 5px;
                 Text {
                     x: 10px;
                     width: parent.width - self.x;
                     horizontal-alignment: TextHorizontalAlignment.left;
                     vertical-alignment: TextVerticalAlignment.center;
-                    text: text;
-                    overflow: TextOverflow.elide;
+                    text: text.name;
+                    wrap: word-wrap;
                 }
             }
 
@@ -31,7 +39,7 @@ export component Execute inherits VerticalLayout {
                 width: 50px;
                 text: "🗑";
                 clicked => {
-                    CommandLogic.del_command(text)
+                    CommandLogic.del_command(text.command)
                 }
             }
         }

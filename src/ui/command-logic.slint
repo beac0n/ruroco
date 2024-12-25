@@ -1,5 +1,9 @@
+struct CommandTuple {
+    command: string,
+    name: string,
+}
 export global CommandLogic {
-    in-out property <[string]> commands_list: [];
+    in-out property <[CommandTuple]> commands_list: [];
     in-out property <string> public_key: "";
     in-out property <string> private_pem_path: "";
     in-out property <string> command: "";
