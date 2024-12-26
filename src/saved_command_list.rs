@@ -4,8 +4,9 @@ use std::path::PathBuf;
 use crate::common::{error, resolve_path};
 use crate::slint_bridge;
 use serde::{Deserialize, Serialize};
+use slint::Color;
 use slint::SharedString;
-use slint_bridge::CommandTuple;
+use slint_bridge::CommandData;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct CommandsList {
@@ -24,12 +25,12 @@ impl CommandsList {
         })
     }
 
-    pub fn create_command_tuple(command: SharedString) -> CommandTuple {
+    pub fn create_command_tuple(command: SharedString) -> CommandData {
         let command_string: String = command.into();
         CommandsList::create_command_tuple_from_string(&command_string)
     }
 
-    pub fn get(&self) -> Vec<CommandTuple> {
+    pub fn get(&self) -> Vec<CommandData> {
         self.list.iter().map(CommandsList::create_command_tuple_from_string).collect()
     }
 
@@ -43,10 +44,11 @@ impl CommandsList {
         self.list.retain(|value| value != &entry_str);
         self.save()
     }
-    fn create_command_tuple_from_string(command: &String) -> CommandTuple {
-        CommandTuple {
+    fn create_command_tuple_from_string(command: &String) -> CommandData {
+        CommandData {
             command: SharedString::from(command.clone()),
             name: SharedString::from(CommandsList::command_to_name(command)),
+            color: Color::from_rgb_u8(204, 204, 204),
         }
     }
 

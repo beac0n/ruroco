@@ -1,15 +1,16 @@
-struct CommandTuple {
+struct CommandData {
     command: string,
     name: string,
+    color: color,
 }
 export global CommandLogic {
-    in-out property <[CommandTuple]> commands_list: [];
+    in-out property <[CommandData]> commands_list: [];
     in-out property <string> public_key: "";
     in-out property <string> private_pem_path: "";
     in-out property <string> command: "";
     in-out property <string> deadline: "";
     in-out property <string> ntp: "";
     callback add_command(string);
-    callback exec_command(string);
-    callback del_command(string);
+    callback exec_command(string, int);
+    callback del_command(string, int);
 }

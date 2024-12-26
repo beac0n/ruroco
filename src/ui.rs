@@ -6,9 +6,9 @@ use crate::config_client::{
 };
 use crate::saved_command_list::CommandsList;
 use crate::slint_bridge;
-use crate::slint_bridge::CommandTuple;
+use crate::slint_bridge::CommandData;
 use clap::Parser;
-use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
+use slint::{Color, ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
 use slint_bridge::{App, CommandLogic};
 use std::error::Error;
 use std::fs;
@@ -21,8 +21,8 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     let public_pem_path = default_public_pem_path();
     let private_pem_path = default_private_pem_path();
     match (private_pem_path.clone(), public_pem_path.clone()) {
-        (pr, pu) if !pr.exists() && !pu.exists() => {
-            gen(pr, pu, DEFAULT_KEY_SIZE as u32)?;
+        (priv_pp, pub_pp) if !priv_pp.exists() && !pub_pp.exists() => {
+            gen(priv_pp, pub_pp, DEFAULT_KEY_SIZE as u32)?;
         }
         (pr, pu) if pr.exists() && pu.exists() => {}
         (_, _) => {
@@ -31,9 +31,11 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     }
 
     let commands_list = CommandsList::create(&get_conf_dir());
+    let commands_list_data = commands_list.get();
+    let cmds_list_arc_mutex = Arc::new(Mutex::new(commands_list));
 
     let globals = app.global::<CommandLogic>();
-    globals.set_commands_list(ModelRc::from(Rc::new(VecModel::from(commands_list.get()))));
+    globals.set_commands_list(ModelRc::from(Rc::new(VecModel::from(commands_list_data))));
     globals.set_private_pem_path(SharedString::from(
         private_pem_path.to_str().ok_or("Could not convert path to string")?,
     ));
@@ -42,14 +44,15 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     globals.set_deadline(DEFAULT_DEADLINE.to_string().into());
     globals.set_ntp(SharedString::from(NTP_SYSTEM));
 
-    let cmds_list_arc_mutex = Arc::new(Mutex::new(CommandsList::create(&get_conf_dir())));
-
     globals.on_add_command({
         let app_handle = app.as_weak();
         let cmds_list_mutex = Arc::clone(&cmds_list_arc_mutex);
         move |cmd| {
             info(&format!("Adding new command: {cmd}"));
-            let mut persistent_commands_list = cmds_list_mutex.lock().unwrap();
+            let mut persistent_commands_list = match cmds_list_mutex.lock() {
+                Ok(m) => m,
+                Err(e) => return error(&format!("Failed to acquire mutex lock: {e}")),
+            };
             persistent_commands_list.add(cmd.clone());
 
             let commands_list_rc = get_commands_list_rc(&app_handle);
@@ -61,39 +64,45 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     globals.on_del_command({
         let app_handle = app.as_weak();
         let cmds_list_mutex = Arc::clone(&cmds_list_arc_mutex);
-
-        move |cmd| {
+        move |cmd, index| {
             info(&format!("Removing command: {cmd}"));
-            let mut persistent_commands_list = cmds_list_mutex.lock().unwrap();
-            persistent_commands_list.remove(cmd.clone());
+            let mut persistent_commands_list = match cmds_list_mutex.lock() {
+                Ok(m) => m,
+                Err(e) => return error(&format!("Failed to acquire mutex lock: {e}")),
+            };
+            persistent_commands_list.remove(cmd);
 
             let commands_list_rc = get_commands_list_rc(&app_handle);
             let commands_list = get_commands_list(&commands_list_rc);
-            commands_list
-                .iter()
-                .enumerate()
-                .find_map(|(idx, entry)| {
-                    if entry.command == cmd {
-                        Some(idx)
-                    } else {
-                        None
-                    }
-                })
-                .map(|idx| commands_list.remove(idx));
+            commands_list.remove(index as usize);
         }
     });
 
-    globals.on_exec_command(|cmd| {
-        let cmd_str = cmd.to_string();
-        let mut cmd_vec: Vec<&str> = cmd_str.split(" ").collect();
-        cmd_vec.insert(0, "ruroco");
+    globals.on_exec_command({
+        let app_handle = app.as_weak();
 
-        info(&format!("Executing command: {cmd}"));
-        match CliClient::try_parse_from(cmd_vec) {
-            Ok(cli_client) => run_client(cli_client)
-                .unwrap_or_else(|e| error(&format!("Failed to execute \"{cmd_str}\": {e}"))),
-            Err(e) => error(&format!("Failed to create cli client from \"{cmd_str}\": {e}")),
-        };
+        move |cmd, idx| {
+            let commands_list_rc = get_commands_list_rc(&app_handle);
+            let commands_list = get_commands_list(&commands_list_rc);
+
+            let cmd_str = cmd.to_string();
+            let mut cmd_vec: Vec<&str> = cmd_str.split_whitespace().collect();
+            cmd_vec.insert(0, "ruroco");
+
+            info(&format!("Executing command: {cmd}"));
+            match CliClient::try_parse_from(cmd_vec) {
+                Ok(cli_client) => run_client(cli_client)
+                    .map(|_| {
+                        set_command_data_color(idx, commands_list, Color::from_rgb_u8(56, 142, 60))
+                    })
+                    .unwrap_or_else(|_| {
+                        set_command_data_color(idx, commands_list, Color::from_rgb_u8(211, 47, 47))
+                    }),
+                Err(_) => {
+                    set_command_data_color(idx, commands_list, Color::from_rgb_u8(211, 47, 47))
+                }
+            };
+        }
     });
 
     app.run()?;
@@ -101,11 +110,29 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn get_commands_list_rc(app_handle: &Weak<App>) -> ModelRc<CommandTuple> {
+fn set_command_data_color(idx: i32, commands_list: &VecModel<CommandData>, color: Color) {
+    let command_data_vec: Vec<CommandData> = commands_list
+        .iter()
+        .enumerate()
+        .map(|(i, d)| CommandData {
+            command: d.command,
+            name: d.name,
+            color: if i == idx as usize {
+                color
+            } else {
+                Color::from_rgb_u8(204, 204, 204)
+            },
+        })
+        .collect();
+
+    commands_list.set_vec(command_data_vec);
+}
+
+fn get_commands_list_rc(app_handle: &Weak<App>) -> ModelRc<CommandData> {
     app_handle.unwrap().global::<CommandLogic>().get_commands_list()
 }
 
-fn get_commands_list(commands_list_rc: &ModelRc<CommandTuple>) -> &VecModel<CommandTuple> {
+fn get_commands_list(commands_list_rc: &ModelRc<CommandData>) -> &VecModel<CommandData> {
     commands_list_rc
         .as_any()
         .downcast_ref()

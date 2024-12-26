@@ -4,24 +4,29 @@ import { CommandLogic } from "command-logic.slint";
 export component Execute inherits VerticalLayout {
     ListView {
 
-        for text[i] in CommandLogic.commands_list: HorizontalLayout {
+        for data[i] in CommandLogic.commands_list: HorizontalLayout {
             padding-top: 10px;
             padding-bottom: 10px;
 
-            Button {
+            Rectangle {
+                border-color: #1976d2;
+                border-width: 2px;
+                border-radius: 5px;
                 height: 50px;
                 width: 50px;
-                text: "▶";
-                clicked => {
-                    box.border-color = #1976d2;
-                    CommandLogic.exec_command(text.command);
-                    box.border-color = #388e3c;
+                Button {
+                    height: 48px;
+                    width: 48px;
+                    text: "▶";
+                    clicked => {
+                        CommandLogic.exec_command(data.command, i);
+                    }
                 }
             }
 
-            box := Rectangle {
+            Rectangle {
                 horizontal-stretch: 1.0;
-                border-color: #cccccc;
+                border-color: data.color;
                 border-width: 2px;
                 border-radius: 5px;
                 Text {
@@ -29,17 +34,24 @@ export component Execute inherits VerticalLayout {
                     width: parent.width - self.x;
                     horizontal-alignment: TextHorizontalAlignment.left;
                     vertical-alignment: TextVerticalAlignment.center;
-                    text: text.name;
+                    text: data.name;
                     wrap: word-wrap;
                 }
             }
 
-            Button {
+            Rectangle {
+                border-color: #d32f2f;
+                border-width: 2px;
+                border-radius: 5px;
                 height: 50px;
                 width: 50px;
-                text: "🗑";
-                clicked => {
-                    CommandLogic.del_command(text.command)
+                Button {
+                    height: 48px;
+                    width: 48px;
+                    text: "🗑";
+                    clicked => {
+                        CommandLogic.del_command(data.command, i)
+                    }
                 }
             }
         }
