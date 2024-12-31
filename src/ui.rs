@@ -17,8 +17,6 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 pub fn run_ui() -> Result<(), Box<dyn Error>> {
-    let app = App::new()?;
-
     let public_pem_path = default_public_pem_path();
     let private_pem_path = default_private_pem_path();
     generate_pem_files(&public_pem_path, &private_pem_path)?;
@@ -26,6 +24,8 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     let commands_list = CommandsList::create(&get_conf_dir());
     let commands_list_data = commands_list.get();
     let cmds_list_arc_mutex = Arc::new(Mutex::new(commands_list));
+
+    let app = App::new()?;
 
     let globals = app.global::<CommandLogic>();
     globals.set_commands_list(ModelRc::from(Rc::new(VecModel::from(commands_list_data))));
