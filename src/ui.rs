@@ -12,6 +12,7 @@ use slint::{Color, ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak
 use slint_bridge::{App, CommandLogic};
 use std::error::Error;
 use std::fs;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -20,15 +21,7 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
 
     let public_pem_path = default_public_pem_path();
     let private_pem_path = default_private_pem_path();
-    match (private_pem_path.clone(), public_pem_path.clone()) {
-        (priv_pp, pub_pp) if !priv_pp.exists() && !pub_pp.exists() => {
-            gen(priv_pp, pub_pp, DEFAULT_KEY_SIZE as u32)?;
-        }
-        (pr, pu) if pr.exists() && pu.exists() => {}
-        (_, _) => {
-            Err("Invalid public/privat pem state - there should be both or neither".to_string())?
-        }
-    }
+    generate_pem_files(&public_pem_path, &private_pem_path)?;
 
     let commands_list = CommandsList::create(&get_conf_dir());
     let commands_list_data = commands_list.get();
@@ -107,6 +100,22 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
 
     app.run()?;
 
+    Ok(())
+}
+
+fn generate_pem_files(
+    public_pem_path: &PathBuf,
+    private_pem_path: &PathBuf,
+) -> Result<(), Box<dyn Error>> {
+    match (private_pem_path.clone(), public_pem_path.clone()) {
+        (priv_pp, pub_pp) if !priv_pp.exists() && !pub_pp.exists() => {
+            gen(priv_pp, pub_pp, DEFAULT_KEY_SIZE as u32)?;
+        }
+        (pr, pu) if pr.exists() && pu.exists() => {}
+        (_, _) => {
+            Err("Invalid public/privat pem state - there should be both or neither".to_string())?
+        }
+    }
     Ok(())
 }
 
