@@ -12,52 +12,60 @@ use std::sync::{Arc, Mutex};
 
 slint::include_modules!();
 
+const GREEN: Color = Color::from_rgb_u8(56, 142, 60);
+const RED: Color = Color::from_rgb_u8(211, 47, 47);
+const GRAY: Color = Color::from_rgb_u8(204, 204, 204);
+
 pub struct SlintBridge {
-    // app: App,
-    //command_logic: CommandLogic<'a>,
+    app: App,
     cmds_list_arc_mutex: Arc<Mutex<CommandsList>>,
 }
 
 impl SlintBridge {
     pub fn create(
-        app: &App,
         private_pem_path: PathBuf,
         public_pem_path: PathBuf,
     ) -> Result<Self, Box<dyn Error>> {
+        let app = App::new()?;
+
         let commands_list = CommandsList::create(&get_conf_dir());
-        let commands_list_data = commands_list.get();
+        let commands_list_data: Vec<CommandData> =
+            commands_list.get().iter().map(Self::create_command_tuple).collect();
         let cmds_list_arc_mutex = Arc::new(Mutex::new(commands_list));
 
         let command_logic = app.global::<CommandLogic>();
 
         command_logic.set_commands_list(ModelRc::from(Rc::new(VecModel::from(commands_list_data))));
-        command_logic.set_private_pem_path(SharedString::from(
-            private_pem_path.to_str().ok_or("Could not convert path to string")?,
-        ));
+        command_logic.set_private_pem_path(
+            private_pem_path.to_str().ok_or("Could not convert path to string")?.to_string().into(),
+        );
         command_logic.set_public_key(fs::read_to_string(&public_pem_path)?.into());
-        command_logic.set_command(SharedString::from(DEFAULT_COMMAND));
+        command_logic.set_command(DEFAULT_COMMAND.to_string().into());
         command_logic.set_deadline(DEFAULT_DEADLINE.to_string().into());
-        command_logic.set_ntp(SharedString::from(NTP_SYSTEM));
+        command_logic.set_ntp(NTP_SYSTEM.to_string().into());
 
         Ok(SlintBridge {
-            //app,
-            //command_logic,
+            app,
             cmds_list_arc_mutex,
         })
     }
 
-    pub fn add_on_del_command(&self, app: &App) {
-        let app_weak = app.as_weak();
+    pub fn run(&self) -> Result<(), slint::PlatformError> {
+        self.app.run()
+    }
 
-        app.global::<CommandLogic>().on_del_command({
+    pub fn add_on_del_command(&self) {
+        let app_weak = self.app.as_weak();
+
+        self.app.global::<CommandLogic>().on_del_command({
             let cmds_list_mutex = Arc::clone(&self.cmds_list_arc_mutex);
             move |cmd, index| {
-                info(&format!("Removing command: {cmd}"));
+                info(&format!("Removing command: {}", cmd.clone()));
                 let mut persistent_commands_list = match cmds_list_mutex.lock() {
                     Ok(m) => m,
                     Err(e) => return error(&format!("Failed to acquire mutex lock: {e}")),
                 };
-                persistent_commands_list.remove(cmd);
+                persistent_commands_list.remove(String::from(cmd));
 
                 let commands_list_rc = Self::get_commands_list_rc(&app_weak);
                 let commands_list = Self::get_commands_list(&commands_list_rc);
@@ -66,10 +74,10 @@ impl SlintBridge {
         });
     }
 
-    pub fn add_on_exec_command(&self, app: &App) {
-        let app_weak = app.as_weak();
+    pub fn add_on_exec_command(&self) {
+        let app_weak = self.app.as_weak();
 
-        app.global::<CommandLogic>().on_exec_command({
+        self.app.global::<CommandLogic>().on_exec_command({
             move |cmd, idx| {
                 let commands_list_rc = Self::get_commands_list_rc(&app_weak);
                 let commands_list = Self::get_commands_list(&commands_list_rc);
@@ -81,34 +89,18 @@ impl SlintBridge {
                 info(&format!("Executing command: {cmd}"));
                 match CliClient::try_parse_from(cmd_vec) {
                     Ok(cli_client) => run_client(cli_client)
-                        .map(|_| {
-                            Self::set_command_data_color(
-                                idx,
-                                commands_list,
-                                Color::from_rgb_u8(56, 142, 60),
-                            )
-                        })
-                        .unwrap_or_else(|_| {
-                            Self::set_command_data_color(
-                                idx,
-                                commands_list,
-                                Color::from_rgb_u8(211, 47, 47),
-                            )
-                        }),
-                    Err(_) => Self::set_command_data_color(
-                        idx,
-                        commands_list,
-                        Color::from_rgb_u8(211, 47, 47),
-                    ),
+                        .map(|_| Self::set_command_data_color(idx, commands_list, GREEN))
+                        .unwrap_or_else(|_| Self::set_command_data_color(idx, commands_list, RED)),
+                    Err(_) => Self::set_command_data_color(idx, commands_list, RED),
                 };
             }
         })
     }
 
-    pub fn add_on_add_command(&self, app: &App) {
-        let app_weak = app.as_weak();
+    pub fn add_on_add_command(&self) {
+        let app_weak = self.app.as_weak();
 
-        app.global::<CommandLogic>().on_add_command({
+        self.app.global::<CommandLogic>().on_add_command({
             let cmds_list_mutex = Arc::clone(&self.cmds_list_arc_mutex);
             move |cmd| {
                 info(&format!("Adding new command: {cmd}"));
@@ -116,11 +108,13 @@ impl SlintBridge {
                     Ok(m) => m,
                     Err(e) => return error(&format!("Failed to acquire mutex lock: {e}")),
                 };
-                persistent_commands_list.add(cmd.clone());
+                persistent_commands_list.add(String::from(cmd.clone()));
 
                 let commands_list_rc = Self::get_commands_list_rc(&app_weak);
                 let commands_list = Self::get_commands_list(&commands_list_rc);
-                commands_list.push(CommandsList::create_command_tuple(cmd));
+
+                let command_string: String = cmd.into();
+                commands_list.push(Self::create_command_tuple(&command_string));
             }
         });
     }
@@ -143,14 +137,18 @@ impl SlintBridge {
             .map(|(i, d)| CommandData {
                 command: d.command,
                 name: d.name,
-                color: if i == idx as usize {
-                    color
-                } else {
-                    Color::from_rgb_u8(204, 204, 204)
-                },
+                color: if i == idx as usize { color } else { GRAY },
             })
             .collect();
 
         commands_list.set_vec(command_data_vec);
+    }
+
+    fn create_command_tuple(command: &String) -> CommandData {
+        CommandData {
+            command: SharedString::from(command.clone()),
+            name: SharedString::from(CommandsList::command_to_name(command)),
+            color: Color::from_rgb_u8(204, 204, 204),
+        }
     }
 }

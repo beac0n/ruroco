@@ -2,11 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::common::{error, resolve_path};
-use crate::slint_bridge;
 use serde::{Deserialize, Serialize};
-use slint::Color;
-use slint::SharedString;
-use slint_bridge::CommandData;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct CommandsList {
@@ -25,34 +21,21 @@ impl CommandsList {
         })
     }
 
-    pub fn create_command_tuple(command: SharedString) -> CommandData {
-        let command_string: String = command.into();
-        CommandsList::create_command_tuple_from_string(&command_string)
+    pub fn get(&self) -> Vec<String> {
+        self.list.clone()
     }
 
-    pub fn get(&self) -> Vec<CommandData> {
-        self.list.iter().map(CommandsList::create_command_tuple_from_string).collect()
-    }
-
-    pub fn add(&mut self, command: SharedString) {
-        self.list.push(command.into());
+    pub fn add(&mut self, command: String) {
+        self.list.push(command);
         self.save()
     }
 
-    pub fn remove(&mut self, command: SharedString) {
-        let entry_str = String::from(command);
-        self.list.retain(|value| value != &entry_str);
+    pub fn remove(&mut self, command: String) {
+        self.list.retain(|value| value != &command);
         self.save()
     }
-    fn create_command_tuple_from_string(command: &String) -> CommandData {
-        CommandData {
-            command: SharedString::from(command.clone()),
-            name: SharedString::from(CommandsList::command_to_name(command)),
-            color: Color::from_rgb_u8(204, 204, 204),
-        }
-    }
 
-    fn command_to_name(command: &String) -> String {
+    pub fn command_to_name(command: &String) -> String {
         let arguments: Vec<&str> = command.split_whitespace().filter(|&x| x != "send").collect();
         let mut parts: Vec<String> = arguments
             .iter()
