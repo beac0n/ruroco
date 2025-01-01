@@ -1,5 +1,5 @@
 import { Button } from "std-widgets.slint";
-import { ArgRowText, ArgRowTextInput, ArgRowBoolInput } from "./arg-row.slint";
+import { ArgRowText, ArgRowTextWoWidth, ArgRowTextInput, ArgRowBoolInput } from "./arg-row.slint";
 import { CommandLogic } from "command-logic.slint";
 
 export component Create inherits VerticalLayout {
@@ -11,6 +11,7 @@ export component Create inherits VerticalLayout {
 
     Flickable {
         VerticalLayout {
+            padding-top: 10px;
             padding-left: 10px;
             padding-right: 10px;
 
@@ -71,10 +72,13 @@ export component Create inherits VerticalLayout {
 
             HorizontalLayout {
                 padding-bottom: 10px;
+                padding-top: 10px;
+                padding-right: 20px;
+                alignment: space-between;
+
                 VerticalLayout {
                     height: 50px;
-                    padding-right: 10px;
-                    ArgRowText {
+                    ArgRowTextWoWidth {
                         text: "permissive";
                     }
 
@@ -85,8 +89,7 @@ export component Create inherits VerticalLayout {
 
                 VerticalLayout {
                     height: 50px;
-                    padding-right: 10px;
-                    ArgRowText {
+                    ArgRowTextWoWidth {
                         text: "ipv4";
                     }
 
@@ -97,8 +100,7 @@ export component Create inherits VerticalLayout {
 
                 VerticalLayout {
                     height: 50px;
-                    padding-right: 10px;
-                    ArgRowText {
+                    ArgRowTextWoWidth {
                         text: "ipv6";
                     }
 
@@ -120,7 +122,6 @@ export component Create inherits VerticalLayout {
                         CommandLogic.add_command(
                             "send"//
                             + (root.address == "" ? "" : " --address " + root.address)//
-                            + (CommandLogic.private_pem_path == "" ? "" : " --private-pem-path " + CommandLogic.private_pem_path)//
                             + (CommandLogic.command == "" ? "" : " --command " + CommandLogic.command)//
                             + " --deadline " + CommandLogic.deadline//
                             + (root.permissive ? "--permissive" : "")//

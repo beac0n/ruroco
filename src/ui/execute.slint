@@ -30,10 +30,12 @@ export component Execute inherits VerticalLayout {
                 border-width: 2px;
                 border-radius: 5px;
                 Text {
-                    x: 10px;
-                    width: parent.width - self.x;
-                    horizontal-alignment: TextHorizontalAlignment.left;
-                    vertical-alignment: TextVerticalAlignment.center;
+                    x: 5px;
+                    font-size: 12px;
+                    width: parent.width - self.x - 5px;
+                    height: 50px;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
                     text: data.name;
                     wrap: word-wrap;
                 }

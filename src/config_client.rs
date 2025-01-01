@@ -69,11 +69,11 @@ impl Default for SendCommand {
         SendCommand {
             address: "127.0.0.1:1234".to_string(),
             private_pem_path: default_private_pem_path(),
-            command: "default".to_string(),
+            command: DEFAULT_COMMAND.to_string(),
             deadline: 5,
             permissive: false,
             ip: None,
-            ntp: "system".to_string(),
+            ntp: NTP_SYSTEM.to_string(),
             ipv4: false,
             ipv6: false,
         }

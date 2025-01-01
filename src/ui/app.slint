@@ -5,13 +5,15 @@ import { PublicKey } from "public-key.slint";
 import { Execute } from "execute.slint";
 
 export component App inherits Window {
+    default-font-size: 20px;
+    default-font-family: "monospace";
     title: "ruroco";
     preferred-height: 1200px;
     preferred-width: 540px;
 
     TabWidget {
         Tab {
-            title: "Public PEM key";
+            title: "Public Key";
             PublicKey { }
         }
 

@@ -1,22 +1,30 @@
-import { Button, TextEdit } from "std-widgets.slint";
+import { Button, TextEdit, ScrollView } from "std-widgets.slint";
 import { CommandLogic } from "command-logic.slint";
 
-export component PublicKey inherits HorizontalLayout {
+export component PublicKey inherits VerticalLayout {
+    padding-top: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+
+    public_key_box := TextEdit {
+        enabled: false;
+        font-size: 9px;
+        wrap: char-wrap;
+        has-focus: false;
+        text <=> CommandLogic.public_key;
+    }
+
+    Rectangle {
+        height: 10px;
+    }
+
     Button {
-        height: 100%;
-        width: 50%;
-        text: "⎘";
+        height: 50px;
+        text: "Copy Public Key";
         clicked => {
             public_key_box.select-all();
             public_key_box.copy();
             public_key_box.clear-selection()
         }
-    }
-
-    public_key_box := TextEdit {
-        height: 100%;
-        width: 50%;
-        enabled: false;
-        text <=> CommandLogic.public_key;
     }
 }

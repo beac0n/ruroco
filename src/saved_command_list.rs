@@ -67,7 +67,7 @@ impl CommandsList {
             None => {}
         };
 
-        parts.join("").replace("][", "] [")
+        parts.join("")
     }
 
     fn save(&self) {
