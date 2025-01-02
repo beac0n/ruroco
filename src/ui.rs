@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub fn run_ui() -> Result<(), Box<dyn Error>> {
     let public_pem_path = default_public_pem_path();
     let private_pem_path = default_private_pem_path();
-    generate_pem_files(&public_pem_path, &private_pem_path)?;
+    generate_pem_files(public_pem_path.clone(), private_pem_path.clone())?;
 
     let slint_bridge = SlintBridge::create(private_pem_path, public_pem_path)?;
 
@@ -21,8 +21,8 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn generate_pem_files(public_pem_path: &PathBuf, private_pem_path: &PathBuf) -> Result<(), String> {
-    match (private_pem_path.clone(), public_pem_path.clone()) {
+fn generate_pem_files(public_pem_path: PathBuf, private_pem_path: PathBuf) -> Result<(), String> {
+    match (private_pem_path, public_pem_path) {
         (pr, pu) if !pr.exists() && !pu.exists() => {
             gen(pr, pu, DEFAULT_KEY_SIZE as u32)?;
             Ok(())

@@ -31,7 +31,7 @@ impl SlintBridge {
 
         let commands_list = CommandsList::create(&get_conf_dir());
         let commands_list_data: Vec<CommandData> =
-            commands_list.get().iter().map(Self::create_command_tuple).collect();
+            commands_list.get().iter().map(|cmd| Self::create_command_tuple(cmd)).collect();
         let cmds_list_arc_mutex = Arc::new(Mutex::new(commands_list));
 
         let command_logic = app.global::<CommandLogic>();
@@ -145,9 +145,9 @@ impl SlintBridge {
         commands_list.set_vec(command_data_vec);
     }
 
-    fn create_command_tuple(command: &String) -> CommandData {
+    fn create_command_tuple(command: &str) -> CommandData {
         CommandData {
-            command: SharedString::from(command.clone()),
+            command: SharedString::from(command),
             name: SharedString::from(CommandsList::command_to_name(command)),
             color: Color::from_rgb_u8(204, 204, 204),
         }

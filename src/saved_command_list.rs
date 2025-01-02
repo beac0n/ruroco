@@ -35,7 +35,7 @@ impl CommandsList {
         self.save()
     }
 
-    pub fn command_to_name(command: &String) -> String {
+    pub fn command_to_name(command: &str) -> String {
         let arguments: Vec<&str> = command.split_whitespace().filter(|&x| x != "send").collect();
         let mut parts: Vec<String> = arguments
             .iter()
@@ -59,12 +59,9 @@ impl CommandsList {
             })
             .collect();
 
-        match parts.iter().position(|x| x.contains("private-pem-path")) {
-            Some(i) => {
-                parts.remove(i); // remove --private-pem-path
-                parts.remove(i); // remove the private pem path
-            }
-            None => {}
+        if let Some(i) = parts.iter().position(|x| x.contains("private-pem-path")) {
+            parts.remove(i); // remove --private-pem-path
+            parts.remove(i); // remove the private pem path
         };
 
         parts.join("")
