@@ -2,7 +2,7 @@
 [![release](https://img.shields.io/github/v/release/beac0n/ruroco?style=flat&labelColor=1C2C2E&color=C96329&logo=GitHub&logoColor=white)](https://github.com/beac0n/ruroco/releases)
 [![codecov](https://codecov.io/gh/beac0n/ruroco/graph/badge.svg?token=H7ABBHYYWT)](https://codecov.io/gh/beac0n/ruroco)
 
-# ruroco - RUn RemOte COmmand
+# ruroco - Run Remote Command
 
 ![ruroco](ruroco.webp)
 
