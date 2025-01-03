@@ -6,7 +6,7 @@ use clap::Parser;
 use slint::{Color, Model, ModelRc, SharedString, VecModel, Weak};
 use std::error::Error;
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -16,17 +16,39 @@ const GREEN: Color = Color::from_rgb_u8(56, 142, 60);
 const RED: Color = Color::from_rgb_u8(211, 47, 47);
 const GRAY: Color = Color::from_rgb_u8(204, 204, 204);
 
-pub struct SlintBridge {
+pub struct RustSlintBridge {
     app: App,
     cmds_list_arc_mutex: Arc<Mutex<CommandsList>>,
-    private_pem_path_str: String,
+    private_pem_path: String,
+    public_pem_path: String,
 }
 
-impl SlintBridge {
-    pub fn create(
-        private_pem_path: PathBuf,
-        public_pem_path: PathBuf,
-    ) -> Result<Self, Box<dyn Error>> {
+#[derive(Clone)]
+pub struct RustSlintBridgeExecutor {
+    app: Weak<App>,
+    public_pem_path: String,
+}
+
+impl RustSlintBridgeExecutor {
+    pub fn enable_key_gen_popup(&self) {
+        self.app.unwrap().global::<SlintRustBridge>().set_generating_keys(true)
+    }
+
+    pub fn disable_key_gen_popup(&self) {
+        self.app.unwrap().global::<SlintRustBridge>().set_generating_keys(false)
+    }
+
+    pub fn set_public_key(&self) -> Result<(), Box<dyn Error>> {
+        self.app
+            .unwrap()
+            .global::<SlintRustBridge>()
+            .set_public_key(fs::read_to_string(&self.public_pem_path)?.into());
+        Ok(())
+    }
+}
+
+impl RustSlintBridge {
+    pub fn create(public_pem_path: &Path, private_pem_path: &Path) -> Result<Self, Box<dyn Error>> {
         let app = App::new()?;
 
         let commands_list = CommandsList::create(&get_conf_dir());
@@ -34,22 +56,32 @@ impl SlintBridge {
             commands_list.get().iter().map(|cmd| Self::create_command_tuple(cmd)).collect();
         let cmds_list_arc_mutex = Arc::new(Mutex::new(commands_list));
 
-        let command_logic = app.global::<CommandLogic>();
+        let command_logic = app.global::<SlintRustBridge>();
 
         command_logic.set_commands_list(ModelRc::from(Rc::new(VecModel::from(commands_list_data))));
-        command_logic.set_public_key(fs::read_to_string(&public_pem_path)?.into());
         command_logic.set_command(DEFAULT_COMMAND.to_string().into());
         command_logic.set_deadline(DEFAULT_DEADLINE.to_string().into());
         command_logic.set_ntp(NTP_SYSTEM.to_string().into());
 
-        Ok(SlintBridge {
+        Ok(RustSlintBridge {
             app,
             cmds_list_arc_mutex,
-            private_pem_path_str: private_pem_path
+            public_pem_path: public_pem_path
                 .to_str()
-                .ok_or("Could not convert path to string")?
+                .ok_or("Could not convert public pem path to string")?
+                .to_string(),
+            private_pem_path: private_pem_path
+                .to_str()
+                .ok_or("Could not convert private pem path to string")?
                 .to_string(),
         })
+    }
+
+    pub fn create_executor(&self) -> RustSlintBridgeExecutor {
+        RustSlintBridgeExecutor {
+            app: self.app.as_weak(),
+            public_pem_path: self.public_pem_path.clone(),
+        }
     }
 
     pub fn run(&self) -> Result<(), slint::PlatformError> {
@@ -60,7 +92,7 @@ impl SlintBridge {
         let app_weak = self.app.as_weak();
         let cmds_list_mutex = Arc::clone(&self.cmds_list_arc_mutex);
 
-        self.app.global::<CommandLogic>().on_del_command(move |cmd, index| {
+        self.app.global::<SlintRustBridge>().on_del_command(move |cmd, index| {
             info(&format!("Removing command: {}", cmd.clone()));
             let mut persistent_commands_list = match cmds_list_mutex.lock() {
                 Ok(m) => m,
@@ -76,9 +108,9 @@ impl SlintBridge {
 
     pub fn add_on_exec_command(&self) {
         let app_weak = self.app.as_weak();
-        let private_pem_path = self.private_pem_path_str.clone();
+        let private_pem_path = self.private_pem_path.clone();
 
-        self.app.global::<CommandLogic>().on_exec_command(move |cmd, idx| {
+        self.app.global::<SlintRustBridge>().on_exec_command(move |cmd, idx| {
             let commands_list_rc = Self::get_commands_list_rc(&app_weak);
             let commands_list = Self::get_commands_list(&commands_list_rc);
 
@@ -104,7 +136,7 @@ impl SlintBridge {
         let app_weak = self.app.as_weak();
         let cmds_list_mutex = Arc::clone(&self.cmds_list_arc_mutex);
 
-        self.app.global::<CommandLogic>().on_add_command(move |cmd| {
+        self.app.global::<SlintRustBridge>().on_add_command(move |cmd| {
             info(&format!("Adding new command: {cmd}"));
             let mut persistent_commands_list = match cmds_list_mutex.lock() {
                 Ok(m) => m,
@@ -121,7 +153,7 @@ impl SlintBridge {
     }
 
     fn get_commands_list_rc(app_handle: &Weak<App>) -> ModelRc<CommandData> {
-        app_handle.unwrap().global::<CommandLogic>().get_commands_list()
+        app_handle.unwrap().global::<SlintRustBridge>().get_commands_list()
     }
 
     fn get_commands_list(commands_list_rc: &ModelRc<CommandData>) -> &VecModel<CommandData> {

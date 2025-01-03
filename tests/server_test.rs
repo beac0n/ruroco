@@ -47,7 +47,7 @@ mod tests {
             .join("files")
             .join("config_invalid.toml");
 
-        let result = Server::create_from_path(path);
+        let result = Server::create_from_path(&path);
 
         assert!(result.is_err());
         assert!(result.err().unwrap().contains("TOML parse error at line 1, column 1"));
@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn test_create_from_invalid_toml_path() {
-        let result = Server::create_from_path(PathBuf::from("/tmp/path/does/not/exist"));
+        let result = Server::create_from_path(&PathBuf::from("/tmp/path/does/not/exist"));
 
         assert!(result.is_err());
         assert_eq!(

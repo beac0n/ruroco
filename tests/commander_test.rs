@@ -23,7 +23,7 @@ mod tests {
             .join("files")
             .join("config_invalid.toml");
 
-        let result = Commander::create_from_path(path);
+        let result = Commander::create_from_path(&path);
 
         assert!(result.is_err());
 
@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn test_create_from_invalid_toml_path() {
-        let result = Commander::create_from_path(PathBuf::from("/tmp/path/does/not/exist"));
+        let result = Commander::create_from_path(&PathBuf::from("/tmp/path/does/not/exist"));
 
         assert!(result.is_err());
         assert_eq!(
@@ -56,7 +56,7 @@ mod tests {
             .join("config.toml");
 
         assert_eq!(
-            Commander::create_from_path(path),
+            Commander::create_from_path(&path),
             Ok(Commander::create(ConfigServer {
                 ips: vec!["127.0.0.1".to_string()],
                 ntp: "system".to_string(),

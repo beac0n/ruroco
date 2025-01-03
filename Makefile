@@ -7,10 +7,10 @@ hooks:
 	chmod +x .git/hooks/pre-push
 
 dev_ui_local:
-	cargo run --bin client_ui
+	export RUST_BACKTRACE=full; cargo run --bin client_ui
 
 dev_ui_android:
-	x run --features release-build --features android-build --device $$(x devices | awk '/^adb:/ { print $$1 }')
+	export RUST_BACKTRACE=full; x run --features release-build --features android-build --device $$(x devices | awk '/^adb:/ { print $$1 }')
 
 build:
 	cargo build --color=always --package ruroco --target x86_64-unknown-linux-gnu

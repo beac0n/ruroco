@@ -1,5 +1,5 @@
 import { Button, TextEdit, ScrollView } from "std-widgets.slint";
-import { CommandLogic } from "command-logic.slint";
+import { SlintRustBridge } from "slint-rust-bridge.slint";
 
 export component PublicKey inherits VerticalLayout {
     padding-top: 10px;
@@ -11,7 +11,7 @@ export component PublicKey inherits VerticalLayout {
         font-size: 9px;
         wrap: char-wrap;
         has-focus: false;
-        text <=> CommandLogic.public_key;
+        text <=> SlintRustBridge.public_key;
     }
 
     Rectangle {

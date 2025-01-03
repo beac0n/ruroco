@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::common::{error, resolve_path};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ pub struct CommandsList {
 }
 
 impl CommandsList {
-    pub fn create(config_dir: &PathBuf) -> CommandsList {
+    pub fn create(config_dir: &Path) -> CommandsList {
         let commands_list_path = resolve_path(config_dir).join("commands_list.toml");
         let commands_list_str =
             fs::read_to_string(&commands_list_path).unwrap_or_else(|_| "".to_string());

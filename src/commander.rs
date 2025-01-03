@@ -5,7 +5,7 @@ use std::fs::Permissions;
 use std::io::Read;
 use std::os::unix::fs::{chown, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{fs, str};
 
@@ -18,8 +18,8 @@ pub struct Commander {
 }
 
 impl Commander {
-    pub fn create_from_path(path: PathBuf) -> Result<Commander, String> {
-        match fs::read_to_string(&path) {
+    pub fn create_from_path(path: &Path) -> Result<Commander, String> {
+        match fs::read_to_string(path) {
             Ok(config) => Ok(Commander::create(ConfigServer::deserialize(&config)?)),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),
         }
@@ -168,7 +168,7 @@ impl Commander {
 }
 
 pub fn run_commander(server: CliServer) -> Result<(), String> {
-    Commander::create_from_path(server.config)?.run()
+    Commander::create_from_path(&server.config)?.run()
 }
 
 #[cfg(test)]

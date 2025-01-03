@@ -9,7 +9,7 @@ use std::fs;
 use std::io::Write;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Server {
@@ -24,8 +24,8 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn create_from_path(path: PathBuf) -> Result<Server, String> {
-        match fs::read_to_string(&path) {
+    pub fn create_from_path(path: &Path) -> Result<Server, String> {
+        match fs::read_to_string(path) {
             Ok(config) => Server::create(ConfigServer::deserialize(&config)?, None),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),
         }
@@ -186,7 +186,7 @@ impl Server {
 }
 
 pub fn run_server(server: CliServer) -> Result<(), String> {
-    Server::create_from_path(server.config)?.run()
+    Server::create_from_path(&server.config)?.run()
 }
 
 #[cfg(test)]
@@ -218,7 +218,7 @@ mod tests {
         let conf_path = tests_dir_path.join("files").join("config.toml");
         let config_dir = tests_dir_path.join("conf_dir");
 
-        let res_path = Server::create_from_path(conf_path).unwrap();
+        let res_path = Server::create_from_path(&conf_path).unwrap();
         let res_create = Server::create(
             ConfigServer {
                 config_dir,
@@ -271,8 +271,8 @@ mod tests {
         let _ = fs::create_dir_all(&private_pem_dir);
 
         gen(
-            private_pem_dir.join(gen_file_name(".pem")),
-            test_folder_path.join(gen_file_name(".pem")),
+            &private_pem_dir.join(gen_file_name(".pem")),
+            &test_folder_path.join(gen_file_name(".pem")),
             1024,
         )
         .expect("could not generate key");

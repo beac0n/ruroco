@@ -1,10 +1,10 @@
 import { Button, ListView } from "std-widgets.slint";
-import { CommandLogic } from "command-logic.slint";
+import { SlintRustBridge } from "slint-rust-bridge.slint";
 
 export component Execute inherits VerticalLayout {
     ListView {
 
-        for data[i] in CommandLogic.commands_list: HorizontalLayout {
+        for data[i] in SlintRustBridge.commands_list: HorizontalLayout {
             padding-top: 10px;
             padding-bottom: 10px;
 
@@ -19,7 +19,7 @@ export component Execute inherits VerticalLayout {
                     width: 48px;
                     text: "▶";
                     clicked => {
-                        CommandLogic.exec_command(data.command, i);
+                        SlintRustBridge.exec_command(data.command, i);
                     }
                 }
             }
@@ -52,7 +52,7 @@ export component Execute inherits VerticalLayout {
                     width: 48px;
                     text: "🗑";
                     clicked => {
-                        CommandLogic.del_command(data.command, i)
+                        SlintRustBridge.del_command(data.command, i)
                     }
                 }
             }

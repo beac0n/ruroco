@@ -1,6 +1,6 @@
 import { Button } from "std-widgets.slint";
 import { ArgRowText, ArgRowTextWoWidth, ArgRowTextInput, ArgRowBoolInput } from "./arg-row.slint";
-import { CommandLogic } from "command-logic.slint";
+import { SlintRustBridge } from "slint-rust-bridge.slint";
 
 export component Create inherits VerticalLayout {
     property <string> address: "";
@@ -33,7 +33,7 @@ export component Create inherits VerticalLayout {
                 }
 
                 ArgRowTextInput {
-                    input <=> CommandLogic.command;
+                    input <=> SlintRustBridge.command;
                 }
             }
 
@@ -44,7 +44,7 @@ export component Create inherits VerticalLayout {
                 }
 
                 ArgRowTextInput {
-                    input <=> CommandLogic.deadline;
+                    input <=> SlintRustBridge.deadline;
                 }
             }
 
@@ -66,7 +66,7 @@ export component Create inherits VerticalLayout {
                 }
 
                 ArgRowTextInput {
-                    input <=> CommandLogic.ntp;
+                    input <=> SlintRustBridge.ntp;
                 }
             }
 
@@ -119,14 +119,14 @@ export component Create inherits VerticalLayout {
                     height: 50px;
                     text: "Add Command";
                     clicked => {
-                        CommandLogic.add_command(
+                        SlintRustBridge.add_command(
                             "send"//
                             + (root.address == "" ? "" : " --address " + root.address)//
-                            + (CommandLogic.command == "" ? "" : " --command " + CommandLogic.command)//
-                            + " --deadline " + CommandLogic.deadline//
+                            + (SlintRustBridge.command == "" ? "" : " --command " + SlintRustBridge.command)//
+                            + " --deadline " + SlintRustBridge.deadline//
                             + (root.permissive ? "--permissive" : "")//
                             + (root.ip == "" ? "" : " --ip " + root.ip)//
-                            + (CommandLogic.ntp == "" ? "" : " --ntp " + CommandLogic.ntp)//
+                            + (SlintRustBridge.ntp == "" ? "" : " --ntp " + SlintRustBridge.ntp)//
                             + (root.ipv4 ? " --ipv4" : "")//
                             + (root.ipv6 ? " --ipv6" : "")//
                         )

@@ -67,7 +67,7 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
+        gen(&private_pem_path, &public_pem_path, 1024).unwrap();
 
         let address = "127.0.0.1:asd".to_string();
         let result = send(
@@ -96,7 +96,7 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
+        gen(&private_pem_path, &public_pem_path, 1024).unwrap();
 
         let address = "999.999.999.999:9999".to_string();
         let result = send(
@@ -128,7 +128,7 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(private_pem_path.clone(), public_pem_path, 1024).unwrap();
+        gen(&private_pem_path, &public_pem_path, 1024).unwrap();
 
         let result = send(
             SendCommand {
@@ -167,7 +167,7 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(private_pem_path.clone(), public_pem_path, 1024)?;
+        gen(&private_pem_path, &public_pem_path, 1024)?;
 
         let result = send(
             SendCommand {

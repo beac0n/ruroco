@@ -3,7 +3,7 @@
 use std::fmt::{Debug, Display};
 use std::fs;
 use std::net::{SocketAddr, UdpSocket};
-use std::path::PathBuf;
+use std::path::Path;
 
 use openssl::pkey::Private;
 use openssl::rsa::Rsa;
@@ -17,7 +17,7 @@ use std::net::ToSocketAddrs;
 pub fn run_client(client: CliClient) -> Result<(), String> {
     match client.command {
         CommandsClient::Gen(gen_command) => {
-            gen(gen_command.private_pem_path, gen_command.public_pem_path, gen_command.key_size)
+            gen(&gen_command.private_pem_path, &gen_command.public_pem_path, gen_command.key_size)
         }
         CommandsClient::Send(send_command) => {
             let ntp = send_command.ntp.clone();
@@ -103,9 +103,9 @@ fn get_data_to_send(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec
 /// * `private_path` - Path to the private PEM file which needs to be created
 /// * `public_path` - Path to the public PEM file which needs to be created
 /// * `key_size` - key size
-pub fn gen(private_path: PathBuf, public_path: PathBuf, key_size: u32) -> Result<(), String> {
-    validate_pem_path(&public_path)?;
-    validate_pem_path(&private_path)?;
+pub fn gen(private_path: &Path, public_path: &Path, key_size: u32) -> Result<(), String> {
+    validate_pem_path(public_path)?;
+    validate_pem_path(private_path)?;
 
     info(&format!("Generating new rsa key with {key_size} bits and saving it to {private_path:?} and {public_path:?}. This might take a while..."));
     let rsa = Rsa::generate(key_size)
@@ -114,8 +114,10 @@ pub fn gen(private_path: PathBuf, public_path: PathBuf, key_size: u32) -> Result
     let private_key_pem = get_pem_data(&rsa, "private")?;
     let public_key_pem = get_pem_data(&rsa, "public")?;
 
-    write_pem_data(&private_path, private_key_pem, "private")?;
-    write_pem_data(&public_path, public_key_pem, "public")?;
+    write_pem_data(private_path, private_key_pem, "private")?;
+    write_pem_data(public_path, public_key_pem, "public")?;
+
+    info(&format!("Generated new rsa key with {key_size} bits and saved it to {private_path:?} and {public_path:?}"));
 
     Ok(())
 }
@@ -136,7 +138,7 @@ fn encrypt_data(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec<u8>
     Ok(encrypted_data)
 }
 
-fn get_rsa_private(pem_path: &PathBuf) -> Result<Rsa<Private>, String> {
+fn get_rsa_private(pem_path: &Path) -> Result<Rsa<Private>, String> {
     // encrypt data we want to send - load RSA private key from PEM file for that
     let pem_data = fs::read(pem_path).map_err(|e| pem_load_err(e, pem_path))?;
     Rsa::private_key_from_pem(&pem_data).map_err(|e| pem_load_err(e, pem_path))
@@ -177,12 +179,19 @@ fn get_pem_data(rsa: &Rsa<Private>, name: &str) -> Result<Vec<u8>, String> {
     data.map_err(|e| format!("Could not create {name} key pem: {e}"))
 }
 
-fn write_pem_data(path: &PathBuf, data: Vec<u8>, name: &str) -> Result<(), String> {
+fn write_pem_data(path: &Path, data: Vec<u8>, name: &str) -> Result<(), String> {
+    match path.parent() {
+        Some(p) => {
+            fs::create_dir_all(p).map_err(|e| format!("Could not create directory ({e}) {p:?}"))?
+        }
+        None => Err(format!("Could not get parent directory of {path:?}"))?,
+    }
+
     fs::write(path, data).map_err(|e| format!("Could not write {name} key to {path:?}: {e}"))?;
     Ok(())
 }
 
-fn validate_pem_path(path: &PathBuf) -> Result<(), String> {
+fn validate_pem_path(path: &Path) -> Result<(), String> {
     match path.to_str() {
         Some(s) if s.ends_with(".pem") && !path.exists() => Ok(()),
         Some(s) if path.exists() => Err(format!("Could not create PEM file: {s} already exists")),

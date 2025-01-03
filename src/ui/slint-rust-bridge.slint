@@ -3,12 +3,13 @@ struct CommandData {
     name: string,
     color: color,
 }
-export global CommandLogic {
+export global SlintRustBridge {
     in-out property <[CommandData]> commands_list: [];
     in-out property <string> public_key: "";
     in-out property <string> command: "";
     in-out property <string> deadline: "";
     in-out property <string> ntp: "";
+    in-out property <bool> generating_keys: false;
     callback add_command(string);
     callback exec_command(string, int);
     callback del_command(string, int);

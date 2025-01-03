@@ -1,7 +1,7 @@
 use openssl::hash::{Hasher, MessageDigest};
 use openssl::rsa::Padding;
 use std::net::UdpSocket;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
@@ -45,15 +45,15 @@ pub fn hash_public_key(pem_pub_key: Vec<u8>) -> Result<Vec<u8>, String> {
     Ok(hash_bytes.to_vec())
 }
 
-pub fn get_commander_unix_socket_path(config_dir: &PathBuf) -> PathBuf {
+pub fn get_commander_unix_socket_path(config_dir: &Path) -> PathBuf {
     resolve_path(config_dir).join("ruroco.socket")
 }
 
-pub fn get_blocklist_path(config_dir: &PathBuf) -> PathBuf {
+pub fn get_blocklist_path(config_dir: &Path) -> PathBuf {
     resolve_path(config_dir).join("blocklist.toml")
 }
 
-pub fn resolve_path(path: &PathBuf) -> PathBuf {
+pub fn resolve_path(path: &Path) -> PathBuf {
     if path.is_absolute() {
         path.to_path_buf()
     } else {

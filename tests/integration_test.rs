@@ -70,7 +70,7 @@ mod tests {
         fn run_client_gen(&self) {
             let key_size = 1024;
 
-            gen(self.private_pem_path.clone(), self.public_pem_path.clone(), key_size).unwrap();
+            gen(&self.private_pem_path, &self.public_pem_path, key_size).unwrap();
         }
 
         fn get_blocked_list(&self) -> Vec<u128> {
