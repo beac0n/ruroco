@@ -2815,12 +2815,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "no-std-net"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
-
-[[package]]
 name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3936,11 +3930,11 @@ dependencies = [
 
 [[package]]
 name = "sntpc"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3804b3a3c1c93514851c6304eede51722be22ed642458ad5de7dce8d26b7eca7"
+checksum = "2927eedca9d3b301b1eb88b81a2e415666ec5a84eb24f1c2129c08fc98ff18be"
 dependencies = [
- "no-std-net",
+ "cfg-if",
 ]
 
 [[package]]
