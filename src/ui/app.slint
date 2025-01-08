@@ -1,7 +1,7 @@
 import { TabWidget } from "std-widgets.slint";
 import { Create } from "create.slint";
 import { SlintRustBridge } from "slint-rust-bridge.slint";
-import { PublicKey } from "public-key.slint";
+import { Dashboard } from "dashboard.slint";
 import { Execute } from "execute.slint";
 
 export component App inherits Window {
@@ -43,8 +43,8 @@ export component App inherits Window {
 
     TabWidget {
         Tab {
-            title: "Public Key";
-            PublicKey { }
+            title: "Dashboard";
+            Dashboard { }
         }
 
         Tab {
