@@ -1,7 +1,7 @@
 use openssl::hash::{Hasher, MessageDigest};
 use openssl::rsa::Padding;
 use sntpc::{NtpContext, StdTimestampGen};
-use std::net::UdpSocket;
+use std::net::{ToSocketAddrs, UdpSocket};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{env, fs};
@@ -24,12 +24,13 @@ pub fn time_from_ntp(ntp_server: &str) -> Result<u128, String> {
         .map_err(|e| format!("Could not set UDP socket read timeout: {e}"))?;
 
     let ntp_context = NtpContext::new(StdTimestampGen::default());
-    let time = sntpc::sync::get_time(
-        ntp_server.parse().map_err(|e| format!("Could not parse server name: {e:?}"))?,
-        &socket,
-        ntp_context,
-    )
-    .map_err(|e| format!("Could not get time from NTP Server {ntp_server}: {e:?}"))?;
+    let addr = ntp_server
+        .to_socket_addrs()
+        .map_err(|e| format!("Could not map socket addrs: {e:?}"))?
+        .next()
+        .ok_or("Could not resolve NTP server address")?;
+    let time = sntpc::sync::get_time(addr, &socket, ntp_context)
+        .map_err(|e| format!("Could not get time from NTP Server {ntp_server}: {e:?}"))?;
 
     let nano_seconds_fraction = sntpc::fraction_to_nanoseconds(time.sec_fraction()) as u128;
     let nano_seconds = (time.sec() as u128) * 1_000_000_000;
