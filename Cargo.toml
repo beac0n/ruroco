@@ -8,7 +8,7 @@ openssl = { version = "0.10.68" }
 clap = { version = "4.5.26", features = ["derive", "string"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8.13"
-sntpc = { version = "0.5.1", features = ["std", "sync"] }
+sntpc = { version = "0.5.2", features = ["std", "sync"] }
 slint = { version = "1.8.0" }
 jni = "0.21"
 ndk-context = "0.1.1"
