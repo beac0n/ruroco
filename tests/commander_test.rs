@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod tests {
+    use rand::distr::{Alphanumeric, SampleString};
+    use ruroco::commander::Commander;
+    use ruroco::config_server::ConfigServer;
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use std::{env, fs, thread};
-    use rand::distr::{Alphanumeric, SampleString};
-    use ruroco::commander::Commander;
-    use ruroco::config_server::ConfigServer;
 
     fn gen_file_name(suffix: &str) -> String {
         let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);

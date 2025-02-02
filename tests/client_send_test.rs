@@ -2,6 +2,7 @@
 mod tests {
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
+    use rand::distr::{Alphanumeric, SampleString};
     use ruroco::client::gen;
     use ruroco::client::send;
     use ruroco::common::time;
@@ -9,7 +10,6 @@ mod tests {
     use std::fs;
     use std::fs::File;
     use std::path::PathBuf;
-    use rand::distr::{Alphanumeric, SampleString};
 
     const IP: &str = "192.168.178.123";
 

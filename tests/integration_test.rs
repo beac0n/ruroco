@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use rand::distr::{Alphanumeric, SampleString};
     use rand::Rng;
     use ruroco::blocklist::Blocklist;
     use ruroco::client::{gen, send};
@@ -12,7 +13,6 @@ mod tests {
     use std::path::PathBuf;
     use std::time::Duration;
     use std::{fs, thread};
-    use rand::distr::{Alphanumeric, SampleString};
 
     const TEST_IP_V4: &str = "192.168.178.123";
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
