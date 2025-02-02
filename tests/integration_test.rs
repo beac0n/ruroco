@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use rand::distributions::{Alphanumeric, DistString};
     use rand::Rng;
     use ruroco::blocklist::Blocklist;
     use ruroco::client::{gen, send};
@@ -13,6 +12,7 @@ mod tests {
     use std::path::PathBuf;
     use std::time::Duration;
     use std::{fs, thread};
+    use rand::distr::{Alphanumeric, SampleString};
 
     const TEST_IP_V4: &str = "192.168.178.123";
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
@@ -58,12 +58,12 @@ mod tests {
         }
 
         fn get_server_address(host: &str) -> String {
-            let server_port = rand::thread_rng().gen_range(1024..65535);
+            let server_port = rand::rng().random_range(1024..65535);
             format!("{host}:{server_port}")
         }
 
         fn gen_file_name(suffix: &str) -> String {
-            let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+            let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
             format!("{rand_str}{suffix}")
         }
 

@@ -2,7 +2,6 @@
 mod tests {
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
-    use rand::distributions::{Alphanumeric, DistString};
     use ruroco::client::gen;
     use ruroco::client::send;
     use ruroco::common::time;
@@ -10,6 +9,7 @@ mod tests {
     use std::fs;
     use std::fs::File;
     use std::path::PathBuf;
+    use rand::distr::{Alphanumeric, SampleString};
 
     const IP: &str = "192.168.178.123";
 
@@ -186,7 +186,7 @@ mod tests {
     }
 
     fn gen_file_name(suffix: &str) -> String {
-        let rand_str = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+        let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
         format!("{rand_str}{suffix}")
     }
 }
