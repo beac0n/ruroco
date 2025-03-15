@@ -255,7 +255,7 @@ mod tests {
     fn test_loop_iteration_error() {
         let mut server = create_server();
         let error_data: io::Result<(usize, SocketAddr)> =
-            Err(io::Error::new(io::ErrorKind::Other, "An error occurred"));
+            Err(io::Error::other("An error occurred"));
 
         assert!(server
             .run_loop_iteration(error_data)
