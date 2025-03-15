@@ -93,6 +93,8 @@ pub enum CommandsClient {
     Gen(GenCommand),
     /// Send a command to a specific address.
     Send(SendCommand),
+    /// Update the client binary
+    Update,
 }
 
 pub fn default_private_pem_path() -> PathBuf {

@@ -2,6 +2,7 @@
 name = "ruroco"
 version = "0.6.1"
 edition = "2021"
+repository = "https://github.com/beac0n/ruroco"
 
 [dependencies]
 openssl = { version = "0.10.69" }
@@ -12,6 +13,7 @@ sntpc = { version = "0.5.2", features = ["std", "sync"] }
 slint = { version = "1.9.2" }
 jni = "0.21"
 ndk-context = "0.1.1"
+reqwest = { version = "0.12.12", features = ["blocking", "json"] }
 
 [lib]
 crate-type = ["lib", "cdylib"]
@@ -33,4 +35,9 @@ debug = true          # debug information
 lto = true            # Enable Link Time Optimization
 codegen-units = 1     # Optimize for single codegen unit (better performance)
 panic = 'abort'       # Abort on panic (smaller binary size)
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
 
