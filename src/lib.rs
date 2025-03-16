@@ -17,7 +17,8 @@ pub mod config_client;
 /// data structures for loading configuration files and using CLI arguments for server services
 pub mod config_server;
 pub mod data;
-mod github_api_definition;
+/// structs to deserialize json responses from github api
+pub mod github_api_definition;
 /// used to import everything that is slint related
 pub mod rust_slint_bridge;
 /// saves commands configured in ui
