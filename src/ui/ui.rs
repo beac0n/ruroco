@@ -1,6 +1,8 @@
-use crate::client::gen;
-use crate::config_client::{default_private_pem_path, default_public_pem_path, DEFAULT_KEY_SIZE};
-use crate::rust_slint_bridge::RustSlintBridge;
+use crate::client::client::gen;
+use crate::config::config_client::{
+    default_private_pem_path, default_public_pem_path, DEFAULT_KEY_SIZE,
+};
+use crate::ui::rust_slint_bridge::RustSlintBridge;
 
 use std::error::Error;
 use std::path::Path;

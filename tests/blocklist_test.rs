@@ -2,8 +2,8 @@
 mod tests {
     use std::{env, fs};
 
-    use ruroco::blocklist::Blocklist;
-    use ruroco::common::get_blocklist_path;
+    use ruroco::common::common::get_blocklist_path;
+    use ruroco::server::blocklist::Blocklist;
 
     fn create_blocklist() -> Blocklist {
         remove_blocklist();

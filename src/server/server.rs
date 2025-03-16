@@ -1,7 +1,7 @@
-use crate::blocklist::Blocklist;
-use crate::common::{error, info, time_from_ntp, RSA_PADDING, SHA256_DIGEST_LENGTH};
-use crate::config_server::{CliServer, ConfigServer};
-use crate::data::{ClientData, CommanderData};
+use crate::common::common::{error, info, time_from_ntp, RSA_PADDING, SHA256_DIGEST_LENGTH};
+use crate::common::data::{ClientData, CommanderData};
+use crate::config::config_server::{CliServer, ConfigServer};
+use crate::server::blocklist::Blocklist;
 use openssl::pkey::Public;
 use openssl::rsa::Rsa;
 use std::collections::HashMap;
@@ -191,9 +191,9 @@ pub fn run_server(server: CliServer) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::gen;
-    use crate::config_server::ConfigServer;
-    use crate::server::Server;
+    use crate::client::client::gen;
+    use crate::config::config_server::ConfigServer;
+    use crate::server::server::Server;
     use rand::distr::{Alphanumeric, SampleString};
     use rand::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};

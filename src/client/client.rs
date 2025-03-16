@@ -1,9 +1,9 @@
 //! This module is responsible for sending data to the server and for generating PEM files
 
-use crate::common::{hash_public_key, info, time_from_ntp, PADDING_SIZE, RSA_PADDING};
-use crate::config_client::{CliClient, CommandsClient, SendCommand};
-use crate::data::ClientData;
-use crate::github_api_definition::GithubApiLatest;
+use crate::client::github_api_definition::GithubApiLatest;
+use crate::common::common::{hash_public_key, info, time_from_ntp, PADDING_SIZE, RSA_PADDING};
+use crate::common::data::ClientData;
+use crate::config::config_client::{CliClient, CommandsClient, SendCommand};
 use openssl::pkey::Private;
 use openssl::rsa::Rsa;
 use openssl::version::version;
@@ -280,8 +280,8 @@ fn validate_pem_path(path: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config_client::CliClient;
-    use crate::data::ClientData;
+    use crate::common::data::ClientData;
+    use crate::config::config_client::CliClient;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
 

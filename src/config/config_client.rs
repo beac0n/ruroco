@@ -7,7 +7,7 @@ use std::env;
 
 use std::path::PathBuf;
 
-use crate::common::NTP_SYSTEM;
+use crate::common::common::NTP_SYSTEM;
 use clap::{Parser, Subcommand};
 
 #[cfg(target_os = "android")]
@@ -112,7 +112,7 @@ fn get_default_pem_path(pem_name: &str) -> PathBuf {
 pub fn get_conf_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
-        let current_dir = PathBuf::from(".");
+        let current_dir = PathBuf::from("../..");
         match (env::var("HOME"), env::current_dir()) {
             (Ok(home_dir), _) => PathBuf::from(home_dir).join(".config").join("ruroco"),
             (_, Ok(current_dir)) => current_dir,
@@ -150,7 +150,7 @@ fn validate_key_size(key_str: &str) -> Result<u32, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config_client::{default_private_pem_path, validate_key_size};
+    use crate::config::config_client::{default_private_pem_path, validate_key_size};
     use std::env;
     use std::path::PathBuf;
 

@@ -97,5 +97,5 @@ where
 {
     // Deserialize the timestamp from a string
     let s = String::deserialize(deserializer)?;
-    s.parse::<u128>().map_err(D::Error::custom)
+    s.parse::<u128>().map_err(Error::custom)
 }

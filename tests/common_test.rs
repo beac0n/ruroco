@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use ruroco::common::{
+    use ruroco::common::common::{
         get_blocklist_path, get_commander_unix_socket_path, resolve_path, time, time_from_ntp,
     };
     use std::path::PathBuf;

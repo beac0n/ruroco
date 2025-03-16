@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use rand::distr::{Alphanumeric, SampleString};
-    use ruroco::commander::Commander;
-    use ruroco::config_server::ConfigServer;
+    use ruroco::config::config_server::ConfigServer;
+    use ruroco::server::commander::Commander;
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use std::time::Duration;

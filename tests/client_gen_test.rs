@@ -3,8 +3,8 @@ mod tests {
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
     use rand::distr::{Alphanumeric, SampleString};
-    use ruroco::client::run_client;
-    use ruroco::config_client::CliClient;
+    use ruroco::client::client::run_client;
+    use ruroco::config::config_client::CliClient;
     use std::fs;
     use std::fs::File;
     use std::path::PathBuf;

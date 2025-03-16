@@ -2,10 +2,10 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
-use crate::blocklist::Blocklist;
-use crate::common::{
+use crate::common::common::{
     get_commander_unix_socket_path, hash_public_key, info, resolve_path, NTP_SYSTEM,
 };
+use crate::server::blocklist::Blocklist;
 use clap::Parser;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -201,7 +201,7 @@ fn default_config_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::config_server::{
+    use crate::config::config_server::{
         default_config_path, default_ntp, default_socket_group, default_socket_user, ConfigServer,
     };
     use std::collections::HashMap;
