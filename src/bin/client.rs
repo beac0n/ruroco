@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use ruroco::client::client::run_client;
+use ruroco::client::run_client;
 use ruroco::config::config_client::CliClient;
 
 fn main() -> Result<(), String> {

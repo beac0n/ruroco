@@ -3,8 +3,9 @@ mod tests {
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
     use rand::distr::{Alphanumeric, SampleString};
-    use ruroco::client::client::{gen, send};
-    use ruroco::common::common::time;
+    use ruroco::client::gen::gen;
+    use ruroco::client::send::send;
+    use ruroco::common::time;
     use ruroco::config::config_client::{CliClient, SendCommand};
     use std::fs;
     use std::fs::File;

@@ -2,7 +2,7 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
-use crate::common::common::{
+use crate::common::{
     get_commander_unix_socket_path, hash_public_key, info, resolve_path, NTP_SYSTEM,
 };
 use crate::server::blocklist::Blocklist;

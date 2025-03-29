@@ -1,5 +1,5 @@
-use crate::common::common::{error, get_commander_unix_socket_path, info};
 use crate::common::data::CommanderData;
+use crate::common::{error, get_commander_unix_socket_path, info};
 use crate::config::config_server::{CliServer, ConfigServer};
 use std::fs::Permissions;
 use std::io::Read;

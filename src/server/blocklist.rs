@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
 
-use crate::common::common::{error, get_blocklist_path};
+use crate::common::{error, get_blocklist_path};
 
 /// contains a list of blocked deadlines and a path to where the blocklist is persisted
 #[derive(Debug, Deserialize, Serialize, PartialEq)]

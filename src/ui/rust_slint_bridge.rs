@@ -1,5 +1,5 @@
-use crate::client::client::run_client;
-use crate::common::common::{error, info, NTP_SYSTEM};
+use crate::client::run_client;
+use crate::common::{error, info, NTP_SYSTEM};
 use crate::config::config_client::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
 use crate::ui::saved_command_list::CommandsList;
 use clap::Parser;

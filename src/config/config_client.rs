@@ -7,7 +7,7 @@ use std::env;
 
 use std::path::PathBuf;
 
-use crate::common::common::NTP_SYSTEM;
+use crate::common::NTP_SYSTEM;
 use clap::{Parser, Subcommand};
 
 #[cfg(target_os = "android")]
@@ -132,8 +132,8 @@ pub fn get_conf_dir() -> PathBuf {
         let get_absolute_path_value =
             env.call_method(files_dir_obj, "getAbsolutePath", "()Ljava/lang/String;", &[]).unwrap();
         let path_obj = get_absolute_path_value.l().unwrap();
-        let path_jstring: JString = path_obj.try_into().unwrap();
-        let p_str: String = env.get_string(&path_jstring).unwrap().into();
+        let path_j_string: JString = path_obj.try_into().unwrap();
+        let p_str: String = env.get_string(&path_j_string).unwrap().into();
         PathBuf::from(p_str)
     }
 }

@@ -3,7 +3,7 @@ mod tests {
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
     use ruroco::config::config_server::{CliServer, ConfigServer};
-    use ruroco::server::server::Server;
+    use ruroco::server::Server;
     use std::env;
     use std::path::PathBuf;
 
