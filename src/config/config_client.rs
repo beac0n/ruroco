@@ -27,7 +27,8 @@ pub struct GenCommand {
     #[arg(short = 'u', long, default_value = default_public_pem_path().into_os_string())]
     pub public_pem_path: PathBuf,
     /// Key size for the PEM file
-    #[arg(short = 'k', long, default_value_t = DEFAULT_KEY_SIZE.into(), value_parser = validate_key_size)]
+    #[arg(short = 'k', long, default_value_t = DEFAULT_KEY_SIZE.into(), value_parser = validate_key_size
+    )]
     pub key_size: u32,
 }
 
@@ -72,6 +73,12 @@ pub struct UpdateCommand {
     /// Version
     #[arg(short, long)]
     pub version: Option<String>,
+    /// Path where binaries are saved
+    #[arg(short, long)]
+    pub bin_path: Option<PathBuf>,
+    /// Update for server side
+    #[arg(short, long)]
+    pub server: bool,
 }
 
 impl Default for SendCommand {

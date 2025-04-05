@@ -1,9 +1,9 @@
 use crate::common::data::CommanderData;
-use crate::common::{error, get_commander_unix_socket_path, info};
+use crate::common::{change_file_ownership, error, get_commander_unix_socket_path, info};
 use crate::config::config_server::{CliServer, ConfigServer};
 use std::fs::Permissions;
 use std::io::Read;
-use std::os::unix::fs::{chown, PermissionsExt};
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -75,28 +75,11 @@ impl Commander {
     }
 
     fn change_socket_ownership(&self) -> Result<(), String> {
-        let user_name = self.config.socket_user.trim();
-        let group_name = self.config.socket_group.trim();
-
-        let user_id = match Commander::get_id_by_name_and_flag(user_name, "-u") {
-            Some(id) => Some(id),
-            None if user_name.is_empty() => None,
-            None => return Err(format!("Could not find user {user_name}")),
-        };
-
-        let group_id = match Commander::get_id_by_name_and_flag(group_name, "-g") {
-            Some(id) => Some(id),
-            None if group_name.is_empty() => None,
-            None => return Err(format!("Could not find group {group_name}")),
-        };
-
-        chown(&self.socket_path, user_id, group_id).map_err(|e| {
-            format!(
-                "Could not change ownership of {:?} to {user_id:?}:{group_id:?}: {e}",
-                self.socket_path
-            )
-        })?;
-        Ok(())
+        change_file_ownership(
+            &self.socket_path,
+            self.config.socket_user.trim(),
+            self.config.socket_group.trim(),
+        )
     }
 
     fn run_cycle(&self, stream: &mut UnixStream) -> Result<(), String> {
@@ -128,30 +111,6 @@ impl Commander {
             )),
             Err(e) => error(&format!("Error executing {command}: {e}")),
         };
-    }
-
-    fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
-        if name.is_empty() {
-            return None;
-        }
-
-        match Command::new("id").arg(flag).arg(name).output() {
-            Ok(output) => match String::from_utf8_lossy(&output.stdout).trim().parse::<u32>() {
-                Ok(uid) => Some(uid),
-                Err(e) => {
-                    error(&format!(
-                        "Error parsing id from id command output: {} {} {e}",
-                        String::from_utf8_lossy(&output.stdout),
-                        String::from_utf8_lossy(&output.stderr)
-                    ));
-                    None
-                }
-            },
-            Err(e) => {
-                error(&format!("Error getting id via id command: {e}"));
-                None
-            }
-        }
     }
 
     fn read_string(stream: &mut UnixStream) -> Result<String, String> {
@@ -260,17 +219,5 @@ mod tests {
         thread::sleep(Duration::from_secs(1));
 
         assert!(socket_file_path.exists());
-    }
-
-    #[test]
-    fn test_get_id_by_name_and_flag() {
-        assert_eq!(Commander::get_id_by_name_and_flag("root", "-u"), Some(0));
-        assert_eq!(Commander::get_id_by_name_and_flag("root", "-g"), Some(0));
-    }
-
-    #[test]
-    fn test_get_id_by_name_and_flag_unknown_user() {
-        assert_eq!(Commander::get_id_by_name_and_flag("barfoobaz", "-u"), None);
-        assert_eq!(Commander::get_id_by_name_and_flag("barfoobaz", "-g"), None);
     }
 }

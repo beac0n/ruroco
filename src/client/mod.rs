@@ -18,9 +18,12 @@ pub fn run_client(client: CliClient) -> Result<(), String> {
             let ntp = send_command.ntp.clone();
             send::send(send_command, time_from_ntp(&ntp)?)
         }
-        CommandsClient::Update(update_command) => {
-            update::update(update_command.force, update_command.version)
-        }
+        CommandsClient::Update(update_command) => update::update(
+            update_command.force,
+            update_command.version,
+            update_command.bin_path,
+            update_command.server,
+        ),
     }
 }
 
@@ -88,6 +91,13 @@ mod tests {
     #[test]
     fn test_update() {
         let result = run_client(CliClient::parse_from(vec!["ruroco", "update"]));
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_update_force() {
+        let result = run_client(CliClient::parse_from(vec!["ruroco", "update", "--force"]));
 
         assert!(result.is_ok());
     }
