@@ -192,9 +192,8 @@ fn download_and_save_bin(
         fs::set_permissions(target_bin_path_str, permissions)
             .map_err(|e| format!("Could not set file permissions: {e}"))?;
 
-        match user_and_group {
-            Some(ug) => change_file_ownership(target_bin_path, ug, ug)?,
-            None => {}
+        if let Some(ug) = user_and_group {
+            change_file_ownership(target_bin_path, ug, ug)?
         }
     }
     Ok(())
