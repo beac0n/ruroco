@@ -225,8 +225,9 @@ mod tests {
     fn test_create_server_udp_socket() {
         env::remove_var("LISTEN_PID");
         env::remove_var("RUROCO_LISTEN_ADDRESS");
-        let result = ConfigServer::default().create_server_udp_socket(None).unwrap();
-        assert_eq!(format!("{result:?}"), "UdpSocket { addr: [::]:34020, fd: 5 }");
+        let socket = ConfigServer::default().create_server_udp_socket(None).unwrap();
+        let result = socket.local_addr().unwrap();
+        assert_eq!(format!("{result:?}"), "[::]:34020");
     }
 
     #[test]
