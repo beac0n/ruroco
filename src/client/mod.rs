@@ -94,11 +94,4 @@ mod tests {
 
         assert!(result.is_ok());
     }
-
-    #[test]
-    fn test_update_force() {
-        let result = run_client(CliClient::parse_from(vec!["ruroco", "update", "--force"]));
-
-        assert!(result.is_ok());
-    }
 }

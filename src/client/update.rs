@@ -7,34 +7,25 @@ use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GithubApiAsset {
+struct GithubApiAsset {
     pub name: String,
     pub browser_download_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GithubApiData {
+struct GithubApiData {
     pub tag_name: String,
     pub assets: Vec<GithubApiAsset>,
 }
 
 const GH_RELEASES_URL: &str = "https://api.github.com/repos/beac0n/ruroco/releases";
 
-fn check_if_writeable(path: &Path) -> Result<bool, String> {
-    let tmp_path = path.join(Alphanumeric.sample_string(&mut rand::rng(), 16));
-    match fs::write(&tmp_path, b"test") {
-        Ok(_) => {
-            fs::remove_file(&tmp_path)
-                .map_err(|e| format!("Could not remove temporary test file {tmp_path:?}: {e}"))?;
-            Ok(true)
-        }
-        Err(_) => Ok(false),
-    }
-}
-
 /// Update the client binary to the latest version
 ///
 /// * `force` - force the update even if the client is already up to date
+/// * `version` - the version to update to, if not specified, the latest version will be used
+/// * `bin_path` - the path to the directory where the binary will be saved
+/// * `server` - if true, the server binaries will be downloaded instead of the client binaries
 pub fn update(
     force: bool,
     version: Option<String>,
@@ -122,6 +113,18 @@ pub fn update(
     Ok(())
 }
 
+fn check_if_writeable(path: &Path) -> Result<bool, String> {
+    let tmp_path = path.join(Alphanumeric.sample_string(&mut rand::rng(), 16));
+    match fs::write(&tmp_path, b"test") {
+        Ok(_) => {
+            fs::remove_file(&tmp_path)
+                .map_err(|e| format!("Could not remove temporary test file {tmp_path:?}: {e}"))?;
+            Ok(true)
+        }
+        Err(_) => Ok(false),
+    }
+}
+
 fn validate_dir_path(dir_path: PathBuf) -> Result<PathBuf, String> {
     match dir_path {
         p if !p.exists() => {
@@ -135,10 +138,7 @@ fn validate_dir_path(dir_path: PathBuf) -> Result<PathBuf, String> {
     }
 }
 
-fn get_download_url(
-    assets: &Vec<GithubApiAsset>,
-    client_bin_name: &String,
-) -> Result<String, String> {
+fn get_download_url(assets: &[GithubApiAsset], client_bin_name: &String) -> Result<String, String> {
     assets
         .iter()
         .find_map(|a| {
@@ -197,4 +197,29 @@ fn download_and_save_bin(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::client::update::update;
+    use rand::distr::{Alphanumeric, SampleString};
+    use std::{env, fs};
+
+    #[test]
+    fn test_update() {
+        let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
+        let temp_path = env::temp_dir().join(format!("temp_{rand_str}"));
+        fs::create_dir_all(&temp_path).unwrap();
+
+        let result = update(true, None, Some(temp_path.clone()), false);
+
+        let entries: Vec<String> = fs::read_dir(temp_path)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| entry.path().to_str().map(String::from))
+            .collect();
+
+        assert!(result.is_ok());
+        assert_eq!(entries.len(), 2);
+    }
 }
