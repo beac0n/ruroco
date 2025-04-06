@@ -137,7 +137,7 @@ mod tests {
         let private_file_name = gen_file_name(".pem");
         let public_file_name = gen_file_name(".pem");
 
-        let result = gen_8192(&private_file_name, &public_file_name);
+        let result = gen_1024(&private_file_name, &public_file_name);
         let _ = fs::remove_file(&private_file_name);
         let _ = fs::remove_file(&public_file_name);
 
@@ -151,5 +151,9 @@ mod tests {
 
     fn gen_8192(private_file_name: &String, public_file_name: &String) -> Result<(), String> {
         gen(&PathBuf::from(&private_file_name), &PathBuf::from(&public_file_name), 8192)
+    }
+
+    fn gen_1024(private_file_name: &String, public_file_name: &String) -> Result<(), String> {
+        gen(&PathBuf::from(&private_file_name), &PathBuf::from(&public_file_name), 1024)
     }
 }
