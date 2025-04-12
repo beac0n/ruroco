@@ -6,6 +6,10 @@ hooks:
 	echo "cargo fmt && cargo clippy --fix" >> .git/hooks/pre-push
 	chmod +x .git/hooks/pre-push
 
+dev_setup:
+	cargo install cargo-binstall
+	cargo binstall cargo-nextest --secure
+
 dev_ui_local:
 	export RUST_BACKTRACE=full; cargo run --bin client_ui
 
@@ -27,7 +31,7 @@ release: release_android
 	upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander
 
 test:
-	cargo test -- --test-threads=1
+	cargo nextest run
 
 format:
 	cargo fmt && cargo clippy --fix

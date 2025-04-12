@@ -1,7 +1,11 @@
-use crate::blocklist::Blocklist;
+/// persists the blocked list of deadlines
+pub mod blocklist;
+/// responsible for executing the commands that are defined in the config file
+pub mod commander;
+use crate::common::data::{ClientData, CommanderData};
 use crate::common::{error, info, time_from_ntp, RSA_PADDING, SHA256_DIGEST_LENGTH};
-use crate::config_server::{CliServer, ConfigServer};
-use crate::data::{ClientData, CommanderData};
+use crate::config::config_server::{CliServer, ConfigServer};
+use crate::server::blocklist::Blocklist;
 use openssl::pkey::Public;
 use openssl::rsa::Rsa;
 use std::collections::HashMap;
@@ -191,9 +195,11 @@ pub fn run_server(server: CliServer) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::gen;
-    use crate::config_server::ConfigServer;
+    use crate::client::gen::gen;
+    use crate::config::config_server::{CliServer, ConfigServer};
     use crate::server::Server;
+    use clap::error::ErrorKind::DisplayHelp;
+    use clap::Parser;
     use rand::distr::{Alphanumeric, SampleString};
     use rand::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -207,6 +213,65 @@ mod tests {
                 && self.socket_path == other.socket_path
                 && self.blocklist == other.blocklist
         }
+    }
+
+    #[test]
+    fn test_print_help() {
+        let result = CliServer::try_parse_from(vec!["ruroco", "--help"]);
+        assert_eq!(result.unwrap_err().kind(), DisplayHelp);
+    }
+
+    #[test]
+    fn test_create_server_udp_socket() {
+        env::remove_var("LISTEN_PID");
+        env::remove_var("RUROCO_LISTEN_ADDRESS");
+        let socket = ConfigServer::default().create_server_udp_socket(None).unwrap();
+        let result = socket.local_addr().unwrap();
+        assert_eq!(format!("{result:?}"), "[::]:34020");
+    }
+
+    #[test]
+    fn test_create_invalid_pid() {
+        env::set_var("LISTEN_PID", "12345");
+
+        let config_dir =
+            env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests").join("conf_dir");
+
+        let result = Server::create(
+            ConfigServer {
+                config_dir,
+                ..Default::default()
+            },
+            None,
+        );
+
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), "LISTEN_PID was set, but not to our PID");
+    }
+
+    #[test]
+    fn test_create_from_invalid_path() {
+        let path = env::current_dir()
+            .unwrap_or(PathBuf::from("/tmp"))
+            .join("tests")
+            .join("files")
+            .join("config_invalid.toml");
+
+        let result = Server::create_from_path(&path);
+
+        assert!(result.is_err());
+        assert!(result.err().unwrap().contains("TOML parse error at line 1, column 1"));
+    }
+
+    #[test]
+    fn test_create_from_invalid_toml_path() {
+        let result = Server::create_from_path(&PathBuf::from("/tmp/path/does/not/exist"));
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            r#"Could not read "/tmp/path/does/not/exist": No such file or directory (os error 2)"#
+        );
     }
 
     #[test]

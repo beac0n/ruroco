@@ -1,4 +1,4 @@
-use crate::ui::run_ui;
+use crate::ui::ui::run_ui;
 
 #[no_mangle]
 unsafe fn android_main(app: slint::android::AndroidApp) {

@@ -1,7 +1,7 @@
 use crate::client::run_client;
 use crate::common::{error, info, NTP_SYSTEM};
-use crate::config_client::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
-use crate::saved_command_list::CommandsList;
+use crate::config::config_client::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
+use crate::ui::saved_command_list::CommandsList;
 use clap::Parser;
 use slint::{Color, Model, ModelRc, SharedString, VecModel, Weak};
 use std::error::Error;

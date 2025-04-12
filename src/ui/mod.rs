@@ -1,6 +1,16 @@
-use crate::client::gen;
-use crate::config_client::{default_private_pem_path, default_public_pem_path, DEFAULT_KEY_SIZE};
-use crate::rust_slint_bridge::RustSlintBridge;
+/// used to import everything that is slint related
+pub mod rust_slint_bridge;
+
+#[cfg(target_os = "android")]
+/// contains library content for android apk
+pub mod android;
+/// saves commands configured in ui
+pub mod saved_command_list;
+use crate::client::gen::gen;
+use crate::config::config_client::{
+    default_private_pem_path, default_public_pem_path, DEFAULT_KEY_SIZE,
+};
+use crate::ui::rust_slint_bridge::RustSlintBridge;
 
 use std::error::Error;
 use std::path::Path;

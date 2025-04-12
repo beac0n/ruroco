@@ -47,7 +47,7 @@ Refactored User Interface
 ### Added
 
 - Add --strict and --ip flags to implement overriding the IP address that is being used for the commander
-- Add `ip` field to config, to make sure that the UDP packet that was sent is actually destinated for the server
+- Add `ip` field to config, to make sure that the UDP packet that was sent is actually designated for the server
 
 ### Changed
 

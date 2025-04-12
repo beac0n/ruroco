@@ -1,9 +1,9 @@
-use crate::common::{error, get_commander_unix_socket_path, info};
-use crate::config_server::{CliServer, ConfigServer};
-use crate::data::CommanderData;
+use crate::common::data::CommanderData;
+use crate::common::{change_file_ownership, error, get_commander_unix_socket_path, info};
+use crate::config::config_server::{CliServer, ConfigServer};
 use std::fs::Permissions;
 use std::io::Read;
-use std::os::unix::fs::{chown, PermissionsExt};
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -75,28 +75,11 @@ impl Commander {
     }
 
     fn change_socket_ownership(&self) -> Result<(), String> {
-        let user_name = self.config.socket_user.trim();
-        let group_name = self.config.socket_group.trim();
-
-        let user_id = match Commander::get_id_by_name_and_flag(user_name, "-u") {
-            Some(id) => Some(id),
-            None if user_name.is_empty() => None,
-            None => return Err(format!("Could not find user {user_name}")),
-        };
-
-        let group_id = match Commander::get_id_by_name_and_flag(group_name, "-g") {
-            Some(id) => Some(id),
-            None if group_name.is_empty() => None,
-            None => return Err(format!("Could not find group {group_name}")),
-        };
-
-        chown(&self.socket_path, user_id, group_id).map_err(|e| {
-            format!(
-                "Could not change ownership of {:?} to {user_id:?}:{group_id:?}: {e}",
-                self.socket_path
-            )
-        })?;
-        Ok(())
+        change_file_ownership(
+            &self.socket_path,
+            self.config.socket_user.trim(),
+            self.config.socket_group.trim(),
+        )
     }
 
     fn run_cycle(&self, stream: &mut UnixStream) -> Result<(), String> {
@@ -130,30 +113,6 @@ impl Commander {
         };
     }
 
-    fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
-        if name.is_empty() {
-            return None;
-        }
-
-        match Command::new("id").arg(flag).arg(name).output() {
-            Ok(output) => match String::from_utf8_lossy(&output.stdout).trim().parse::<u32>() {
-                Ok(uid) => Some(uid),
-                Err(e) => {
-                    error(&format!(
-                        "Error parsing id from id command output: {} {} {e}",
-                        String::from_utf8_lossy(&output.stdout),
-                        String::from_utf8_lossy(&output.stderr)
-                    ));
-                    None
-                }
-            },
-            Err(e) => {
-                error(&format!("Error getting id via id command: {e}"));
-                None
-            }
-        }
-    }
-
     fn read_string(stream: &mut UnixStream) -> Result<String, String> {
         let mut buffer = String::new();
         stream
@@ -173,17 +132,92 @@ pub fn run_commander(server: CliServer) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::commander::Commander;
+    use crate::config::config_server::ConfigServer;
+    use crate::server::commander::Commander;
+    use rand::distr::{Alphanumeric, SampleString};
+    use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
+    use std::{env, fs, thread};
 
-    #[test]
-    fn test_get_id_by_name_and_flag() {
-        assert_eq!(Commander::get_id_by_name_and_flag("root", "-u"), Some(0));
-        assert_eq!(Commander::get_id_by_name_and_flag("root", "-g"), Some(0));
+    fn gen_file_name(suffix: &str) -> String {
+        let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
+        format!("{rand_str}{suffix}")
     }
 
     #[test]
-    fn test_get_id_by_name_and_flag_unknown_user() {
-        assert_eq!(Commander::get_id_by_name_and_flag("barfoobaz", "-u"), None);
-        assert_eq!(Commander::get_id_by_name_and_flag("barfoobaz", "-g"), None);
+    fn test_create_from_invalid_path() {
+        let path = env::current_dir()
+            .unwrap_or(PathBuf::from("/tmp"))
+            .join("tests")
+            .join("files")
+            .join("config_invalid.toml");
+
+        let result = Commander::create_from_path(&path);
+
+        assert!(result.is_err());
+
+        assert!(result.err().unwrap().contains("TOML parse error at line 1, column 1"));
+    }
+
+    #[test]
+    fn test_create_from_invalid_toml_path() {
+        let result = Commander::create_from_path(&PathBuf::from("/tmp/path/does/not/exist"));
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            r#"Could not read "/tmp/path/does/not/exist": No such file or directory (os error 2)"#
+        );
+    }
+
+    #[test]
+    fn test_create_from_path() {
+        let mut commands = HashMap::new();
+        commands.insert(
+            "default".to_string(),
+            "touch /tmp/ruroco_test/start.test /tmp/ruroco_test/stop.test".to_string(),
+        );
+
+        let path = env::current_dir()
+            .unwrap_or(PathBuf::from("/tmp"))
+            .join("tests")
+            .join("files")
+            .join("config.toml");
+
+        assert_eq!(
+            Commander::create_from_path(&path),
+            Ok(Commander::create(ConfigServer {
+                ips: vec!["127.0.0.1".to_string()],
+                ntp: "system".to_string(),
+                config_dir: PathBuf::from("tests/conf_dir"),
+                socket_user: "ruroco".to_string(),
+                socket_group: "ruroco".to_string(),
+                commands,
+            }))
+        );
+    }
+
+    #[test]
+    fn test_run() {
+        let socket_file_path = Path::new("/tmp/ruroco/ruroco.socket");
+        let _ = fs::remove_file(socket_file_path);
+        assert!(!socket_file_path.exists());
+
+        let mut commands = HashMap::new();
+        commands.insert("default".to_string(), format!("touch {}", gen_file_name(".test")));
+        thread::spawn(move || {
+            Commander::create(ConfigServer {
+                commands,
+                config_dir: PathBuf::from("/tmp/ruroco"),
+                ..Default::default()
+            })
+            .run()
+            .expect("commander terminated")
+        });
+
+        thread::sleep(Duration::from_secs(1));
+
+        assert!(socket_file_path.exists());
     }
 }

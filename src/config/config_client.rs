@@ -27,7 +27,8 @@ pub struct GenCommand {
     #[arg(short = 'u', long, default_value = default_public_pem_path().into_os_string())]
     pub public_pem_path: PathBuf,
     /// Key size for the PEM file
-    #[arg(short = 'k', long, default_value_t = DEFAULT_KEY_SIZE.into(), value_parser = validate_key_size)]
+    #[arg(short = 'k', long, default_value_t = DEFAULT_KEY_SIZE.into(), value_parser = validate_key_size
+    )]
     pub key_size: u32,
 }
 
@@ -64,6 +65,22 @@ pub struct SendCommand {
     pub ipv6: bool,
 }
 
+#[derive(Parser, Debug)]
+pub struct UpdateCommand {
+    /// Force update
+    #[arg(short, long)]
+    pub force: bool,
+    /// Version
+    #[arg(short, long)]
+    pub version: Option<String>,
+    /// Path where binaries are saved
+    #[arg(short, long)]
+    pub bin_path: Option<PathBuf>,
+    /// Update for server side
+    #[arg(short, long)]
+    pub server: bool,
+}
+
 impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
@@ -93,6 +110,8 @@ pub enum CommandsClient {
     Gen(GenCommand),
     /// Send a command to a specific address.
     Send(SendCommand),
+    /// Update the client binary
+    Update(UpdateCommand),
 }
 
 pub fn default_private_pem_path() -> PathBuf {
@@ -110,7 +129,7 @@ fn get_default_pem_path(pem_name: &str) -> PathBuf {
 pub fn get_conf_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
-        let current_dir = PathBuf::from(".");
+        let current_dir = PathBuf::from("../..");
         match (env::var("HOME"), env::current_dir()) {
             (Ok(home_dir), _) => PathBuf::from(home_dir).join(".config").join("ruroco"),
             (_, Ok(current_dir)) => current_dir,
@@ -130,8 +149,8 @@ pub fn get_conf_dir() -> PathBuf {
         let get_absolute_path_value =
             env.call_method(files_dir_obj, "getAbsolutePath", "()Ljava/lang/String;", &[]).unwrap();
         let path_obj = get_absolute_path_value.l().unwrap();
-        let path_jstring: JString = path_obj.try_into().unwrap();
-        let p_str: String = env.get_string(&path_jstring).unwrap().into();
+        let path_j_string: JString = path_obj.try_into().unwrap();
+        let p_str: String = env.get_string(&path_j_string).unwrap().into();
         PathBuf::from(p_str)
     }
 }
@@ -148,9 +167,17 @@ fn validate_key_size(key_str: &str) -> Result<u32, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config_client::{default_private_pem_path, validate_key_size};
+    use crate::config::config_client::{default_private_pem_path, validate_key_size, CliClient};
+    use clap::error::ErrorKind::DisplayHelp;
+    use clap::Parser;
     use std::env;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_print_help() {
+        let result = CliClient::try_parse_from(vec!["ruroco", "--help"]);
+        assert_eq!(result.unwrap_err().kind(), DisplayHelp);
+    }
 
     #[test]
     fn test_validate_key_size() {
