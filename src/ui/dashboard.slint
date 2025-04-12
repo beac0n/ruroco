@@ -20,6 +20,18 @@ export component Dashboard inherits VerticalLayout {
 
     Button {
         height: 50px;
+        text: "Update Application";
+        clicked => {
+            SlintRustBridge.update_application();
+        }
+    }
+
+    Rectangle {
+        height: 10px;
+    }
+
+    Button {
+        height: 50px;
         text: "Copy Public Key";
         clicked => {
             public_key_box.select-all();

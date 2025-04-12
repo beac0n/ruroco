@@ -1,3 +1,5 @@
+#![cfg(target_os = "android")]
+
 use crate::ui::run_ui;
 
 #[no_mangle]

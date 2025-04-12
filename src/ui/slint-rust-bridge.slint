@@ -10,7 +10,9 @@ export global SlintRustBridge {
     in-out property <string> deadline: "";
     in-out property <string> ntp: "";
     in-out property <bool> generating_keys: false;
+    in-out property <bool> is_android: false;
     callback add_command(string);
     callback exec_command(string, int);
     callback del_command(string, int);
+    callback update_application();
 }

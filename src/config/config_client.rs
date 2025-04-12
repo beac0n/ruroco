@@ -5,13 +5,13 @@
 #[cfg(target_os = "linux")]
 use std::env;
 
-use std::path::PathBuf;
+#[cfg(target_os = "android")]
+use crate::ui::android_util::{AndroidUtil, J_FILE, J_STRING};
 
 use crate::common::NTP_SYSTEM;
-use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
-#[cfg(target_os = "android")]
-use jni::objects::{JObject, JString};
+use clap::{Parser, Subcommand};
 
 pub const DEFAULT_KEY_SIZE: u16 = 8192;
 pub const DEFAULT_COMMAND: &str = "default";
@@ -129,7 +129,7 @@ fn get_default_pem_path(pem_name: &str) -> PathBuf {
 pub fn get_conf_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
-        let current_dir = PathBuf::from("../..");
+        let current_dir = PathBuf::from(".");
         match (env::var("HOME"), env::current_dir()) {
             (Ok(home_dir), _) => PathBuf::from(home_dir).join(".config").join("ruroco"),
             (_, Ok(current_dir)) => current_dir,
@@ -139,19 +139,11 @@ pub fn get_conf_dir() -> PathBuf {
 
     #[cfg(target_os = "android")]
     {
-        let ctx = ndk_context::android_context();
-        let vm = (unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }).unwrap();
-        let mut env = vm.attach_current_thread().unwrap();
-        let context = unsafe { JObject::from_raw(ctx.context().cast()) };
-        let get_files_dir_value =
-            env.call_method(context, "getFilesDir", "()Ljava/io/File;", &[]).unwrap();
-        let files_dir_obj = get_files_dir_value.l().unwrap();
-        let get_absolute_path_value =
-            env.call_method(files_dir_obj, "getAbsolutePath", "()Ljava/lang/String;", &[]).unwrap();
-        let path_obj = get_absolute_path_value.l().unwrap();
-        let path_j_string: JString = path_obj.try_into().unwrap();
-        let p_str: String = env.get_string(&path_j_string).unwrap().into();
-        PathBuf::from(p_str)
+        let util = AndroidUtil::create();
+        let files_dir_obj = util.call_ctx_method("getFilesDir", J_FILE, &[]).unwrap();
+        let abs_path_ref =
+            util.call_method(files_dir_obj, "getAbsolutePath", J_STRING, &[]).unwrap();
+        PathBuf::from(util.global_ref_to_string(abs_path_ref).unwrap())
     }
 }
 
