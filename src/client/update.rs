@@ -114,7 +114,7 @@ pub fn get_github_api_data(version_to_download: Option<&String>) -> Result<Githu
         response.json().map_err(|e| format!("Could not parse json: {e}"))?;
 
     let data = match version_to_download {
-        None => response_data.get(0).cloned(),
+        None => response_data.first().cloned(),
         Some(v) => response_data.into_iter().find(|d| d.tag_name == *v),
     };
 
