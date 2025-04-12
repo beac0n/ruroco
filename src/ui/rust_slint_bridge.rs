@@ -1,3 +1,11 @@
+#[cfg(target_os = "android")]
+use crate::client::update::get_github_api_data;
+#[cfg(target_os = "android")]
+use crate::ui::android_util::AndroidUtil;
+
+#[cfg(target_os = "linux")]
+use crate::client::update::update;
+
 use crate::client::run_client;
 use crate::common::{error, info, NTP_SYSTEM};
 use crate::config::config_client::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
@@ -149,6 +157,39 @@ impl RustSlintBridge {
 
             let command_string: String = cmd.into();
             commands_list.push(Self::create_command_tuple(&command_string));
+        });
+    }
+
+    pub fn add_on_update_application(&self) {
+        self.app.global::<SlintRustBridge>().on_update_application(move || {
+            #[cfg(target_os = "linux")]
+            {
+                match update(false, None, None, false) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        error(&format!("Error when updating application: {err}"));
+                    }
+                }
+            }
+
+            #[cfg(target_os = "android")]
+            {
+                Self::update_android();
+            }
+        });
+    }
+
+    #[cfg(target_os = "android")]
+    fn update_android() {
+        let data = get_github_api_data(None).unwrap();
+        let asset = data.assets.into_iter().find(|a| a.name.ends_with(".apk")).unwrap();
+
+        let util = AndroidUtil::create();
+        let uri = util.uri_parse(asset.browser_download_url).unwrap();
+        let intent = util.new_view_intent(&uri).unwrap();
+        let result = util.start_activity(&intent);
+        let _ = result.inspect_err(|err| {
+            info(&format!("Error (prob. expected) when opening browser window: {err}"))
         });
     }
 

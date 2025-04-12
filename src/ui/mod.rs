@@ -1,11 +1,15 @@
+/// contains library content for android apk
+#[cfg(target_os = "android")]
+pub mod android;
+#[cfg(target_os = "android")]
+pub mod android_util;
+
 /// used to import everything that is slint related
 pub mod rust_slint_bridge;
 
-#[cfg(target_os = "android")]
-/// contains library content for android apk
-pub mod android;
 /// saves commands configured in ui
 pub mod saved_command_list;
+
 use crate::client::gen::gen;
 use crate::config::config_client::{
     default_private_pem_path, default_public_pem_path, DEFAULT_KEY_SIZE,
@@ -22,6 +26,7 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
 
     let rust_slint_bridge = RustSlintBridge::create(&public_pem_path, &private_pem_path)?;
 
+    rust_slint_bridge.add_on_update_application();
     rust_slint_bridge.add_on_add_command();
     rust_slint_bridge.add_on_del_command();
     rust_slint_bridge.add_on_exec_command();

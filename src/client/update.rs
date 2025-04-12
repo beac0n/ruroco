@@ -6,14 +6,14 @@ use std::env::consts::{ARCH, OS};
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-#[derive(Serialize, Deserialize, Debug)]
-struct GithubApiAsset {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GithubApiAsset {
     pub name: String,
     pub browser_download_url: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct GithubApiData {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GithubApiData {
     pub tag_name: String,
     pub assets: Vec<GithubApiAsset>,
 }
@@ -47,34 +47,15 @@ pub fn update(
         }
     };
 
-    let response = Client::builder()
-        .user_agent("rust-client")
-        .build()
-        .map_err(|e| format!("Could not build client: {e}"))?
-        .get(GH_RELEASES_URL)
-        .send()
-        .map_err(|e| format!("Could not get API response: {e}"))?;
-
-    let status_code = response.status();
-    if !status_code.is_success() {
-        let response_text =
-            response.text().map_err(|e| format!("Could not get text from response: {e}"))?;
-        return Err(format!("Request failed: {} - {}", status_code, response_text));
-    }
-
     let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
     let version_to_download = version.as_ref().unwrap_or(&current_version);
 
-    let response_data: Vec<GithubApiData> =
-        response.json().map_err(|e| format!("Could not parse json: {e}"))?;
-    let api_data = match response_data.into_iter().find(|d| d.tag_name == *version_to_download) {
-        None => return Err(format!("Could not find version {version_to_download}")),
-        Some(_) if current_version == *version_to_download && !force => {
-            info(&format!("Already using the latest version: {current_version}"));
-            return Ok(());
-        }
-        Some(d) => d,
-    };
+    if current_version == *version_to_download && !force {
+        info(&format!("Already using the latest version: {current_version}"));
+        return Ok(());
+    }
+
+    let api_data = get_github_api_data(Some(version_to_download))?;
 
     if server {
         let commander_bin_name = format!("commander-{}-{}-{}", api_data.tag_name, ARCH, OS);
@@ -111,6 +92,36 @@ pub fn update(
     }
 
     Ok(())
+}
+
+pub fn get_github_api_data(version_to_download: Option<&String>) -> Result<GithubApiData, String> {
+    let response = Client::builder()
+        .user_agent("rust-client")
+        .build()
+        .map_err(|e| format!("Could not build client: {e}"))?
+        .get(GH_RELEASES_URL)
+        .send()
+        .map_err(|e| format!("Could not get API response: {e}"))?;
+
+    let status_code = response.status();
+    if !status_code.is_success() {
+        let response_text =
+            response.text().map_err(|e| format!("Could not get text from response: {e}"))?;
+        return Err(format!("Request failed: {} - {}", status_code, response_text));
+    }
+
+    let response_data: Vec<GithubApiData> =
+        response.json().map_err(|e| format!("Could not parse json: {e}"))?;
+
+    let data = match version_to_download {
+        None => response_data.first().cloned(),
+        Some(v) => response_data.into_iter().find(|d| d.tag_name == *v),
+    };
+
+    match data {
+        None => Err(format!("Could not find version {version_to_download:?}")),
+        Some(d) => Ok(d),
+    }
 }
 
 fn check_if_writeable(path: &Path) -> Result<bool, String> {
