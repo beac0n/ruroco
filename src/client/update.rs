@@ -48,14 +48,13 @@ pub fn update(
     };
 
     let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
-    let version_to_download = version.as_ref().unwrap_or(&current_version);
 
-    if current_version == *version_to_download && !force {
-        info(&format!("Already using the latest version: {current_version}"));
+    if !force && Some(current_version.clone()) == version {
+        info(&format!("Already using version {current_version}"));
         return Ok(());
     }
 
-    let api_data = get_github_api_data(Some(version_to_download))?;
+    let api_data = get_github_api_data(version.as_ref())?;
 
     if server {
         let commander_bin_name = format!("commander-{}-{}-{}", api_data.tag_name, ARCH, OS);
