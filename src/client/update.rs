@@ -216,6 +216,7 @@ mod tests {
     use rand::distr::{Alphanumeric, SampleString};
     use std::{env, fs};
 
+    #[test_with::env(CI)]
     #[test]
     fn test_update() {
         let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
