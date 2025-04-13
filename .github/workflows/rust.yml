@@ -68,24 +68,24 @@ jobs:
       - name: Run tests
         run: make test
 
-#  coverage:
-#    name: Coverage
-#    runs-on: ubuntu-22.04
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v2
-#      - name: Generate code coverage
-#        run: |
-#          cargo install cargo-tarpaulin
-#          cargo tarpaulin --timeout 360 --out xml -- --test-threads 1
-#        env:
-#          RUST_BACKTRACE: 'full'
-#      - name: Upload to codecov.io
-#        uses: codecov/codecov-action@v2
-#        env:
-#          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-#        with:
-#          fail_ci_if_error: true
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Generate code coverage
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --timeout 360 --out xml -- --test-threads 1
+        env:
+          RUST_BACKTRACE: 'full'
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v2
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          fail_ci_if_error: true
 
   clippy:
     name: Lints
