@@ -129,27 +129,24 @@ jobs:
       - name: Extract Tag Name
         id: extract_tag
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-
       - name: Install xbuild
         uses: rust-mobile/setup-xbuild-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Release
+      - name: Setup NDK
         uses: nttld/setup-ndk@v1.5.0
         with:
           ndk-version: r27c
           link-to-sdk: true
-      - run: |
+      - name: Make Release
+        run: |
           echo $PATH
           export PATH=/opt/hostedtoolcache/ndk/r27c/x64/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
           ls -la /opt/hostedtoolcache/ndk/r27c/x64/toolchains/llvm/prebuilt/linux-x86_64/bin
