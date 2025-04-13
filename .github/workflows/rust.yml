@@ -162,7 +162,7 @@ jobs:
       - name: Publish Release
         id: create_release
         run: |          
-          gh release create ${{ env.TAG_NAME }} 
+          gh release create ${{ env.TAG_NAME }} \
             client-${{ env.TAG_NAME }}-aarch64-linux-android.apk \
             client-${{ env.TAG_NAME }}-x86_64-linux \
             client-ui-${{ env.TAG_NAME }}-x86_64-linux \
