@@ -152,25 +152,24 @@ jobs:
           ls -la /opt/hostedtoolcache/ndk/r27c/x64/toolchains/llvm/prebuilt/linux-x86_64/bin
           x doctor
           make release
+      - name: Move Files
+        run: |
+          mv target/x/release/android/ruroco.apk client-${{ env.TAG_NAME }}-aarch64-linux-android.apk
+          mv target/x86_64-unknown-linux-gnu/release/client client-${{ env.TAG_NAME }}-x86_64-linux
+          mv target/x86_64-unknown-linux-gnu/release/client_ui client-ui-${{ env.TAG_NAME }}-x86_64-linux
+          mv target/x86_64-unknown-linux-gnu/release/commander commander-${{ env.TAG_NAME }}-x86_64-linux
+          mv target/x86_64-unknown-linux-gnu/release/server server-${{ env.TAG_NAME }}-x86_64-linux
       - name: Publish Release
         id: create_release
-        run: |
-          mv target/x/release/android/ruroco.apk target/x/release/android/client-${{ env.TAG_NAME }}-aarch64-linux-android.apk
-          mv target/x86_64-unknown-linux-gnu/release/client target/x86_64-unknown-linux-gnu/release/client-${{ env.TAG_NAME }}-x86_64-linux
-          mv target/x86_64-unknown-linux-gnu/release/client_ui target/x86_64-unknown-linux-gnu/release/client-ui-${{ env.TAG_NAME }}-x86_64-linux
-          mv target/x86_64-unknown-linux-gnu/release/commander target/x86_64-unknown-linux-gnu/release/commander-${{ env.TAG_NAME }}-x86_64-linux
-          mv target/x86_64-unknown-linux-gnu/release/server target/x86_64-unknown-linux-gnu/release/server-${{ env.TAG_NAME }}-x86_64-linux
-          
-          gh release create ${{ env.TAG_NAME }} \
-            target/x/release/android/client-${{ env.TAG_NAME }}-aarch64-linux-android.apk \
-            target/x86_64-unknown-linux-gnu/release/client-${{ env.TAG_NAME }}-x86_64-linux \
-            target/x86_64-unknown-linux-gnu/release/client-ui-${{ env.TAG_NAME }}-x86_64-linux \
-            target/x86_64-unknown-linux-gnu/release/commander-${{ env.TAG_NAME }}-x86_64-linux \
-            target/x86_64-unknown-linux-gnu/release/server-${{ env.TAG_NAME }}-x86_64-linux \
+        run: |          
+          gh release create ${{ env.TAG_NAME }} 
+            client-${{ env.TAG_NAME }}-aarch64-linux-android.apk \
+            client-${{ env.TAG_NAME }}-x86_64-linux \
+            client-ui-${{ env.TAG_NAME }}-x86_64-linux \
+            commander-${{ env.TAG_NAME }}-x86_64-linux \
+            server-${{ env.TAG_NAME }}-x86_64-linux \
             --title "Release ${{ env.TAG_NAME }}" \
-            --notes "See https://github.com/beac0n/ruroco/blob/master/CHANGELOG.md" \
-            --draft false \
-            --prerelease false
+            --notes "See https://github.com/beac0n/ruroco/blob/master/CHANGELOG.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
