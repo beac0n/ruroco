@@ -43,7 +43,7 @@ pub fn update(
         None if server => validate_dir_path(PathBuf::from("/usr/local/bin"))?,
         None => {
             let home_env = env::var("HOME").map_err(|e| format!("Could not get home env: {e}"))?;
-            validate_dir_path(PathBuf::from(home_env).join(".bin"))?
+            validate_dir_path(PathBuf::from(home_env).join(".local").join("bin"))?
         }
     };
 
