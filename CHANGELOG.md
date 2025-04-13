@@ -155,6 +155,10 @@ Refactored User Interface
 
 - Initial Release
 
+[0.6.4]: https://github.com/beac0n/ruroco/compare/v0.6.3..v0.6.4
+
+[0.6.3]: https://github.com/beac0n/ruroco/compare/v0.6.2..v0.6.3
+
 [0.6.2]: https://github.com/beac0n/ruroco/compare/v0.6.1..v0.6.2
 
 [0.6.1]: https://github.com/beac0n/ruroco/compare/v0.6.0..v0.6.1
