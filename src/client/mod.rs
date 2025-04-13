@@ -1,5 +1,6 @@
 //! This module is responsible for sending data to the server and for generating PEM files
 
+use crate::client::send::Sender;
 use crate::common::time_from_ntp;
 use crate::config::config_client::{CliClient, CommandsClient};
 
@@ -16,7 +17,7 @@ pub fn run_client(client: CliClient) -> Result<(), String> {
         ),
         CommandsClient::Send(send_command) => {
             let ntp = send_command.ntp.clone();
-            send::send(send_command, time_from_ntp(&ntp)?)
+            Sender::create(send_command, time_from_ntp(&ntp)?)?.send()
         }
         CommandsClient::Update(update_command) => update::update(
             update_command.force,

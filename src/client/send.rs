@@ -9,123 +9,161 @@ use std::fs;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::path::Path;
 
-/// Send data to the server to execute a predefined command
-///
-/// * `send_command` - data holding information how to send the command - see SendCommand
-/// * `now` - current timestamp in ns
-pub fn send(send_command: SendCommand, now: u128) -> Result<(), String> {
-    let address = send_command.address;
-    let pem_path = send_command.private_pem_path;
-    let command = send_command.command;
-
-    info(&format!(
-        "Connecting to udp://{address}, loading PEM from {pem_path:?}, using {} ...",
-        version()
-    ));
-
-    let destination_ips: Vec<SocketAddr> = address
-        .to_socket_addrs()
-        .map_err(|err| format!("Could not resolve hostname for {address}: {err}"))?
-        .collect();
-
-    let destination_ipv4s: Vec<&SocketAddr> =
-        destination_ips.iter().filter(|a| a.is_ipv4()).collect();
-
-    let destination_ipv6s: Vec<&SocketAddr> =
-        destination_ips.iter().filter(|a| a.is_ipv6()).collect();
-
-    let (destination_ip, bind_address) =
-        match (destination_ipv4s.first(), destination_ipv6s.first()) {
-            (_, Some(ipv6)) if send_command.ipv6 && !send_command.ipv4 => {
-                (ipv6.ip().to_string(), "[::]:0")
-            }
-            (Some(ipv4), _) if !send_command.ipv6 && send_command.ipv4 => {
-                (ipv4.ip().to_string(), "0.0.0.0:0")
-            }
-            (Some(ipv4), _) => (ipv4.ip().to_string(), "0.0.0.0:0"),
-            (_, Some(ipv6)) => (ipv6.ip().to_string(), "[::]:0"),
-            _ => return Err(format!("Could not find any IPv4 or IPv6 address for {address}")),
-        };
-
-    info(&format!("Found IPs {destination_ipv4s:?} and {destination_ipv6s:?} for {address}, connecting to {destination_ip}"));
-
-    let rsa = get_rsa_private(&pem_path)?;
-    let data_to_encrypt = get_data_to_encrypt(
-        &command,
-        &rsa,
-        send_command.deadline,
-        !send_command.permissive,
-        send_command.ip,
-        destination_ip,
-        now,
-    )?;
-    let data_to_send = get_data_to_send(&data_to_encrypt, &rsa)?;
-
-    // create UDP socket and send the encrypted data to the specified address
-    let socket = UdpSocket::bind(bind_address).map_err(|e| socket_err(e, &address))?;
-    socket.connect(&address).map_err(|e| socket_err(e, &address))?;
-    socket.send(&data_to_send).map_err(|e| socket_err(e, &address))?;
-
-    info(&format!("Sent command {command} from {bind_address} to udp://{address}"));
-    Ok(())
+#[derive(Debug)]
+pub struct Sender {
+    cmd: SendCommand,
+    now: u128,
+    rsa: Rsa<Private>,
+    rsa_size: usize,
 }
 
-fn get_data_to_send(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec<u8>, String> {
-    let pem_pub_key = rsa
-        .public_key_to_pem()
-        .map_err(|e| format!("Could not create public pem from private key: {e}"))?;
-    let mut data_to_send = hash_public_key(pem_pub_key)?;
-    let encrypted_data = encrypt_data(data_to_encrypt, rsa)?;
-    data_to_send.extend(encrypted_data);
+impl Sender {
+    pub fn create(cmd: SendCommand, now: u128) -> Result<Self, String> {
+        let rsa = Self::get_rsa_private(&cmd.private_pem_path)?;
+        let rsa_size = rsa.size() as usize;
+        Ok(Self {
+            cmd,
+            now,
+            rsa,
+            rsa_size,
+        })
+    }
 
-    Ok(data_to_send)
-}
+    /// Send data to the server to execute a predefined command
+    ///
+    /// * `send_command` - data holding information how to send the command - see SendCommand
+    /// * `now` - current timestamp in ns
+    pub fn send(&self) -> Result<(), String> {
+        info(&format!(
+            "Connecting to udp://{}, loading PEM from {:?}, using {} ...",
+            self.cmd.address,
+            self.cmd.private_pem_path,
+            version()
+        ));
 
-fn pem_load_err<I: Display, E: Debug>(err: I, val: E) -> String {
-    format!("Could not load {val:?}: {err}")
-}
+        let destination_ips: Vec<SocketAddr> = self
+            .cmd
+            .address
+            .to_socket_addrs()
+            .map_err(|err| format!("Could not resolve hostname for {}: {err}", self.cmd.address))?
+            .collect();
 
-fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
-    format!("Could not connect/send data to {val:?}: {err}")
-}
+        let destination_ipv4s: Vec<&SocketAddr> =
+            destination_ips.iter().filter(|a| a.is_ipv4()).collect();
 
-fn encrypt_data(data_to_encrypt: &Vec<u8>, rsa: &Rsa<Private>) -> Result<Vec<u8>, String> {
-    let mut encrypted_data = vec![0; rsa.size() as usize];
-    rsa.private_encrypt(data_to_encrypt, &mut encrypted_data, RSA_PADDING).map_err(|e| {
-        format!("Could not encrypt ({} bytes) {data_to_encrypt:?}: {e}", data_to_encrypt.len())
-    })?;
-    Ok(encrypted_data)
-}
+        let destination_ipv6s: Vec<&SocketAddr> =
+            destination_ips.iter().filter(|a| a.is_ipv6()).collect();
 
-fn get_rsa_private(pem_path: &Path) -> Result<Rsa<Private>, String> {
-    // encrypt data we want to send - load RSA private key from PEM file for that
-    let pem_data = fs::read(pem_path).map_err(|e| pem_load_err(e, pem_path))?;
-    Rsa::private_key_from_pem(&pem_data).map_err(|e| pem_load_err(e, pem_path))
-}
+        let use_ipv6 = self.cmd.ipv6;
+        let use_ipv4 = self.cmd.ipv4;
+        let command = &self.cmd.command;
+        let address = &self.cmd.address;
 
-fn get_data_to_encrypt(
-    command: &str,
-    rsa: &Rsa<Private>,
-    deadline: u16,
-    strict: bool,
-    source_ip: Option<String>,
-    destination_ip: String,
-    now_ns: u128,
-) -> Result<Vec<u8>, String> {
-    let data_to_encrypt =
-        ClientData::create(command, deadline, strict, source_ip, destination_ip, now_ns)
-            .serialize()?;
-    let data_to_encrypt_len = data_to_encrypt.len();
-    let rsa_size = rsa.size() as usize;
-    if data_to_encrypt_len + PADDING_SIZE > rsa_size {
-        let max_size = rsa_size - PADDING_SIZE;
-        return Err(format!(
+        let cnfa = "Could not find any";
+
+        let dest_and_bind_addresses: Vec<(String, &str)> =
+            match (destination_ipv4s.first(), destination_ipv6s.first()) {
+                // ipv4 xor ipv6 where defined
+                (_, Some(ipv6)) if use_ipv6 && !use_ipv4 => vec![(ipv6.ip().to_string(), "[::]:0")],
+                (Some(ipv4), _) if !use_ipv6 && use_ipv4 => {
+                    vec![(ipv4.ip().to_string(), "0.0.0.0:0")]
+                }
+                (_, None) if use_ipv6 && !use_ipv4 => {
+                    return Err(format!("{cnfa} IPv6 for {}", self.cmd.address))
+                }
+                (None, _) if !use_ipv6 && use_ipv4 => {
+                    return Err(format!("{cnfa} IPv4 for {}", self.cmd.address))
+                }
+                // ipv4 or ipv6 where not defined or where both defined => ignore
+                (Some(ipv4), Some(ipv6)) => vec![
+                    (ipv4.ip().to_string(), "0.0.0.0:0"),
+                    (ipv6.ip().to_string(), "[::]:0"),
+                ],
+                (Some(ipv4), None) => vec![(ipv4.ip().to_string(), "0.0.0.0:0")],
+                (None, Some(ipv6)) => vec![(ipv6.ip().to_string(), "[::]:0")],
+                _ => return Err(format!("{cnfa} IPv4 or IPv6 address for {address}")),
+            };
+
+        for (destination_ip, bind_address) in dest_and_bind_addresses {
+            info(&format!("Found IPs {destination_ipv4s:?} and {destination_ipv6s:?} for {address}, connecting to {destination_ip}"));
+            self.send_data(destination_ip, bind_address)?;
+            info(&format!("Sent command {command} from {bind_address} to udp://{address}"));
+        }
+
+        Ok(())
+    }
+
+    fn send_data(&self, destination_ip: String, bind_address: &str) -> Result<(), String> {
+        let data_to_encrypt = self.get_data_to_encrypt(destination_ip)?;
+        let data_to_send = self.get_data_to_send(&data_to_encrypt)?;
+
+        // create UDP socket and send the encrypted data to the specified address
+        let address = &self.cmd.address;
+        let socket = UdpSocket::bind(bind_address).map_err(|e| Self::socket_err(e, address))?;
+        socket.connect(address).map_err(|e| Self::socket_err(e, address))?;
+        socket.send(&data_to_send).map_err(|e| Self::socket_err(e, address))?;
+        Ok(())
+    }
+
+    fn get_rsa_private(pem_path: &Path) -> Result<Rsa<Private>, String> {
+        // encrypt data we want to send - load RSA private key from PEM file for that
+        let pem_data = fs::read(pem_path).map_err(|e| Self::pem_load_err(e, pem_path))?;
+        Rsa::private_key_from_pem(&pem_data).map_err(|e| Self::pem_load_err(e, pem_path))
+    }
+
+    fn get_data_to_send(&self, data_to_encrypt: &Vec<u8>) -> Result<Vec<u8>, String> {
+        let pem_pub_key = (&self.rsa)
+            .public_key_to_pem()
+            .map_err(|e| format!("Could not create public pem from private key: {e}"))?;
+        let mut data_to_send = hash_public_key(pem_pub_key)?;
+        let encrypted_data = self.encrypt_data(data_to_encrypt)?;
+        data_to_send.extend(encrypted_data);
+
+        Ok(data_to_send)
+    }
+
+    fn encrypt_data(&self, data_to_encrypt: &Vec<u8>) -> Result<Vec<u8>, String> {
+        let mut encrypted_data = vec![0; self.rsa_size];
+        (&self.rsa).private_encrypt(data_to_encrypt, &mut encrypted_data, RSA_PADDING).map_err(
+            |e| {
+                format!(
+                    "Could not encrypt ({} bytes) {data_to_encrypt:?}: {e}",
+                    data_to_encrypt.len()
+                )
+            },
+        )?;
+        Ok(encrypted_data)
+    }
+
+    fn pem_load_err<I: Display, E: Debug>(err: I, val: E) -> String {
+        format!("Could not load {val:?}: {err}")
+    }
+
+    fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
+        format!("Could not connect/send data to {val:?}: {err}")
+    }
+
+    fn get_data_to_encrypt(&self, destination_ip: String) -> Result<Vec<u8>, String> {
+        let data_to_encrypt = ClientData::create(
+            &self.cmd.command,
+            self.cmd.deadline,
+            !self.cmd.permissive,
+            self.cmd.ip.clone(),
+            destination_ip,
+            self.now,
+        )
+        .serialize()?;
+        let data_to_encrypt_len = data_to_encrypt.len();
+        if data_to_encrypt_len + PADDING_SIZE > self.rsa_size {
+            let max_size = self.rsa_size - PADDING_SIZE;
+            return Err(format!(
             "Too much data, must be at most {max_size} bytes, but was {data_to_encrypt_len} bytes. \
             Reduce command name length or create a bigger RSA key size."
         ));
-    }
+        }
 
-    Ok(data_to_encrypt)
+        Ok(data_to_encrypt)
+    }
 }
 
 #[cfg(test)]
@@ -135,7 +173,7 @@ mod tests {
     use rand::distr::{Alphanumeric, SampleString};
 
     use crate::client::gen::gen;
-    use crate::client::send::send;
+    use crate::client::send::Sender;
     use crate::common::time;
     use crate::config::config_client::{CliClient, SendCommand};
     use std::fs;
@@ -154,7 +192,7 @@ mod tests {
     fn test_send_no_such_file() {
         let pem_file_name = gen_file_name(".pem");
 
-        let result = send(
+        let result = Sender::create(
             SendCommand {
                 private_pem_path: PathBuf::from(&pem_file_name),
                 ip: Some(IP.to_string()),
@@ -174,7 +212,7 @@ mod tests {
         let pem_file_name = gen_file_name(".pem");
         File::create(&pem_file_name).unwrap();
 
-        let result = send(
+        let result = Sender::create(
             SendCommand {
                 private_pem_path: PathBuf::from(&pem_file_name),
                 ip: Some(IP.to_string()),
@@ -201,7 +239,8 @@ mod tests {
         gen(&private_pem_path, &public_pem_path, 1024).unwrap();
 
         let address = "127.0.0.1:asd".to_string();
-        let result = send(
+
+        let sender = Sender::create(
             SendCommand {
                 address: address.clone(),
                 private_pem_path,
@@ -209,7 +248,10 @@ mod tests {
                 ..Default::default()
             },
             time().unwrap(),
-        );
+        )
+        .unwrap();
+
+        let result = sender.send();
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
@@ -230,7 +272,8 @@ mod tests {
         gen(&private_pem_path, &public_pem_path, 1024).unwrap();
 
         let address = "999.999.999.999:9999".to_string();
-        let result = send(
+
+        let sender = Sender::create(
             SendCommand {
                 address: address.clone(),
                 private_pem_path,
@@ -238,7 +281,10 @@ mod tests {
                 ..Default::default()
             },
             time().unwrap(),
-        );
+        )
+        .unwrap();
+
+        let result = sender.send();
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
@@ -261,7 +307,7 @@ mod tests {
         let public_pem_path = PathBuf::from(&public_file);
         gen(&private_pem_path, &public_pem_path, 1024).unwrap();
 
-        let result = send(
+        let sender = Sender::create(
             SendCommand {
                 private_pem_path,
                 command: "#".repeat(66),
@@ -269,7 +315,10 @@ mod tests {
                 ..Default::default()
             },
             time().unwrap(),
-        );
+        )
+        .unwrap();
+
+        let result = sender.send();
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
@@ -300,7 +349,7 @@ mod tests {
         let public_pem_path = PathBuf::from(&public_file);
         gen(&private_pem_path, &public_pem_path, 1024)?;
 
-        let result = send(
+        let sender = Sender::create(
             SendCommand {
                 address: address.to_string(),
                 private_pem_path,
@@ -308,7 +357,10 @@ mod tests {
                 ..Default::default()
             },
             time()?,
-        );
+        )
+        .unwrap();
+
+        let result = sender.send();
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
