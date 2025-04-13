@@ -3,7 +3,7 @@ mod tests {
     use rand::distr::{Alphanumeric, SampleString};
     use rand::Rng;
     use ruroco::client::gen::gen;
-    use ruroco::client::send::send;
+    use ruroco::client::send::Sender;
     use ruroco::common::{get_blocklist_path, get_commander_unix_socket_path, time};
     use ruroco::config::config_client::SendCommand;
     use ruroco::config::config_server::ConfigServer;
@@ -80,7 +80,7 @@ mod tests {
         }
 
         fn run_client_send(&self) {
-            send(
+            let sender = Sender::create(
                 SendCommand {
                     address: self.server_address.to_string(),
                     private_pem_path: self.private_pem_path.clone(),
@@ -95,6 +95,8 @@ mod tests {
                 self.now.unwrap_or_else(|| time().unwrap()),
             )
             .unwrap();
+
+            sender.send().unwrap();
             thread::sleep(Duration::from_secs(10)); // wait for files to be written and blocklist to be updated
         }
 
