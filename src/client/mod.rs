@@ -88,7 +88,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[test_with::env(CI)]
+    #[test_with::env(TEST_UPDATER)]
     #[test]
     fn test_update() {
         let result = run_client(CliClient::parse_from(vec!["ruroco", "update"]));

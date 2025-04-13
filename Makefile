@@ -31,7 +31,7 @@ release: release_android
 	upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander
 
 test:
-	cargo nextest run
+	export TEST_UPDATER=1; cargo nextest run --retries 2
 
 format:
 	cargo fmt && cargo clippy --fix

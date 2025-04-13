@@ -216,7 +216,7 @@ mod tests {
     use rand::distr::{Alphanumeric, SampleString};
     use std::{env, fs};
 
-    #[test_with::env(CI)]
+    #[test_with::env(TEST_UPDATER)]
     #[test]
     fn test_update() {
         let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
@@ -231,6 +231,7 @@ mod tests {
             .filter_map(|entry| entry.path().to_str().map(String::from))
             .collect();
 
+        dbg!(&result);
         assert!(result.is_ok());
         assert_eq!(entries.len(), 2);
     }
