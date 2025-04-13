@@ -118,7 +118,8 @@ impl Sender {
     }
 
     fn get_data_to_send(&self, data_to_encrypt: &Vec<u8>) -> Result<Vec<u8>, String> {
-        let pem_pub_key = self.rsa
+        let pem_pub_key = self
+            .rsa
             .public_key_to_pem()
             .map_err(|e| format!("Could not create public pem from private key: {e}"))?;
         let mut data_to_send = hash_public_key(pem_pub_key)?;
