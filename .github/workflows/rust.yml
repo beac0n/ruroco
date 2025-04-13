@@ -154,57 +154,79 @@ jobs:
           make release
       - name: Publish Release
         id: create_release
-        uses: actions/create-release@v1
+        run: |
+          mv target/x/release/android/ruroco.apk target/x/release/android/client-${{ env.TAG_NAME }}-aarch64-linux-android.apk
+          mv target/x86_64-unknown-linux-gnu/release/client target/x86_64-unknown-linux-gnu/release/client-${{ env.TAG_NAME }}-x86_64-linux
+          mv target/x86_64-unknown-linux-gnu/release/client_ui target/x86_64-unknown-linux-gnu/release/client-ui-${{ env.TAG_NAME }}-x86_64-linux
+          mv target/x86_64-unknown-linux-gnu/release/commander target/x86_64-unknown-linux-gnu/release/commander-${{ env.TAG_NAME }}-x86_64-linux
+          mv target/x86_64-unknown-linux-gnu/release/server target/x86_64-unknown-linux-gnu/release/server-${{ env.TAG_NAME }}-x86_64-linux
+          
+          gh release create ${{ env.TAG_NAME }} \
+            target/x/release/android/client-${{ env.TAG_NAME }}-aarch64-linux-android.apk \
+            target/x86_64-unknown-linux-gnu/release/client-${{ env.TAG_NAME }}-x86_64-linux \
+            target/x86_64-unknown-linux-gnu/release/client-ui-${{ env.TAG_NAME }}-x86_64-linux \
+            target/x86_64-unknown-linux-gnu/release/commander-${{ env.TAG_NAME }}-x86_64-linux \
+            target/x86_64-unknown-linux-gnu/release/server-${{ env.TAG_NAME }}-x86_64-linux \
+            --title "Release ${{ env.TAG_NAME }}" \
+            --notes "See https://github.com/beac0n/ruroco/blob/master/CHANGELOG.md" \
+            --draft false \
+            --prerelease false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          body: "see https://github.com/beac0n/ruroco/blob/master/CHANGELOG.md"
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ env.TAG_NAME }}
-          draft: false
-          prerelease: false
-      - name: Upload Release Asset - Android
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/x/release/android/ruroco.apk
-          asset_name: client-${{ env.TAG_NAME }}-aarch64-linux-android.apk
-          asset_content_type: application/octet-stream
-      - name: Upload Release Asset - Client
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/x86_64-unknown-linux-gnu/release/client
-          asset_name: client-${{ env.TAG_NAME }}-x86_64-linux
-          asset_content_type: application/octet-stream
-      - name: Upload Release Asset - Client UI
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/x86_64-unknown-linux-gnu/release/client_ui
-          asset_name: client-ui-${{ env.TAG_NAME }}-x86_64-linux
-          asset_content_type: application/octet-stream
-      - name: Upload Release Asset - Commander
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/x86_64-unknown-linux-gnu/release/commander
-          asset_name: commander-${{ env.TAG_NAME }}-x86_64-linux
-          asset_content_type: application/octet-stream
-      - name: Upload Release Asset - Server
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/x86_64-unknown-linux-gnu/release/server
-          asset_name: server-${{ env.TAG_NAME }}-x86_64-linux
-          asset_content_type: application/octet-stream
+
+#      - name: Publish Release
+#        id: create_release
+#        uses: actions/create-release@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          body: "see https://github.com/beac0n/ruroco/blob/master/CHANGELOG.md"
+#          tag_name: ${{ github.ref }}
+#          release_name: Release ${{ env.TAG_NAME }}
+#          draft: false
+#          prerelease: false
+#      - name: Upload Release Asset - Android
+#        uses: actions/upload-release-asset@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ steps.create_release.outputs.upload_url }}
+#          asset_path: target/x/release/android/ruroco.apk
+#          asset_name: client-${{ env.TAG_NAME }}-aarch64-linux-android.apk
+#          asset_content_type: application/octet-stream
+#      - name: Upload Release Asset - Client
+#        uses: actions/upload-release-asset@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ steps.create_release.outputs.upload_url }}
+#          asset_path: target/x86_64-unknown-linux-gnu/release/client
+#          asset_name: client-${{ env.TAG_NAME }}-x86_64-linux
+#          asset_content_type: application/octet-stream
+#      - name: Upload Release Asset - Client UI
+#        uses: actions/upload-release-asset@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ steps.create_release.outputs.upload_url }}
+#          asset_path: target/x86_64-unknown-linux-gnu/release/client_ui
+#          asset_name: client-ui-${{ env.TAG_NAME }}-x86_64-linux
+#          asset_content_type: application/octet-stream
+#      - name: Upload Release Asset - Commander
+#        uses: actions/upload-release-asset@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ steps.create_release.outputs.upload_url }}
+#          asset_path: target/x86_64-unknown-linux-gnu/release/commander
+#          asset_name: commander-${{ env.TAG_NAME }}-x86_64-linux
+#          asset_content_type: application/octet-stream
+#      - name: Upload Release Asset - Server
+#        uses: actions/upload-release-asset@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ steps.create_release.outputs.upload_url }}
+#          asset_path: target/x86_64-unknown-linux-gnu/release/server
+#          asset_name: server-${{ env.TAG_NAME }}-x86_64-linux
+#          asset_content_type: application/octet-stream
