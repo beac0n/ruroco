@@ -6,8 +6,10 @@ use openssl::rsa::Rsa;
 use openssl::version::version;
 use std::fmt::{Debug, Display};
 use std::fs;
-use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
+use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::path::Path;
+use std::thread::sleep;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Sender {
@@ -18,6 +20,10 @@ pub struct Sender {
 }
 
 impl Sender {
+    /// Create a new Sender instance
+    ///
+    /// * `send_command` - data holding information how to send the command - see SendCommand
+    /// * `now` - current timestamp in ns
     pub fn create(cmd: SendCommand, now: u128) -> Result<Self, String> {
         let rsa = Self::get_rsa_private(&cmd.private_pem_path)?;
         let rsa_size = rsa.size() as usize;
@@ -30,16 +36,25 @@ impl Sender {
     }
 
     /// Send data to the server to execute a predefined command
-    ///
-    /// * `send_command` - data holding information how to send the command - see SendCommand
-    /// * `now` - current timestamp in ns
     pub fn send(&self) -> Result<(), String> {
         info(&format!(
             "Connecting to udp://{}, loading PEM from {:?}, using {} ...",
-            self.cmd.address,
-            self.cmd.private_pem_path,
-            version()
+            &self.cmd.address,
+            &self.cmd.private_pem_path,
+            version(),
         ));
+
+        let destination_ips_validated = self.get_destination_ips()?;
+        info(&format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
+        for destination_ip in destination_ips_validated {
+            self.send_data(destination_ip)?;
+        }
+
+        Ok(())
+    }
+
+    fn get_destination_ips(&self) -> Result<Vec<IpAddr>, String> {
+        let address = &self.cmd.address;
 
         let destination_ips: Vec<SocketAddr> = self
             .cmd
@@ -54,47 +69,32 @@ impl Sender {
         let destination_ipv6s: Vec<&SocketAddr> =
             destination_ips.iter().filter(|a| a.is_ipv6()).collect();
 
-        let use_ipv6 = self.cmd.ipv6;
-        let use_ipv4 = self.cmd.ipv4;
-        let command = &self.cmd.command;
-        let address = &self.cmd.address;
+        let use_ip_undef = self.cmd.ipv4 == self.cmd.ipv6;
 
         let cnfa = "Could not find any";
+        let afa = format!("address for {address}");
 
-        let dest_and_bind_addresses: Vec<(String, &str)> =
-            match (destination_ipv4s.first(), destination_ipv6s.first()) {
-                // ipv4 xor ipv6 where defined
-                (_, Some(ipv6)) if use_ipv6 && !use_ipv4 => vec![(ipv6.ip().to_string(), "[::]:0")],
-                (Some(ipv4), _) if !use_ipv6 && use_ipv4 => {
-                    vec![(ipv4.ip().to_string(), "0.0.0.0:0")]
-                }
-                (_, None) if use_ipv6 && !use_ipv4 => {
-                    return Err(format!("{cnfa} IPv6 for {}", self.cmd.address))
-                }
-                (None, _) if !use_ipv6 && use_ipv4 => {
-                    return Err(format!("{cnfa} IPv4 for {}", self.cmd.address))
-                }
-                // ipv4 or ipv6 where not defined or where both defined => ignore
-                (Some(ipv4), Some(ipv6)) => vec![
-                    (ipv4.ip().to_string(), "0.0.0.0:0"),
-                    (ipv6.ip().to_string(), "[::]:0"),
-                ],
-                (Some(ipv4), None) => vec![(ipv4.ip().to_string(), "0.0.0.0:0")],
-                (None, Some(ipv6)) => vec![(ipv6.ip().to_string(), "[::]:0")],
-                _ => return Err(format!("{cnfa} IPv4 or IPv6 address for {address}")),
-            };
-
-        for (destination_ip, bind_address) in dest_and_bind_addresses {
-            info(&format!("Found IPs {destination_ipv4s:?} and {destination_ipv6s:?} for {address}, connecting to {destination_ip}"));
-            self.send_data(destination_ip, bind_address)?;
-            info(&format!("Sent command {command} from {bind_address} to udp://{address}"));
-        }
-
-        Ok(())
+        Ok(match (destination_ipv4s.first(), destination_ipv6s.first()) {
+            // ipv4 or ipv6 where not defined or where both defined
+            (Some(ipv4), Some(ipv6)) if use_ip_undef => vec![ipv4.ip(), ipv6.ip()],
+            (Some(ipv4), None) if use_ip_undef => vec![ipv4.ip()],
+            (None, Some(ipv6)) if use_ip_undef => vec![ipv6.ip()],
+            // ipv4 xor ipv6 where defined
+            (_, Some(ipv6)) if self.cmd.ipv6 => vec![ipv6.ip()],
+            (Some(ipv4), _) if self.cmd.ipv4 => vec![ipv4.ip()],
+            (_, None) if self.cmd.ipv6 => return Err(format!("{cnfa} IPv6 {afa}")),
+            (None, _) if self.cmd.ipv4 => return Err(format!("{cnfa} IPv4 {afa}")),
+            // could not find any address
+            _ => return Err(format!("{cnfa} IPv4 or IPv6 {afa}")),
+        })
     }
 
-    fn send_data(&self, destination_ip: String, bind_address: &str) -> Result<(), String> {
-        let data_to_encrypt = self.get_data_to_encrypt(destination_ip)?;
+    fn send_data(&self, ip: IpAddr) -> Result<(), String> {
+        let ip_str = ip.to_string();
+        let bind_address = if ip.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" };
+
+        info(&format!("Connecting to {ip_str}..."));
+        let data_to_encrypt = self.get_data_to_encrypt(ip_str)?;
         let data_to_send = self.get_data_to_send(&data_to_encrypt)?;
 
         // create UDP socket and send the encrypted data to the specified address
@@ -102,6 +102,12 @@ impl Sender {
         let socket = UdpSocket::bind(bind_address).map_err(|e| Self::socket_err(e, address))?;
         socket.connect(address).map_err(|e| Self::socket_err(e, address))?;
         socket.send(&data_to_send).map_err(|e| Self::socket_err(e, address))?;
+
+        let deadline = self.cmd.deadline as u64;
+        info(&format!("Waiting for {deadline} seconds until deadline is reached..."));
+        sleep(Duration::from_secs(deadline));
+
+        info(&format!("Sent command {} from {bind_address} to udp://{address}", &self.cmd.command));
         Ok(())
     }
 
@@ -178,9 +184,25 @@ mod tests {
     use crate::config::config_client::{CliClient, SendCommand};
     use std::fs;
     use std::fs::File;
+    use std::net::IpAddr;
     use std::path::PathBuf;
 
     const IP: &str = "192.168.178.123";
+
+    #[test]
+    fn test_get_2_destination_ips() {
+        assert_eq!(get_ip_addresses("google.com:80").len(), 2);
+    }
+
+    #[test]
+    fn test_get_ivp6_destination_ips() {
+        assert_eq!(get_ip_addresses("ipv6.google.com:80").len(), 1);
+    }
+
+    #[test]
+    fn test_get_ivp4_destination_ips() {
+        assert_eq!(get_ip_addresses("ipv4.google.com:80").len(), 1);
+    }
 
     #[test]
     fn test_send_print_help() {
@@ -357,10 +379,9 @@ mod tests {
                 ..Default::default()
             },
             time()?,
-        )
-        .unwrap();
+        );
 
-        let result = sender.send();
+        let result = sender?.send();
 
         let _ = fs::remove_file(&private_file);
         let _ = fs::remove_file(&public_file);
@@ -371,5 +392,27 @@ mod tests {
     fn gen_file_name(suffix: &str) -> String {
         let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
         format!("{rand_str}{suffix}")
+    }
+
+    fn get_ip_addresses(host: &str) -> Vec<IpAddr> {
+        let private_file = gen_file_name(".pem");
+        let public_file = gen_file_name(".pem");
+        let private_pem_path = PathBuf::from(&private_file);
+        let public_pem_path = PathBuf::from(&public_file);
+        gen(&private_pem_path, &public_pem_path, 1024).unwrap();
+
+        let sender = Sender::create(
+            SendCommand {
+                address: host.to_string(),
+                private_pem_path,
+                ip: Some(IP.to_string()),
+                ..Default::default()
+            },
+            time().unwrap(),
+        );
+
+        let ip_addrs = sender.unwrap().get_destination_ips().unwrap();
+        dbg!(&ip_addrs);
+        ip_addrs
     }
 }
