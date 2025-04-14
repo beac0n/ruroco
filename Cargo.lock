@@ -274,9 +274,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.97"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "arbitrary"
@@ -2173,9 +2173,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.8"
+version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5017294ff4bb30944501348f6f8e42e6ad28f42c8bbef7a74029aff064a4e3c2"
+checksum = "75249d144030531f8dee69fe9cea04d3edf809a017ae445e2abdff6629e86633"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -4421,9 +4421,9 @@ dependencies = [
 
 [[package]]
 name = "ravif"
-version = "0.11.11"
+version = "0.11.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2413fd96bd0ea5cdeeb37eaf446a22e6ed7b981d792828721e74ded1980a45c6"
+checksum = "d6a5f31fcf7500f9401fea858ea4ab5525c99f2322cfcee732c0e6c74208c0c6"
 dependencies = [
  "avif-serialize",
  "imgref",
@@ -4621,7 +4621,7 @@ checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
 
 [[package]]
 name = "ruroco"
-version = "0.7.3"
+version = "0.7.4"
 dependencies = [
  "clap",
  "jni",
