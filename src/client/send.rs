@@ -48,11 +48,7 @@ impl Sender {
         info(&format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
         match destination_ips_validated.as_slice() {
             [destination_ip] => self.send_data(*destination_ip)?,
-            [first, second] => {
-                self.send_data(*first)?;
-                sleep(Duration::from_secs(1));
-                self.send_data(*second)?;
-            }
+            [_, ipv6_destination_ip] => self.send_data(*ipv6_destination_ip)?,
             _ => return Err(format!("Found too many IPs: {destination_ips_validated:?}")),
         }
 
