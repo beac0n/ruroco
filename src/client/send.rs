@@ -8,8 +8,6 @@ use std::fmt::{Debug, Display};
 use std::fs;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::path::Path;
-use std::thread::sleep;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Sender {
