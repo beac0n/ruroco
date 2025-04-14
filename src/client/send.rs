@@ -46,8 +46,14 @@ impl Sender {
 
         let destination_ips_validated = self.get_destination_ips()?;
         info(&format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
-        for destination_ip in destination_ips_validated {
-            self.send_data(destination_ip)?;
+        match destination_ips_validated.as_slice() {
+            [destination_ip] => self.send_data(*destination_ip)?,
+            [first, second] => {
+                self.send_data(*first)?;
+                sleep(Duration::from_secs(1));
+                self.send_data(*second)?;
+            }
+            _ => return Err(format!("Found too many IPs: {destination_ips_validated:?}")),
         }
 
         Ok(())
@@ -102,10 +108,6 @@ impl Sender {
         let socket = UdpSocket::bind(bind_address).map_err(|e| Self::socket_err(e, address))?;
         socket.connect(address).map_err(|e| Self::socket_err(e, address))?;
         socket.send(&data_to_send).map_err(|e| Self::socket_err(e, address))?;
-
-        let deadline = self.cmd.deadline as u64;
-        info(&format!("Waiting for {deadline} seconds until deadline is reached..."));
-        sleep(Duration::from_secs(deadline));
 
         info(&format!("Sent command {} from {bind_address} to udp://{address}", &self.cmd.command));
         Ok(())
