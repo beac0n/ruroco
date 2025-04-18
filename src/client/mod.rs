@@ -14,31 +14,24 @@ mod wizard;
 
 pub fn run_client(client: CliClient) -> Result<(), String> {
     match client.command {
-        CommandsClient::Gen(gen_command) => {
-            let generator = Generator::create(
-                &gen_command.private_pem_path,
-                &gen_command.public_pem_path,
-                gen_command.key_size,
-            )?;
-            generator.gen()
-        }
+        CommandsClient::Gen(gen_command) => Generator::create(
+            &gen_command.private_pem_path,
+            &gen_command.public_pem_path,
+            gen_command.key_size,
+        )?
+        .gen(),
         CommandsClient::Send(send_command) => {
             let ntp = send_command.ntp.clone();
             Sender::create(send_command, time_from_ntp(&ntp)?)?.send()
         }
-        CommandsClient::Update(update_command) => {
-            let updater = Updater::create(
-                update_command.force,
-                update_command.version,
-                update_command.bin_path,
-                update_command.server,
-            )?;
-            updater.update()
-        }
-        CommandsClient::Wizard(wizard_command) => {
-            Wizard::create(wizard_command.force);
-            Ok(())
-        }
+        CommandsClient::Update(update_command) => Updater::create(
+            update_command.force,
+            update_command.version,
+            update_command.bin_path,
+            update_command.server,
+        )?
+        .update(),
+        CommandsClient::Wizard(wizard_command) => Wizard::create().run(),
     }
 }
 

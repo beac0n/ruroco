@@ -1,4 +1,4 @@
-use crate::common::{change_file_ownership, info};
+use crate::common::{change_file_ownership, info, set_permissions};
 use rand::distr::{Alphanumeric, SampleString};
 use reqwest::blocking::{get, Client};
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,11 @@ pub struct GithubApiData {
 }
 
 const GH_RELEASES_URL: &str = "https://api.github.com/repos/beac0n/ruroco/releases";
+pub const SERVER_BIN_DIR: &str = "/usr/local/bin";
+pub const COMMANDER_BIN_NAME: &str = "ruroco-commander";
+pub const SERVER_BIN_NAME: &str = "ruroco-server";
+pub const CLIENT_BIN_NAME: &str = "ruroco-client";
+pub const CLIENT_UI_BIN_NAME: &str = "ruroco-client-ui";
 
 #[derive(Debug)]
 pub struct Updater {
@@ -49,7 +54,7 @@ impl Updater {
                 return Err(format!("can't write to {p:?}"));
             }
             Some(p) => p,
-            None if server => Self::validate_dir_path(PathBuf::from("/usr/local/bin"))?,
+            None if server => Self::validate_dir_path(PathBuf::from(SERVER_BIN_DIR))?,
             None => {
                 let home_env =
                     env::var("HOME").map_err(|e| format!("Could not get home env: {e}"))?;
@@ -86,7 +91,7 @@ impl Updater {
             let commander_bin_name = format!("commander-{}-{}-{}", api_data.tag_name, ARCH, OS);
             self.download_and_save_bin(
                 self.get_download_url(assets, &commander_bin_name)?,
-                "ruroco-commander",
+                COMMANDER_BIN_NAME,
                 0o100, // execute for owner
                 None,
             )?;
@@ -94,7 +99,7 @@ impl Updater {
             let server_bin_name = format!("server-{}-{}-{}", api_data.tag_name, ARCH, OS);
             self.download_and_save_bin(
                 self.get_download_url(assets, &server_bin_name)?,
-                "ruroco-server",
+                SERVER_BIN_NAME,
                 0o500, // read|execute for owner
                 Some("ruroco"),
             )?;
@@ -102,7 +107,7 @@ impl Updater {
             let client_bin_name = format!("client-{}-{}-{}", api_data.tag_name, ARCH, OS);
             self.download_and_save_bin(
                 self.get_download_url(assets, &client_bin_name)?,
-                "ruroco-client",
+                CLIENT_BIN_NAME,
                 0o755, // read|write|execute for owner, read|execute for group and others.
                 None,
             )?;
@@ -110,7 +115,7 @@ impl Updater {
             let client_ui_bin_name = format!("client-ui-{}-{}-{}", api_data.tag_name, ARCH, OS);
             self.download_and_save_bin(
                 self.get_download_url(assets, &client_ui_bin_name)?,
-                "ruroco-client-ui",
+                CLIENT_UI_BIN_NAME,
                 0o755, // read|write|execute for owner, read|execute for group and others.
                 None,
             )?;
@@ -231,14 +236,7 @@ impl Updater {
 
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
-            let metadata = fs::metadata(target_bin_path_str)
-                .map_err(|e| format!("Could not get exe path meta data: {e}"))?;
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(permissions_mode); // 0o755
-            fs::set_permissions(target_bin_path_str, permissions)
-                .map_err(|e| format!("Could not set file permissions: {e}"))?;
-
+            set_permissions(target_bin_path_str, permissions_mode)?;
             if let Some(ug) = user_and_group {
                 change_file_ownership(target_bin_path, ug, ug)?
             }

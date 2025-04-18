@@ -5,6 +5,7 @@ use openssl::rsa::Padding;
 use sntpc::{NtpContext, StdTimestampGen};
 use std::net::{ToSocketAddrs, UdpSocket};
 use std::os::unix::fs::chown;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -14,6 +15,15 @@ pub const RSA_PADDING: Padding = Padding::PKCS1;
 pub const PADDING_SIZE: usize = 11; // see https://www.rfc-editor.org/rfc/rfc3447#section-7.2.1
 pub const SHA256_DIGEST_LENGTH: usize = 32;
 pub const NTP_SYSTEM: &str = "system";
+
+pub fn set_permissions(path: &str, permissions_mode: u32) -> Result<(), String> {
+    let metadata =
+        fs::metadata(path).map_err(|e| format!("Could not get {path:?} meta data: {e}"))?;
+    let mut permissions = metadata.permissions();
+    permissions.set_mode(permissions_mode);
+    fs::set_permissions(path, permissions)
+        .map_err(|e| format!("Could not set file permissions for {path:?}: {e}"))
+}
 
 pub fn time_from_ntp(ntp_server: &str) -> Result<u128, String> {
     if ntp_server == NTP_SYSTEM {
