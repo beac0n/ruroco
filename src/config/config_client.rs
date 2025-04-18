@@ -81,6 +81,12 @@ pub struct UpdateCommand {
     pub server: bool,
 }
 
+#[derive(Parser, Debug)]
+pub struct WizardCommand {
+    #[arg(short, long)]
+    pub force: bool,
+}
+
 impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
@@ -112,6 +118,8 @@ pub enum CommandsClient {
     Send(SendCommand),
     /// Update the client binary
     Update(UpdateCommand),
+    /// Run the wizard to set up the server side.
+    Wizard(WizardCommand),
 }
 
 pub fn default_private_pem_path() -> PathBuf {

@@ -1,12 +1,15 @@
 //! This module is responsible for sending data to the server and for generating PEM files
 
 use crate::client::send::Sender;
+use crate::client::update::Updater;
+use crate::client::wizard::Wizard;
 use crate::common::time_from_ntp;
 use crate::config::config_client::{CliClient, CommandsClient};
 
 pub mod gen;
 pub mod send;
 pub mod update;
+mod wizard;
 
 pub fn run_client(client: CliClient) -> Result<(), String> {
     match client.command {
@@ -19,12 +22,19 @@ pub fn run_client(client: CliClient) -> Result<(), String> {
             let ntp = send_command.ntp.clone();
             Sender::create(send_command, time_from_ntp(&ntp)?)?.send()
         }
-        CommandsClient::Update(update_command) => update::update(
-            update_command.force,
-            update_command.version,
-            update_command.bin_path,
-            update_command.server,
-        ),
+        CommandsClient::Update(update_command) => {
+            let updater = Updater::create(
+                update_command.force,
+                update_command.version,
+                update_command.bin_path,
+                update_command.server,
+            )?;
+            updater.update()
+        }
+        CommandsClient::Wizard(wizard_command) => {
+            Wizard::create(wizard_command.force);
+            Ok(())
+        }
     }
 }
 

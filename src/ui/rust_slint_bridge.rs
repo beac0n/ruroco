@@ -1,12 +1,8 @@
 #[cfg(target_os = "android")]
-use crate::client::update::get_github_api_data;
-#[cfg(target_os = "android")]
 use crate::ui::android_util::AndroidUtil;
 
-#[cfg(target_os = "linux")]
-use crate::client::update::update;
-
 use crate::client::run_client;
+use crate::client::update::Updater;
 use crate::common::{error, info, NTP_SYSTEM};
 use crate::config::config_client::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
 use crate::ui::saved_command_list::CommandsList;
@@ -164,7 +160,7 @@ impl RustSlintBridge {
         self.app.global::<SlintRustBridge>().on_update_application(move || {
             #[cfg(target_os = "linux")]
             {
-                match update(false, None, None, false) {
+                match Updater::create(false, None, None, false).unwrap().update() {
                     Ok(_) => {}
                     Err(err) => {
                         error(&format!("Error when updating application: {err}"));
@@ -181,7 +177,7 @@ impl RustSlintBridge {
 
     #[cfg(target_os = "android")]
     fn update_android() {
-        let data = get_github_api_data(None).unwrap();
+        let data = Updater::get_github_api_data(None).unwrap();
         let asset = data.assets.into_iter().find(|a| a.name.ends_with(".apk")).unwrap();
 
         let util = AndroidUtil::create();
