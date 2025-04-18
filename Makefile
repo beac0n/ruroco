@@ -41,10 +41,9 @@ install_client: release
 	cp ./target/x86_64-unknown-linux-gnu/release/client ~/.local/bin/ruroco-client
 	cp ./target/x86_64-unknown-linux-gnu/release/client_ui ~/.local/bin/ruroco-client-ui
 
-install_server: release
+install_server: install_client
 	sudo cp ./target/x86_64-unknown-linux-gnu/release/server /usr/local/bin/ruroco-server
 	sudo cp ./target/x86_64-unknown-linux-gnu/release/commander /usr/local/bin/ruroco-commander
-	sudo cp ./target/x86_64-unknown-linux-gnu/release/client /usr/local/bin/ruroco-client
 
 	sudo useradd --system ruroco --shell /bin/false || true
 	sudo cp ./systemd/* /etc/systemd/system
