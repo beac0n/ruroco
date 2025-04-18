@@ -175,7 +175,7 @@ mod tests {
     use clap::Parser;
     use rand::distr::{Alphanumeric, SampleString};
 
-    use crate::client::gen::gen;
+    use crate::client::gen::Generator;
     use crate::client::send::Sender;
     use crate::common::time;
     use crate::config::config_client::{CliClient, SendCommand};
@@ -255,7 +255,7 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(&private_pem_path, &public_pem_path, 1024).unwrap();
+        Generator::create(&private_pem_path, &public_pem_path, 1024).unwrap().gen().unwrap();
 
         let address = "127.0.0.1:asd".to_string();
 
@@ -288,7 +288,7 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(&private_pem_path, &public_pem_path, 1024).unwrap();
+        Generator::create(&private_pem_path, &public_pem_path, 1024).unwrap().gen().unwrap();
 
         let address = "999.999.999.999:9999".to_string();
 
@@ -324,7 +324,7 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(&private_pem_path, &public_pem_path, 1024).unwrap();
+        Generator::create(&private_pem_path, &public_pem_path, 1024).unwrap().gen().unwrap();
 
         let sender = Sender::create(
             SendCommand {
@@ -366,7 +366,7 @@ mod tests {
 
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(&private_pem_path, &public_pem_path, 1024)?;
+        Generator::create(&private_pem_path, &public_pem_path, 1024)?.gen()?;
 
         let sender = Sender::create(
             SendCommand {
@@ -396,7 +396,7 @@ mod tests {
         let public_file = gen_file_name(".pem");
         let private_pem_path = PathBuf::from(&private_file);
         let public_pem_path = PathBuf::from(&public_file);
-        gen(&private_pem_path, &public_pem_path, 1024).unwrap();
+        Generator::create(&private_pem_path, &public_pem_path, 1024).unwrap().gen().unwrap();
 
         let sender = Sender::create(
             SendCommand {

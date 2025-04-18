@@ -2,7 +2,7 @@
 mod tests {
     use rand::distr::{Alphanumeric, SampleString};
     use rand::Rng;
-    use ruroco::client::gen::gen;
+    use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
     use ruroco::common::{get_blocklist_path, get_commander_unix_socket_path, time};
     use ruroco::config::config_client::SendCommand;
@@ -71,7 +71,10 @@ mod tests {
         fn run_client_gen(&self) {
             let key_size = 1024;
 
-            gen(&self.private_pem_path, &self.public_pem_path, key_size).unwrap();
+            Generator::create(&self.private_pem_path, &self.public_pem_path, key_size)
+                .unwrap()
+                .gen()
+                .unwrap();
         }
 
         fn get_blocked_list(&self) -> Vec<u128> {

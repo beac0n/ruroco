@@ -195,7 +195,7 @@ pub fn run_server(server: CliServer) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::gen::gen;
+    use crate::client::gen::Generator;
     use crate::config::config_server::{CliServer, ConfigServer};
     use crate::server::Server;
     use clap::error::ErrorKind::DisplayHelp;
@@ -335,11 +335,13 @@ mod tests {
         let _ = fs::create_dir_all(&test_folder_path);
         let _ = fs::create_dir_all(&private_pem_dir);
 
-        gen(
+        Generator::create(
             &private_pem_dir.join(gen_file_name(".pem")),
             &test_folder_path.join(gen_file_name(".pem")),
             1024,
         )
+        .unwrap()
+        .gen()
         .expect("could not generate key");
 
         Server::create(

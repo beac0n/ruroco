@@ -1,5 +1,6 @@
 //! This module is responsible for sending data to the server and for generating PEM files
 
+use crate::client::gen::Generator;
 use crate::client::send::Sender;
 use crate::client::update::Updater;
 use crate::client::wizard::Wizard;
@@ -13,11 +14,14 @@ mod wizard;
 
 pub fn run_client(client: CliClient) -> Result<(), String> {
     match client.command {
-        CommandsClient::Gen(gen_command) => gen::gen(
-            &gen_command.private_pem_path,
-            &gen_command.public_pem_path,
-            gen_command.key_size,
-        ),
+        CommandsClient::Gen(gen_command) => {
+            let generator = Generator::create(
+                &gen_command.private_pem_path,
+                &gen_command.public_pem_path,
+                gen_command.key_size,
+            )?;
+            generator.gen()
+        }
         CommandsClient::Send(send_command) => {
             let ntp = send_command.ntp.clone();
             Sender::create(send_command, time_from_ntp(&ntp)?)?.send()
@@ -40,7 +44,7 @@ pub fn run_client(client: CliClient) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::gen::gen;
+    use crate::client::gen::Generator;
     use crate::client::run_client;
     use crate::config::config_client::CliClient;
     use clap::Parser;
@@ -80,7 +84,10 @@ mod tests {
         let private_file = gen_file_name(".pem");
         let public_file = gen_file_name(".pem");
 
-        gen(&PathBuf::from(&private_file), &PathBuf::from(&public_file), 1024).unwrap();
+        Generator::create(&PathBuf::from(&private_file), &PathBuf::from(&public_file), 1024)
+            .unwrap()
+            .gen()
+            .unwrap();
 
         let result = run_client(CliClient::parse_from(vec![
             "ruroco",

@@ -10,7 +10,7 @@ pub mod rust_slint_bridge;
 /// saves commands configured in ui
 pub mod saved_command_list;
 
-use crate::client::gen::gen;
+use crate::client::gen::Generator;
 use crate::config::config_client::{
     default_private_pem_path, default_public_pem_path, DEFAULT_KEY_SIZE,
 };
@@ -36,7 +36,10 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
         executor.enable_key_gen_popup();
         thread::spawn(move || {
             // TODO: handle errors gracefully
-            gen(&private_pem_path, &public_pem_path, DEFAULT_KEY_SIZE as u32).unwrap();
+            Generator::create(&private_pem_path, &public_pem_path, DEFAULT_KEY_SIZE as u32)
+                .unwrap()
+                .gen()
+                .unwrap();
             let executor_copy = executor.clone();
             slint::invoke_from_event_loop(move || executor_copy.set_public_key().unwrap()).unwrap();
             let executor_copy = executor.clone();
