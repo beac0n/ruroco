@@ -56,6 +56,11 @@ pub fn update(
 
     let api_data = get_github_api_data(version.as_ref())?;
 
+    if !force && current_version.clone() == api_data.tag_name {
+        info(&format!("Already using version {current_version}"));
+        return Ok(());
+    }
+
     if server {
         let commander_bin_name = format!("commander-{}-{}-{}", api_data.tag_name, ARCH, OS);
         download_and_save_bin(
