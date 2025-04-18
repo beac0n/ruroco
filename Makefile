@@ -37,8 +37,9 @@ format:
 	cargo fmt && cargo clippy --fix
 
 install_client: release
-	sudo cp ./target/x86_64-unknown-linux-gnu/release/client /usr/local/bin/ruroco-client
-	sudo cp ./target/x86_64-unknown-linux-gnu/release/client_ui /usr/local/bin/ruroco-client-ui
+	mkdir -p ~/.local/bin/
+	cp ./target/x86_64-unknown-linux-gnu/release/client ~/.local/bin/ruroco-client
+	cp ./target/x86_64-unknown-linux-gnu/release/client_ui ~/.local/bin/ruroco-client-ui
 
 install_server: release
 	sudo cp ./target/x86_64-unknown-linux-gnu/release/server /usr/local/bin/ruroco-server
