@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] - 2025-04-18
+
+### Fixed
+
+- Client: Update logic
+- Android: Icon
+
 ## [0.6.4] - 2025-04-13
 
 ### Added
@@ -154,6 +161,8 @@ Refactored User Interface
 ### Added
 
 - Initial Release
+
+[0.7.7]: https://github.com/beac0n/ruroco/compare/v0.6.4..v0.7.7
 
 [0.6.4]: https://github.com/beac0n/ruroco/compare/v0.6.3..v0.6.4
 
