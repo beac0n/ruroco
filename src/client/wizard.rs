@@ -1,4 +1,4 @@
-use crate::client::update::{Updater, COMMANDER_BIN_NAME, SERVER_BIN_DIR, SERVER_BIN_NAME};
+use crate::client::update::Updater;
 use crate::common::{info, set_permissions};
 use crate::config::config_client::get_conf_dir;
 use std::fs;
