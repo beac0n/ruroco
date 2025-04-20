@@ -9,7 +9,7 @@ ruroco is a tool that lets you execute commands on a server by sending UDP packe
 the tool consist of 4 binaries:
 
 - `client`: runs on your notebook/computer and sends the UDP packets
-- `client-ui`: presents all the functionality of `client` in an easier to use user interface.
+- `client-ui`: presents most of the functionality of `client` in an easier to use user interface.
 - `server`: receives the UDP packets and makes sure that they are valid
 - `commander`: runs the command encoded by the data of the UDP packet if it's valid
 
@@ -23,7 +23,6 @@ picks from existing commands.
 - client only defines command to execute, **commands are saved on server** -> client can pick command but not define it
 - run server software in such a way so that it uses **as little operating system rights** as possible
 - **replay protection** by adding every packet that the server received to a blocklist
-- (WIP) DoS protection
 
 ## client ui usage
 
@@ -43,16 +42,19 @@ ruroco-client
 ```
 
 ```text
-Usage: client <COMMAND>
+Usage: ruroco-client <COMMAND>
 
 Commands:
-  gen   
-  send  
-  help  Print this message or the help of the given subcommand(s)
+  gen     Generate a pair of private and public PEM keys
+  send    Send a command to a specific address
+  update  Update the client binary
+  wizard  Run the wizard to set up the server side
+  help    Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help
   -V, --version  Print version
+
 ```
 
 ### gen
@@ -68,13 +70,14 @@ Usage: ruroco-client gen [OPTIONS]
 
 Options:
   -r, --private-pem-path <PRIVATE_PEM_PATH>
-          Path to the private PEM file [default: ./ruroco_private.pem]
+          Path to the private PEM file [default: ~/.config/ruroco/ruroco_private.pem]
   -u, --public-pem-path <PUBLIC_PEM_PATH>
-          Path to the public PEM file [default: ./ruroco_public.pem]
+          Path to the public PEM file [default: ~/.config/ruroco/ruroco_public.pem]
   -k, --key-size <KEY_SIZE>
           Key size for the PEM file [default: 8192]
   -h, --help
           Print help
+
 ```
 
 ### send
@@ -86,7 +89,7 @@ ruroco-client send --help
 ```text
 Send a command to a specific address
 
-Usage: client send [OPTIONS] --address <ADDRESS>
+Usage: ruroco-client send [OPTIONS] --address <ADDRESS>
 
 Options:
   -a, --address <ADDRESS>
@@ -115,7 +118,7 @@ Options:
 
 1. run `ruroco-client gen` to generate two files: `ruroco_private.pem` and `ruroco_public.pem`
 2. move `ruroco_public.pem` to `/etc/ruroco/ruroco_public.pem` on server
-3. save `ruroco_private.pem` to `~/.config/ruroco/ruroco_private.pem` on client
+3. save `ruroco_private.pem` and `ruroco_public.pem` to `~/.config/ruroco/ruroco_private.pem` on client
 4. add server config to `/etc/ruroco/config.toml` -> see [config.toml](config/config.toml)
 
 # setup
@@ -137,8 +140,13 @@ See make goal `install_client`. This builds the project and copies the client bi
 
 ### pre-build
 
-Download the `client-v<major>.<minor>.<patch>-x86_64-linux` binary from https://github.com/beac0n/ruroco/releases/latest
-and move it to `/usr/local/bin/ruroco-client`
+Run the following script
+
+```shell
+curl -Ls "$(curl -s https://api.github.com/repos/beac0n/ruroco/releases/latest | grep -oE 'https://[^"]*/client-v[0-9]+\.[0-9]+\.[0-9]+-x86_64-linux')" -o ~/.local/bin/ruroco-client 
+chmod +x ~/.local/bin/ruroco-client
+~/.local/bin/ruroco-client update --force
+```
 
 ## server
 
@@ -158,28 +166,14 @@ See make goal `install_server`, which
 
 ### pre-build
 
-1. Download the `server-v<major>.<minor>.<patch>-x86_64-linux` and `commander-v<major>.<minor>.<patch>-x86_64-linux`
-   binaries from https://github.com/beac0n/ruroco/releases/latest and move them to `/usr/local/bin/ruroco-server` and
-   `/usr/local/bin/ruroco-commander`.
-2. Make sure that the binaries have the minimal permission sets needed:
-    1. `sudo chmod 500 /usr/local/bin/ruroco-server`
-    2. `sudo chmod 100 /usr/local/bin/ruroco-commander`
-    3. `sudo chown ruroco:ruroco /usr/local/bin/ruroco-server`
-3. Create the `ruroco` user: `sudo useradd --system ruroco --shell /bin/false`
-4. Install the systemd service files from the `systemd` folder: `sudo cp ./systemd/* /etc/systemd/system`
-5. Create `/etc/ruroco/config.toml` and define your config and commands
-    1. Make sure that the configuration file has the minimal permission set needed:
-       `sudo chmod 400 /etc/ruroco/config.toml`
-    2. Hint: If you edit the `[commands]` in `/etc/ruroco/config.toml` then restart ruroco-commander
-6. Since new systemd files have been added, reload the daemon: `sudo systemctl daemon-reload`
-7. Enable the systemd services:
-    1. `sudo systemctl enable ruroco.service`
-    2. `sudo systemctl enable ruroco-commander.service`
-    3. `sudo systemctl enable ruroco.socket`
-8. Start the systemd services
-    1. `sudo systemctl start ruroco-commander.service`
-    2. `sudo systemctl start ruroco.socket`
-    3. `sudo systemctl start ruroco.service`
+Run the following script
+
+```shell
+curl -Ls "$(curl -s https://api.github.com/repos/beac0n/ruroco/releases/latest | grep -oE 'https://[^"]*/client-v[0-9]+\.[0-9]+\.[0-9]+-x86_64-linux')" -o ~/.local/bin/ruroco-client 
+chmod +x ~/.local/bin/ruroco-client
+~/.local/bin/ruroco-client update --force
+sudo ~/.local/bin/ruroco-client wizard
+```
 
 ## android
 
