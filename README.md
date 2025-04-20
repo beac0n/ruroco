@@ -4,8 +4,6 @@
 
 # ruroco - Run Remote Command
 
-![ruroco](ruroco.webp)
-
 ruroco is a tool that lets you execute commands on a server by sending UDP packets.
 
 the tool consist of 4 binaries:
