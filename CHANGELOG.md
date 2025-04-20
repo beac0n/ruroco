@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2025-04-20
+
+### Added
+
+Server: Wizard command to automatically install server setup
+
 ## [0.7.7] - 2025-04-18
 
 ### Fixed
@@ -161,6 +167,8 @@ Refactored User Interface
 ### Added
 
 - Initial Release
+
+[0.8.0]: https://github.com/beac0n/ruroco/compare/v0.7.7..v0.8.0
 
 [0.7.7]: https://github.com/beac0n/ruroco/compare/v0.6.4..v0.7.7
 
