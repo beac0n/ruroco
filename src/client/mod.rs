@@ -31,7 +31,7 @@ pub fn run_client(client: CliClient) -> Result<(), String> {
             update_command.server,
         )?
         .update(),
-        CommandsClient::Wizard(wizard_command) => Wizard::create().run(),
+        CommandsClient::Wizard(_) => Wizard::create().run(),
     }
 }
 
