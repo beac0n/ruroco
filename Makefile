@@ -30,6 +30,13 @@ release: release_android
 	upx --best --lzma target/x86_64-unknown-linux-gnu/release/server
 	upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander
 
+release_nix:
+	# TODO: implement
+	export NIXPKGS_ALLOW_UNFREE=1
+	export NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1
+	nix-shell -p glibc android-tools android-studio-full libiconv openssl openssl.dev pkg-config jdk11 clang perl glibc.dev glibc curl rustup --pure
+	export PATH=/home/beac0n/.cargo/bin:$PATH
+
 test:
 	export TEST_UPDATER=1; cargo nextest run --retries 2
 
