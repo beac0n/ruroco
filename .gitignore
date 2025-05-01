@@ -1,3 +1,4 @@
+.nix-cargo/*
 ruroco*.pem
 !tests/conf_dir/*
 
