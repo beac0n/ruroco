@@ -57,14 +57,11 @@ jobs:
     name: Test
     runs-on: ubuntu-22.04
     steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install cargo-binstall
-        run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-      - name: Install nextest
-        run: cargo binstall cargo-nextest --secure
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
       - name: Run tests
         run: cargo nextest run --retries 2
 
@@ -72,14 +69,13 @@ jobs:
     name: Coverage
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
       - name: Generate code coverage
-        run: |
-          cargo install cargo-tarpaulin
-          cargo tarpaulin --timeout 360 --out xml -- --test-threads 1
-        env:
-          RUST_BACKTRACE: 'full'
+        run: make coverage
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v2
         env:
@@ -87,37 +83,17 @@ jobs:
         with:
           fail_ci_if_error: true
 
-  clippy:
-    name: Lints
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: clippy
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Check the lints
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --tests --verbose -- -D warnings
-
-  rustfmt:
+  format:
     name: Formatting
     runs-on: ubuntu-22.04
     steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Check the formatting
-        uses: actions-rs/cargo@v1
+      - uses: cachix/install-nix-action@v31
         with:
-          command: fmt
-          args: --all -- --check --verbose
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Check formatting
+        run: make format
 
   release:
     name: Create Release
@@ -125,33 +101,16 @@ jobs:
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
       - name: Extract Tag Name
         id: extract_tag
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-      - name: Install xbuild
-        uses: rust-mobile/setup-xbuild-action@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup NDK
-        uses: nttld/setup-ndk@v1.5.0
-        with:
-          ndk-version: r27c
-          link-to-sdk: true
       - name: Make Release
-        run: |
-          echo $PATH
-          export PATH=/opt/hostedtoolcache/ndk/r27c/x64/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
-          ls -la /opt/hostedtoolcache/ndk/r27c/x64/toolchains/llvm/prebuilt/linux-x86_64/bin
-          x doctor
-          make release
+        run: make release
       - name: Move Files
         run: |
           mv target/x/release/android/ruroco.apk client-${{ env.TAG_NAME }}-aarch64-linux-android.apk
@@ -172,60 +131,3 @@ jobs:
             --notes "See https://github.com/beac0n/ruroco/blob/master/CHANGELOG.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-#      - name: Publish Release
-#        id: create_release
-#        uses: actions/create-release@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          body: "see https://github.com/beac0n/ruroco/blob/master/CHANGELOG.md"
-#          tag_name: ${{ github.ref }}
-#          release_name: Release ${{ env.TAG_NAME }}
-#          draft: false
-#          prerelease: false
-#      - name: Upload Release Asset - Android
-#        uses: actions/upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: target/x/release/android/ruroco.apk
-#          asset_name: client-${{ env.TAG_NAME }}-aarch64-linux-android.apk
-#          asset_content_type: application/octet-stream
-#      - name: Upload Release Asset - Client
-#        uses: actions/upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: target/x86_64-unknown-linux-gnu/release/client
-#          asset_name: client-${{ env.TAG_NAME }}-x86_64-linux
-#          asset_content_type: application/octet-stream
-#      - name: Upload Release Asset - Client UI
-#        uses: actions/upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: target/x86_64-unknown-linux-gnu/release/client_ui
-#          asset_name: client-ui-${{ env.TAG_NAME }}-x86_64-linux
-#          asset_content_type: application/octet-stream
-#      - name: Upload Release Asset - Commander
-#        uses: actions/upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: target/x86_64-unknown-linux-gnu/release/commander
-#          asset_name: commander-${{ env.TAG_NAME }}-x86_64-linux
-#          asset_content_type: application/octet-stream
-#      - name: Upload Release Asset - Server
-#        uses: actions/upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: target/x86_64-unknown-linux-gnu/release/server
-#          asset_name: server-${{ env.TAG_NAME }}-x86_64-linux
-#          asset_content_type: application/octet-stream

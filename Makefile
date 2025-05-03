@@ -6,37 +6,31 @@ hooks:
 	echo "cargo fmt && cargo clippy --fix" >> .git/hooks/pre-push
 	chmod +x .git/hooks/pre-push
 
-dev_setup:
-	cargo install cargo-binstall
-	cargo binstall cargo-nextest --secure
-
 dev_ui_local:
-	export RUST_BACKTRACE=full; cargo run --bin client_ui
+	cargo run --bin client_ui
 
 dev_ui_android:
-	export RUST_BACKTRACE=full; x run --features release-build --features android-build --device $$(x devices | awk '/^adb:/ { print $$1 }')
+	nix-shell android.nix --pure --run ./scripts/dev_ui_android.sh
 
 build:
-	cargo build --color=always --package ruroco --target x86_64-unknown-linux-gnu
+	nix-shell linux.nix --pure --run 'cargo build --color=always --package ruroco --target x86_64-unknown-linux-gnu'
 
-release: release_android
-	# see https://github.com/johnthagen/min-sized-rust
-	cargo build --color=always --release --package ruroco --features release-build --target x86_64-unknown-linux-gnu
-	upx --best --lzma target/x86_64-unknown-linux-gnu/release/client_ui
-	upx --best --lzma target/x86_64-unknown-linux-gnu/release/client
-	upx --best --lzma target/x86_64-unknown-linux-gnu/release/server
-	upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander
+release: release_android release_linux
+
+release_linux:
+	nix-shell linux.nix --pure --run ./scripts/release_linux.sh
 
 release_android:
-	export NIXPKGS_ALLOW_UNFREE=1
-	export NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1
-	nix-shell android.nix --pure --run 'cargo install xbuild --root .nix-cargo; .nix-cargo/bin/x build --features release-build --features android-build --release --platform android --arch arm64 --format apk --verbose'
+	nix-shell android.nix --pure --run ./scripts/release_android.sh
+
+coverage:
+	nix-shell linux.nix --pure --run 'cargo tarpaulin --timeout 360 --out xml -- --test-threads 1'
 
 test:
-	export TEST_UPDATER=1; cargo nextest run --retries 2
+	nix-shell linux.nix --pure --run 'export TEST_UPDATER=1; cargo nextest run --retries 2'
 
 format:
-	cargo fmt && cargo clippy --fix
+	nix-shell linux.nix --pure --run 'cargo fmt && cargo clippy --tests --verbose -- -D warnings'
 
 install_client: release
 	mkdir -p ~/.local/bin/

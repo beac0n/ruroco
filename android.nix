@@ -1,27 +1,49 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import <nixpkgs> {
+    config = {
+      android_sdk.accept_license = true;
+      allowUnfree = true;
+    };
+} }:
 
 let
   root = toString ./.;
-  androidHome="${pkgs.androidenv.androidPkgs.androidsdk}/libexec/android-sdk";
-  arch=pkgs.stdenv.hostPlatform.parsed.cpu.name;
+  arch = pkgs.stdenv.hostPlatform.parsed.cpu.name;
+  androidHome = "${androidComposition.androidsdk}/libexec/android-sdk";
+  androidComposition = pkgs.androidenv.composeAndroidPackages {
+    cmdLineToolsVersion = "9.0";
+    toolsVersion = null;
+    platformToolsVersion = "35.0.2";
+    buildToolsVersions =  [ "35.0.1"];
+    includeEmulator = false;
+    includeCmake = false;
+    cmakeVersions = [];
+    includeNDK = true;
+    ndkVersions = [ "28" ];
+    includeExtras = [ ];
+    platformVersions = [ "35x"];
+    systemImageTypes = [ ];
+    abiVersions = [ "arm64-v8a" ];
+  };
+
 in pkgs.mkShell {
   buildInputs = with pkgs; [
-    rustup  # xbuild needs rustup
-    androidenv.androidPkgs.androidsdk  # for building android
-    jdk23_headless # for building android
+    rustup
+    androidComposition.androidsdk
+    jdk23_headless
     openssl
-    perl  # building openSSL requires perl
-    curl  # needed for downloading skia libraries
+    perl
+    curl
+    cargo-xbuild
   ];
 
-  ANDROID_HOME="${androidHome}";
-  ANDROID_NDK_ROOT="${androidHome}/ndk-bundle";
+  ANDROID_HOME = "${androidHome}";
+  ANDROID_NDK_ROOT = "${androidHome}/ndk-bundle";
 
-  CARGO_HOME="${root}/.nix-cargo";
+  CARGO_HOME = "${root}/.nix-cargo-android";
 
-  OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include/openssl";
-  OPENSSL_LIB_DIR="${pkgs.openssl.out}/lib";
-  OPENSSL_ROOT_DIR="${pkgs.openssl.out}";
+  OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include/openssl";
+  OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
+  OPENSSL_ROOT_DIR = "${pkgs.openssl.out}";
 
   shellHook = ''
     rustup default stable
