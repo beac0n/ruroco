@@ -30,6 +30,9 @@ test:
 	nix-shell linux.nix --pure --run 'export TEST_UPDATER=1; cargo nextest run --retries 2'
 	rm -rf *.pem
 
+check:
+	nix-shell linux.nix --pure --run 'cargo check --locked --verbose && cargo check --locked --no-default-features --verbose'
+
 format:
 	nix-shell linux.nix --pure --run 'cargo fmt && cargo clippy --tests --verbose -- -D warnings'
 
