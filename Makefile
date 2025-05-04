@@ -28,6 +28,7 @@ coverage:
 
 test:
 	nix-shell linux.nix --pure --run 'export TEST_UPDATER=1; cargo nextest run --retries 2'
+	rm -rf *.pem
 
 format:
 	nix-shell linux.nix --pure --run 'cargo fmt && cargo clippy --tests --verbose -- -D warnings'
