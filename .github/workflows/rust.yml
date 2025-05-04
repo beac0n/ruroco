@@ -16,10 +16,14 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: .nix-cargo-linux
+          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -40,36 +44,52 @@ jobs:
   test-end-to-end:
     name: Test end to end
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: .nix-cargo-linux
+          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - name: Run tests end to end
-        run: make test_end_to_end
+      - name: Run Check
+        uses: workflow/nix-shell-action@v3
+        with:
+          script: make test_end_to_end
 
   test:
     name: Test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: .nix-cargo-linux
+          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - name: Run tests
-        run: cargo nextest run --retries 2
+      - name: Run Check
+        uses: workflow/nix-shell-action@v3
+        with:
+          script: nix-shell linux.nix --pure --run 'cargo nextest run --retries 2'
 
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: .nix-cargo-linux
+          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -85,10 +105,14 @@ jobs:
   format:
     name: Formatting
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: .nix-cargo-linux
+          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -98,12 +122,18 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            .nix-cargo-linux
+            .nix-cargo-android
+          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
