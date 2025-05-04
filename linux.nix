@@ -1,27 +1,31 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/refs/tags/24.11.tar.gz") {} }:
 let
   root = toString ./.;
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [
+    cacert
     rustup
     openssl
-    upx
     perl
+    upx
     cargo-nextest
     cargo-tarpaulin
     clippy
     rustfmt
+
   ];
 
   CARGO_HOME = "${root}/.nix-cargo-linux";
+  RUST_BACKTRACE = 1;
 
-  OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include/openssl";
-  OPENSSL_LIB_DIR="${pkgs.openssl.out}/lib";
-  OPENSSL_ROOT_DIR="${pkgs.openssl.out}";
+  OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include/openssl";
+  OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
+  OPENSSL_ROOT_DIR = "${pkgs.openssl.out}";
 
   shellHook = ''
-    export DISPLAY=:0
+    export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+    rustup default stable
     export PATH=$CARGO_HOME/bin:$PATH
   '';
 
