@@ -19,11 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: .nix-cargo-linux
-          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -47,11 +42,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: .nix-cargo-linux
-          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -66,11 +56,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: .nix-cargo-linux
-          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -85,11 +70,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: .nix-cargo-linux
-          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -108,11 +88,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: .nix-cargo-linux
-          key: "nix-cargo-linux-${{ hashFiles('**/Cargo.lock') }}"
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
