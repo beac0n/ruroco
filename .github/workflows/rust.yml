@@ -62,7 +62,7 @@ jobs:
       - name: Run Check
         uses: workflow/nix-shell-action@v3
         with:
-          script: nix-shell linux.nix --pure --run 'cargo nextest run --retries 2'
+          script: nix-shell nix/linux.nix --pure --run 'cargo nextest run --retries 2'
 
   coverage:
     name: Coverage
