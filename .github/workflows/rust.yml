@@ -15,6 +15,7 @@ jobs:
 
   check:
     name: Check
+    runs-on: ubuntu-latest
     container:
       image: nixos/nix:latest
     steps:
@@ -35,6 +36,7 @@ jobs:
 
   test-end-to-end:
     name: Test end to end
+    runs-on: ubuntu-latest
     container:
       image: nixos/nix:latest
     steps:
@@ -45,6 +47,7 @@ jobs:
 
   test:
     name: Test
+    runs-on: ubuntu-latest
     container:
       image: nixos/nix:latest
     steps:
@@ -55,6 +58,7 @@ jobs:
 
   coverage:
     name: Coverage
+    runs-on: ubuntu-latest
     container:
       image: nixos/nix:latest
     steps:
@@ -71,6 +75,7 @@ jobs:
 
   format:
     name: Formatting
+    runs-on: ubuntu-latest
     container:
       image: nixos/nix:latest
     steps:
@@ -81,6 +86,7 @@ jobs:
 
   release:
     name: Create Release
+    runs-on: ubuntu-latest
     container:
       image: nixos/nix:latest
     needs: test
