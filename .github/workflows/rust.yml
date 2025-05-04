@@ -17,7 +17,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     container:
-      image: nixos/nix:latest
+      image: cachix/nix-install-action:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
