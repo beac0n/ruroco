@@ -12,17 +12,17 @@ let
   androidComposition = pkgs.androidenv.composeAndroidPackages {
     cmdLineToolsVersion = "9.0";
     toolsVersion = null;
-    platformToolsVersion = "35.0.1";
-    buildToolsVersions =  [ "34.0.0"];
+    platformToolsVersion = "35.0.2";
+    buildToolsVersions =  [ "35.0.0"];
     includeEmulator = false;
-    platformVersions = [ "34" ];
+    platformVersions = [ "35" ];
     includeSources = false;
     includeSystemImages = false;
     systemImageTypes = [  ];
     abiVersions = [ "arm64-v8a" ];
     cmakeVersions = [ ];
     includeNDK = true;
-    ndkVersions = [ "26.3.11579264" ];
+    ndkVersions = [ "27.0.12077973" ];
     useGoogleAPIs = false;
     useGoogleTVAddOns = false;
     includeExtras = [ ];
@@ -35,9 +35,8 @@ in pkgs.mkShell {
     openssl
     perl
     androidComposition.androidsdk
-    jdk11 # must be the same as use in androidenv
-    curl
-    cargo-xbuild
+    jdk21 # must be the same as use in androidenv
+    curlMinimal
   ];
 
   ANDROID_HOME = "${androidHome}";
@@ -52,8 +51,8 @@ in pkgs.mkShell {
 
   shellHook = ''
     export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
-    rustup default stable
     export PATH=$CARGO_HOME/bin:$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-${arch}/bin/:$PATH
+    rustup default stable
   '';
 
 }

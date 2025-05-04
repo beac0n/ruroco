@@ -13,7 +13,6 @@ pkgs.mkShell {
     cargo-tarpaulin
     clippy
     rustfmt
-
   ];
 
   CARGO_HOME = "${root}/.nix-cargo-linux";
@@ -25,8 +24,8 @@ pkgs.mkShell {
 
   shellHook = ''
     export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
-    rustup default stable
     export PATH=$CARGO_HOME/bin:$PATH
+    rustup default stable
   '';
 
 }
