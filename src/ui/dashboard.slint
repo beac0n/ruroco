@@ -6,12 +6,38 @@ export component Dashboard inherits VerticalLayout {
     padding-left: 10px;
     padding-right: 10px;
 
-    public_key_box := TextEdit {
-        enabled: false;
+    commands_config_box := TextEdit {
+        enabled: true;
         font-size: 9px;
         wrap: char-wrap;
         has-focus: false;
-        text <=> SlintRustBridge.public_key;
+        text <=> SlintRustBridge.commands_config;
+    }
+
+    Rectangle {
+        height: 10px;
+    }
+
+    Button {
+        height: 50px;
+        text: "Update Commands Config";
+        clicked => {
+            SlintRustBridge.set_commands_config(SlintRustBridge.commands_config);
+        }
+    }
+
+    Rectangle {
+        height: 10px;
+    }
+
+    Button {
+        height: 50px;
+        text: "Copy Commands Config";
+        clicked => {
+            commands_config_box.select-all();
+            commands_config_box.copy();
+            commands_config_box.clear-selection()
+        }
     }
 
     Rectangle {
@@ -28,6 +54,15 @@ export component Dashboard inherits VerticalLayout {
 
     Rectangle {
         height: 10px;
+    }
+
+    public_key_box := TextEdit {
+        visible: false;
+        enabled: false;
+        width: 0;
+        height: 0;
+        has-focus: false;
+        text <=> SlintRustBridge.public_key;
     }
 
     Button {

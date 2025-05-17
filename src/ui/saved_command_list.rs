@@ -1,8 +1,7 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-
 use crate::common::{error, resolve_path};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::{fmt, fs};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct CommandsList {
@@ -10,15 +9,25 @@ pub struct CommandsList {
     path: PathBuf,
 }
 
+impl fmt::Display for CommandsList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &self.list.join("\n"))
+    }
+}
+
 impl CommandsList {
     pub fn create(config_dir: &Path) -> CommandsList {
         let commands_list_path = resolve_path(config_dir).join("commands_list.toml");
-        let commands_list_str =
-            fs::read_to_string(&commands_list_path).unwrap_or_else(|_| "".to_string());
+        let commands_list_str = CommandsList::read_raw_from_path(&commands_list_path);
         toml::from_str(&commands_list_str).unwrap_or_else(|_| CommandsList {
             list: vec![],
             path: commands_list_path,
         })
+    }
+
+    pub fn set(&mut self, commands_list: Vec<String>) {
+        self.list = commands_list;
+        self.save()
     }
 
     pub fn get(&self) -> Vec<String> {
@@ -65,6 +74,10 @@ impl CommandsList {
         };
 
         parts.join("")
+    }
+
+    fn read_raw_from_path(path: &Path) -> String {
+        fs::read_to_string(path).unwrap_or_else(|_| "".to_string())
     }
 
     fn save(&self) {

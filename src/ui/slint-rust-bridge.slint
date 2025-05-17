@@ -5,6 +5,7 @@ struct CommandData {
 }
 export global SlintRustBridge {
     in-out property <[CommandData]> commands_list: [];
+    in-out property <string> commands_config: "";
     in-out property <string> public_key: "";
     in-out property <string> command: "";
     in-out property <string> deadline: "";
@@ -14,5 +15,6 @@ export global SlintRustBridge {
     callback add_command(string);
     callback exec_command(string, int);
     callback del_command(string, int);
+    callback set_commands_config(string);
     callback update_application();
 }
