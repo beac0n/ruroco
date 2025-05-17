@@ -18,6 +18,9 @@ build:
 release: release_android release_linux
 
 release_linux:
+	./scripts/release_linux.sh
+
+release_linux_nix:
 	nix-shell nix/linux.nix --pure --run ./scripts/release_linux.sh
 
 release_android:
