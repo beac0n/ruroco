@@ -162,7 +162,7 @@ impl RustSlintBridge {
             });
 
             Self::with_app_commands_list(&app_weak, |cl| {
-                cl.push(Self::create_command_tuple(&cmd.to_string()));
+                cl.push(Self::create_command_tuple(cmd.as_ref()));
             });
         });
     }
