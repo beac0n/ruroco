@@ -1,4 +1,6 @@
 name: Continuous Integration
+permissions:
+  contents: write
 
 on:
   push:
