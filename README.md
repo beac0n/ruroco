@@ -8,10 +8,10 @@ ruroco is a tool that lets you execute commands on a server by sending UDP packe
 
 the tool consist of 4 binaries:
 
-- `client`: runs on your notebook/computer and sends the UDP packets
-- `client-ui`: presents most of the functionality of `client` in an easier to use user interface.
-- `server`: receives the UDP packets and makes sure that they are valid
-- `commander`: runs the command encoded by the data of the UDP packet if it's valid
+- `ruroco-client`: runs on your notebook/computer and sends the UDP packets
+- `ruroco-client-ui`: presents most of the functionality of `ruroco-client` in an easier to use user interface.
+- `ruroco-server`: receives the UDP packets and makes sure that they are valid
+- `ruroco-commander`: runs the command encoded by the data of the UDP packet if it's valid
 
 The commands are configured on the server side, so the client does not define what is going to be executed, it only
 picks from existing commands.
@@ -155,11 +155,9 @@ chmod +x ~/.local/bin/ruroco-client
 See make goal `install_server`, which
 
 - Builds the project
-- Copies the binaries to `/usr/local/bin/`
-- Adds a `ruroco` user if it does not exist yet
-- Copies the systemd service files and config files to the right places
-- Assigns correct file permissions to the systemd and config files
-- Enables and starts the systemd services
+- Copies the client binary to `~/.local/bin/`
+- Copies the server binaries to `/usr/local/bin/`
+- Runs `ruroco-client wizard`
 - After running the make goal, you have to
     - generate an RSA key and copy it to the right place
     - setup the `config.toml`
@@ -177,48 +175,7 @@ sudo ~/.local/bin/ruroco-client wizard
 
 ## android
 
-Building for android requires the following tools
-
-- adb
-- android sdk
-- android ndk
-
-For arch linux, the tools can be installed with the following commands. We use java 17, because that seem to be more
-stable than newer ones.
-
-```shell
-sudo pacman -S android-tools android-udev jdk17-openjdk
-sudo archlinux-java set java-17-openjdk
-yay -S android-ndk android-sdk android-sdk-build-tools android-sdk-platform-tools android-sdk-cmdline-tools-latest
-```
-
-You also have to install a platform. For arch linux, this can be done with the following commands.
-If sdk manager prints a java error, you might have to set your `JAVA_HOME` env var:
-
-```shell
-export JAVA_HOME=/usr/lib/jvm/default
-sdkmanager --install "platforms;android-35"
-```
-
-you might have to set env vars:
-
-```shell
-export ANDROID_HOME=/opt/android-sdk
-export NDK_HOME=/opt/android-ndk
-
-export PATH=$PATH:$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
-export PATH=$PATH:$ANDROID_HOME/tools
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-```
-
-Install `xbuild` (see https://github.com/rust-mobile/xbuild): `cargo install xbuild` and run `x devices` to check your
-devices connected with `adb`. Don't forget to put your android device in usb debugging mode.
-
-Run the app on your device:
-
-```shell
-x run --device adb:<device-id>
-```
+See `nix/android.nix`, `scripts/dev_ui_android.sh` and `scripts/release_android.sh`
 
 # use cases
 
