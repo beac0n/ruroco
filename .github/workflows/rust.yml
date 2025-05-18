@@ -75,10 +75,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Install cargo-binstall
+        run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+      - name: Install tarpaulin
+        run: cargo binstall cargo-tarpaulin --secure
       - name: Generate code coverage
-        run: |
-          cargo install cargo-tarpaulin
-          cargo tarpaulin --timeout 360 --out xml -- --test-threads 1
+        run: make coverage
         env:
           RUST_BACKTRACE: 'full'
       - name: Upload to codecov.io
@@ -88,37 +90,20 @@ jobs:
         with:
           fail_ci_if_error: true
 
-  clippy:
-    name: Lints
+  format:
+    name: Formatting and Lints
     runs-on: ubuntu-22.04
     steps:
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Check the lints
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --tests --verbose -- -D warnings
-
-  rustfmt:
-    name: Formatting
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt
+          components: rustfmt, clippy
       - name: Checkout
         uses: actions/checkout@v4
       - name: Check the formatting
         uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --all -- --check --verbose
+          command: make format
 
   release:
     name: Create Release
