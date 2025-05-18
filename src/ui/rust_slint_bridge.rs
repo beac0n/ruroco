@@ -89,6 +89,20 @@ impl RustSlintBridge {
         self.app.run()
     }
 
+    pub fn add_on_reset_commands(&self) {
+        let (app_weak, cmds_list_mutex) = self.app_and_cmds();
+
+        self.app.global::<SlintRustBridge>().on_reset_commands(move || {
+            info("Resetting commands");
+
+            Self::with_file_commands_list(&cmds_list_mutex, |cl| {
+                let app = app_weak.unwrap();
+                let command_logic = app.global::<SlintRustBridge>();
+                command_logic.set_commands_config(cl.to_string().into());
+            });
+        });
+    }
+
     pub fn add_on_set_commands_config(&self) {
         let (app_weak, cmds_list_mutex) = self.app_and_cmds();
 

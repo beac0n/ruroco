@@ -26,6 +26,7 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
 
     let rust_slint_bridge = RustSlintBridge::create(&public_pem_path, &private_pem_path)?;
 
+    rust_slint_bridge.add_on_reset_commands();
     rust_slint_bridge.add_on_set_commands_config();
     rust_slint_bridge.add_on_update_application();
     rust_slint_bridge.add_on_add_command();

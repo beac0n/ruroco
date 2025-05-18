@@ -8,8 +8,7 @@ export component Dashboard inherits VerticalLayout {
 
     commands_config_box := TextEdit {
         enabled: true;
-        font-size: 9px;
-        wrap: char-wrap;
+        wrap: word-wrap;
         has-focus: false;
         text <=> SlintRustBridge.commands_config;
     }
@@ -20,7 +19,7 @@ export component Dashboard inherits VerticalLayout {
 
     Button {
         height: 50px;
-        text: "Update Commands Config";
+        text: "Save Commands";
         clicked => {
             SlintRustBridge.set_commands_config(SlintRustBridge.commands_config);
         }
@@ -32,11 +31,36 @@ export component Dashboard inherits VerticalLayout {
 
     Button {
         height: 50px;
-        text: "Copy Commands Config";
+        text: "Copy Commands";
         clicked => {
             commands_config_box.select-all();
             commands_config_box.copy();
             commands_config_box.clear-selection()
+        }
+    }
+
+    Rectangle {
+        height: 10px;
+    }
+
+    Button {
+        height: 50px;
+        text: "Paste Commands";
+        clicked => {
+            commands_config_box.text = "";
+            commands_config_box.paste();
+        }
+    }
+
+    Rectangle {
+        height: 10px;
+    }
+
+    Button {
+        height: 50px;
+        text: "Reset Commands";
+        clicked => {
+            SlintRustBridge.reset_commands();
         }
     }
 
