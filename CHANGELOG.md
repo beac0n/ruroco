@@ -5,11 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2025-05-18
+
+### Added
+
+Ui:
+
+- Add button to paste commands via text field
+- Add reset commands in text field
+
+### Changed
+
+Android: changed package name to `org.beac0n.ruroco`
+
 ## [0.9.0] - 2025-05-18
 
 ### Updated
 
-Ui: Add possibility to copy and paste commands via text field
+Ui: Add button to copy commands from text field
 
 ## [0.8.4] - 2025-05-17
 
