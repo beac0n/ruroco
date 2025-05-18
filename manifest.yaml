@@ -4,6 +4,7 @@ icon: "icon.png"
 
 android:
   manifest:
+    package: "org.beac0n.ruroco"
     application:
       label: "Ruroco"
     uses_permission:
