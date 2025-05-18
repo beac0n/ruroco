@@ -15,6 +15,10 @@ dev_ui_android:
 build:
 	cargo build --color=always --package ruroco --target x86_64-unknown-linux-gnu
 
+clean:
+	rm -rf target
+	rm -rf nix/.nix-*
+
 release: release_android release_linux
 
 release_linux:
