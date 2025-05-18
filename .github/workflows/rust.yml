@@ -75,10 +75,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Install cargo-binstall
-        run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
       - name: Install tarpaulin
-        run: cargo binstall cargo-tarpaulin --secure
+        run: cargo install cargo-tarpaulin
       - name: Generate code coverage
         run: make coverage
         env:
@@ -100,10 +98,16 @@ jobs:
           components: rustfmt, clippy
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Check the lints
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --tests --verbose -- -D warnings
       - name: Check the formatting
         uses: actions-rs/cargo@v1
         with:
-          command: make format
+          command: fmt
+          args: --all -- --check --verbose
 
   release:
     name: Create Release
