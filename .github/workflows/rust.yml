@@ -17,26 +17,21 @@ jobs:
 
   check:
     name: Check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Check
-        uses: actions-rs/cargo@v1
+      - uses: cachix/install-nix-action@v31
         with:
-          command: check
-          args: --locked --verbose
-      - name: Check without default features
-        uses: actions-rs/cargo@v1
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Run Check
+        uses: workflow/nix-shell-action@v3
         with:
-          command: check
-          args: --locked --no-default-features --verbose
+          script: nix-shell nix/linux.nix --pure --run 'cargo check --locked --verbose && cargo check --locked --no-default-features --verbose'
 
   typos:
     name: Typos
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,31 +51,29 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install cargo-binstall
-        run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-      - name: Install nextest
-        run: cargo binstall cargo-nextest --secure
-      - name: Run tests
-        run: cargo nextest run --retries 2
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Run Check
+        uses: workflow/nix-shell-action@v3
+        with:
+          script: nix-shell nix/linux.nix --pure --run 'cargo nextest run --retries 2'
 
   coverage:
     name: Coverage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Install tarpaulin
-        run: cargo install cargo-tarpaulin
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
       - name: Generate code coverage
-        run: make coverage
-        env:
-          RUST_BACKTRACE: 'full'
+        run: nix-shell nix/linux.nix --pure --run 'cargo tarpaulin --timeout 360 --out xml -- --test-threads 1'
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v2
         env:
@@ -89,25 +82,16 @@ jobs:
           fail_ci_if_error: true
 
   format:
-    name: Formatting and Lints
-    runs-on: ubuntu-22.04
+    name: Formatting
+    runs-on: ubuntu-latest
     steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Check the lints
-        uses: actions-rs/cargo@v1
+      - uses: cachix/install-nix-action@v31
         with:
-          command: clippy
-          args: --tests --verbose -- -D warnings
-      - name: Check the formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check --verbose
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Check formatting
+        run: nix-shell nix/linux.nix --pure --run 'cargo fmt && cargo clippy --tests --verbose -- -D warnings'
 
   release:
     name: Create Release
