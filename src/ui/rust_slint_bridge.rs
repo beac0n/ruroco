@@ -96,9 +96,7 @@ impl RustSlintBridge {
             info("Resetting commands");
 
             Self::with_file_commands_list(&cmds_list_mutex, |cl| {
-                let app = app_weak.unwrap();
-                let command_logic = app.global::<SlintRustBridge>();
-                command_logic.set_commands_config(cl.to_string().into());
+                Self::reload_commands(&app_weak, cl);
             });
         });
     }
@@ -131,6 +129,7 @@ impl RustSlintBridge {
 
             Self::with_file_commands_list(&cmds_list_mutex, |cl| {
                 cl.remove(cmd.to_string());
+                Self::reload_commands(&app_weak, cl);
             });
 
             Self::with_app_commands_list(&app_weak, |cl| {
@@ -198,6 +197,12 @@ impl RustSlintBridge {
                 Self::update_android();
             }
         });
+    }
+
+    fn reload_commands(app_weak: &Weak<App>, cl: &mut MutexGuard<CommandsList>) {
+        let app = app_weak.unwrap();
+        let command_logic = app.global::<SlintRustBridge>();
+        command_logic.set_commands_config(cl.to_string().into());
     }
 
     fn with_file_commands_list<F>(cmds_list_mutex: &Arc<Mutex<CommandsList>>, f: F)
