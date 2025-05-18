@@ -4,18 +4,25 @@ struct CommandData {
     color: color,
 }
 export global SlintRustBridge {
-    in-out property <[CommandData]> commands_list: [];
-    in-out property <string> commands_config: "";
+    // used in "Dashboard" tab to show the current configuration file
+    in-out property <bool> generating_keys: false; // used to show a loading screen when generating keys
+    in-out property <string> commands_config: "";  // the contents of the configuration file
+
+    callback set_commands_config(string);
+    callback reset_commands_config();
+    callback update_application();
+
+    // used in "Create" tab to create a new command for later execution
     in-out property <string> public_key: "";
     in-out property <string> command: "";
     in-out property <string> deadline: "";
     in-out property <string> ntp: "";
-    in-out property <bool> generating_keys: false;
-    in-out property <bool> is_android: false;
+
     callback add_command(string);
+
+    // used in "Execute" tab to execute a command
+    in-out property <[CommandData]> commands_list: [];
+
     callback exec_command(string, int);
     callback del_command(string, int);
-    callback set_commands_config(string);
-    callback reset_commands();
-    callback update_application();
 }

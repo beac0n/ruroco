@@ -89,14 +89,14 @@ impl RustSlintBridge {
         self.app.run()
     }
 
-    pub fn add_on_reset_commands(&self) {
+    pub fn add_on_reset_commands_config(&self) {
         let (app_weak, cmds_list_mutex) = self.app_and_cmds();
 
-        self.app.global::<SlintRustBridge>().on_reset_commands(move || {
+        self.app.global::<SlintRustBridge>().on_reset_commands_config(move || {
             info("Resetting commands");
 
             Self::with_file_commands_list(&cmds_list_mutex, |cl| {
-                Self::reload_commands(&app_weak, cl);
+                Self::reload_commands_config(&app_weak, cl);
             });
         });
     }
@@ -129,7 +129,7 @@ impl RustSlintBridge {
 
             Self::with_file_commands_list(&cmds_list_mutex, |cl| {
                 cl.remove(cmd.to_string());
-                Self::reload_commands(&app_weak, cl);
+                Self::reload_commands_config(&app_weak, cl);
             });
 
             Self::with_app_commands_list(&app_weak, |cl| {
@@ -199,7 +199,7 @@ impl RustSlintBridge {
         });
     }
 
-    fn reload_commands(app_weak: &Weak<App>, cl: &mut MutexGuard<CommandsList>) {
+    fn reload_commands_config(app_weak: &Weak<App>, cl: &mut MutexGuard<CommandsList>) {
         let app = app_weak.unwrap();
         let command_logic = app.global::<SlintRustBridge>();
         command_logic.set_commands_config(cl.to_string().into());
