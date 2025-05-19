@@ -7,7 +7,8 @@ export component Dashboard inherits VerticalLayout {
     padding-right: 10px;
 
     commands_config_box := TextEdit {
-        enabled: true;
+        font-size: 9px;
+        enabled: false;
         wrap: word-wrap;
         has-focus: false;
         text <=> SlintRustBridge.commands_config;
