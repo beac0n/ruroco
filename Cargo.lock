@@ -5353,9 +5353,9 @@ dependencies = [
 
 [[package]]
 name = "test-with"
-version = "0.15.0"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb099abbcbf250fcc6af43796b13be6ad08b59f62e0f536399a9294be9372fee"
+checksum = "8bb2a43a245ab793321d71ff9f2be21785999c9aa5b2ea93dc507e97572be843"
 dependencies = [
  "proc-macro-error2",
  "proc-macro2",
