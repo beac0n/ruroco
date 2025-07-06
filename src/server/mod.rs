@@ -68,7 +68,7 @@ impl Server {
         let data_size = Self::get_client_recv_data_size(self.rsa_size);
         let error_msg = match data {
             Ok((count, src)) if count != data_size => {
-                Some(format!("Invalid read count {count}, expected {} from {src}", data_size))
+                Some(format!("Invalid read count {count}, expected {data_size} from {src}"))
             }
             Ok((count, src)) => {
                 info(&format!("Successfully received {count} bytes from {src}"));
@@ -107,7 +107,7 @@ impl Server {
             .get(hash_bytes)
             .map(|rsa| rsa.public_decrypt(encrypted_data, &mut self.decrypted_data, RSA_PADDING))
         {
-            Some(r) => r.map_err(|e| format!("Could not decrypt {:X?}: {e}", encrypted_data)),
+            Some(r) => r.map_err(|e| format!("Could not decrypt {encrypted_data:X?}: {e}")),
             None => Err(format!("Could not find public pem for hash {hash_bytes:X?}")),
         }
     }

@@ -139,7 +139,7 @@ impl Updater {
         if !status_code.is_success() {
             let response_text =
                 response.text().map_err(|e| format!("Could not get text from response: {e}"))?;
-            return Err(format!("Request failed: {} - {}", status_code, response_text));
+            return Err(format!("Request failed: {status_code} - {response_text}"));
         }
 
         let response_data: Vec<GithubApiData> =

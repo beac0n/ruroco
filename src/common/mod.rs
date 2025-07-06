@@ -98,12 +98,12 @@ pub fn resolve_path(path: &Path) -> PathBuf {
 
 pub fn info(msg: &str) {
     let date_time = get_date_time();
-    println!("[{} \x1b[32mINFO\x1b[0m ] {}", date_time, msg)
+    println!("[{date_time} \x1b[32mINFO\x1b[0m ] {msg}")
 }
 
 pub fn error(msg: &str) {
     let date_time = get_date_time();
-    println!("[{} \x1b[31mERROR\x1b[0m ] {}", date_time, msg)
+    println!("[{date_time} \x1b[31mERROR\x1b[0m ] {msg}")
 }
 
 pub fn change_file_ownership(path: &Path, user_name: &str, group_name: &str) -> Result<(), String> {
@@ -165,7 +165,7 @@ fn get_date_time() -> String {
     let minutes = (remaining_seconds % SECONDS_PER_HOUR) / 60;
     let seconds = ((remaining_seconds % SECONDS_PER_HOUR) % 60) + 1;
 
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hours, minutes, seconds)
+    format!("{year:04}-{month:02}-{day:02}T{hours:02}:{minutes:02}:{seconds:02}Z")
 }
 fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
     if name.is_empty() {
@@ -205,11 +205,7 @@ mod tests {
         let first_time = time_from_ntp("europe.pool.ntp.org:123").unwrap();
         let second_time = time_from_ntp("0.europe.pool.ntp.org:123").unwrap();
 
-        let diff = if second_time > first_time {
-            second_time - first_time
-        } else {
-            first_time - second_time
-        };
+        let diff = second_time.abs_diff(first_time);
 
         dbg!(first_time);
         dbg!(second_time);

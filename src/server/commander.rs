@@ -90,7 +90,7 @@ impl Commander {
             .config
             .commands
             .get(command_name)
-            .ok_or(format!("Unknown command name: {}", command_name))?;
+            .ok_or(format!("Unknown command name: {command_name}"))?;
 
         self.run_command(command, commander_data.ip);
         Ok(())
