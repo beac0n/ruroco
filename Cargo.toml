@@ -1,6 +1,6 @@
 [package]
 name = "ruroco"
-version = "0.10.3"
+version = "0.10.4"
 edition = "2021"
 repository = "https://github.com/beac0n/ruroco"
 
