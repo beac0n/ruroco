@@ -3018,9 +3018,9 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
 name = "miniloop"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cb9ad8eca5baf468385765861d2670fcd7343af7dfd4bba8e8ba5ba6fca10b8"
+checksum = "ad14b72c9fa5a663d069c582d576e5336995e3fafe7d0965d2bba3db1f98c40c"
 
 [[package]]
 name = "minimal-lexical"
@@ -4777,9 +4777,9 @@ dependencies = [
 
 [[package]]
 name = "sntpc"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b32aa25e58347bda1e0bf936b6bb0e75dad35bdf4f8f89d03a4673d35bba7d3c"
+checksum = "13d84c42dedf8b01d52b62272684741866938260e74b9e58851f680b2a92854b"
 dependencies = [
  "cfg-if",
  "miniloop",
