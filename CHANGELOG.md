@@ -7,17 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.8] - 2025-10-05
 
+### Fixed
+
+- Build: upx usage
+- Build: nix usage
+
 ## [0.10.7] - 2025-10-05
+
+### Fixed
+
+- Formatting
+- Build: nix usage
 
 ## [0.10.6] - 2025-10-04
 
+### Updated
+
+- Dependencies: bump
+
 ## [0.10.5] - 2025-09-19
+
+### Updated
+
+- Dependencies: bump
+
+### Fixed
+
+- Formatting
 
 ## [0.10.4] - 2025-07-06
 
+### Updated
+
+- Dependencies: bump
+
+### Fixed
+
+- Build: upx usage
+
 ## [0.10.3] - 2025-06-11
 
+### Updated
+
+- Dependencies: bump
+
 ## [0.10.2] - 2025-06-11
+
+### Changed
+
+Ui: Make commands config box editable
 
 ## [0.10.0] - 2025-05-18
 
@@ -206,6 +244,20 @@ Refactored User Interface
 ### Added
 
 - Initial Release
+
+[0.10.8]: https://github.com/beac0n/ruroco/compare/v0.10.7..v0.10.8
+
+[0.10.7]: https://github.com/beac0n/ruroco/compare/v0.10.6..v0.10.7
+
+[0.10.6]: https://github.com/beac0n/ruroco/compare/v0.10.5..v0.10.6
+
+[0.10.5]: https://github.com/beac0n/ruroco/compare/v0.10.4..v0.10.5
+
+[0.10.4]: https://github.com/beac0n/ruroco/compare/v0.10.3..v0.10.4
+
+[0.10.3]: https://github.com/beac0n/ruroco/compare/v0.10.2..v0.10.3
+
+[0.10.2]: https://github.com/beac0n/ruroco/compare/v0.10.0..v0.10.2
 
 [0.10.0]: https://github.com/beac0n/ruroco/compare/v0.9.0..v0.10.0
 
