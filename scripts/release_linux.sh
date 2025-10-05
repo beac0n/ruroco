@@ -7,10 +7,10 @@ upx --best --lzma target/x86_64-unknown-linux-gnu/release/client_ui -o target/x8
 mv target/x86_64-unknown-linux-gnu/release/client_ui_min target/x86_64-unknown-linux-gnu/release/client_ui
 
 upx --best --lzma target/x86_64-unknown-linux-gnu/release/client -o target/x86_64-unknown-linux-gnu/release/client_min
-mv target/x86_64-unknown-linux-gnu/release/client target/x86_64-unknown-linux-gnu/release/client_min
+mv target/x86_64-unknown-linux-gnu/release/client_min target/x86_64-unknown-linux-gnu/release/client
 
 upx --best --lzma target/x86_64-unknown-linux-gnu/release/server -o target/x86_64-unknown-linux-gnu/release/server_min
 mv target/x86_64-unknown-linux-gnu/release/server_min target/x86_64-unknown-linux-gnu/release/server
 
 upx --best --lzma target/x86_64-unknown-linux-gnu/release/commander -o target/x86_64-unknown-linux-gnu/release/commander_min
-mv target/x86_64-unknown-linux-gnu/release/commander target/x86_64-unknown-linux-gnu/release/commander_min
+mv target/x86_64-unknown-linux-gnu/release/commander_min target/x86_64-unknown-linux-gnu/release/commander
