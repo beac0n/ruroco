@@ -23,14 +23,13 @@ const GRAY: Color = Color::from_rgb_u8(204, 204, 204);
 pub struct RustSlintBridge {
     app: App,
     commands_list: Arc<Mutex<CommandsList>>,
-    private_pem_path: String,
-    public_pem_path: String,
+    key_path: String,
 }
 
 #[derive(Clone)]
 pub struct RustSlintBridgeExecutor {
     app: Weak<App>,
-    public_pem_path: String,
+    key_path: String,
 }
 
 impl RustSlintBridgeExecutor {
@@ -46,13 +45,13 @@ impl RustSlintBridgeExecutor {
         self.app
             .unwrap()
             .global::<SlintRustBridge>()
-            .set_public_key(fs::read_to_string(&self.public_pem_path)?.into());
+            .set_public_key(fs::read_to_string(&self.key_path)?.into());
         Ok(())
     }
 }
 
 impl RustSlintBridge {
-    pub fn create(public_pem_path: &Path, private_pem_path: &Path) -> Result<Self, Box<dyn Error>> {
+    pub fn create(key_path: &Path) -> Result<Self, Box<dyn Error>> {
         let app = App::new()?;
 
         let commands_list = CommandsList::create(&get_conf_dir());
@@ -67,13 +66,9 @@ impl RustSlintBridge {
         Ok(RustSlintBridge {
             app,
             commands_list: Arc::new(Mutex::new(commands_list)),
-            public_pem_path: public_pem_path
+            key_path: key_path
                 .to_str()
-                .ok_or("Could not convert public pem path to string")?
-                .to_string(),
-            private_pem_path: private_pem_path
-                .to_str()
-                .ok_or("Could not convert private pem path to string")?
+                .ok_or("Could not convert key path to string")?
                 .to_string(),
         })
     }
@@ -81,7 +76,7 @@ impl RustSlintBridge {
     pub fn create_executor(&self) -> RustSlintBridgeExecutor {
         RustSlintBridgeExecutor {
             app: self.app.as_weak(),
-            public_pem_path: self.public_pem_path.clone(),
+            key_path: self.key_path.clone(),
         }
     }
 
@@ -140,7 +135,7 @@ impl RustSlintBridge {
 
     pub fn add_on_exec_command(&self) {
         let app_weak = self.app.as_weak();
-        let private_pem_path = self.private_pem_path.clone();
+        let private_pem_path = self.key_path.clone();
 
         self.app.global::<SlintRustBridge>().on_exec_command(move |cmd, idx| {
             let cmd = cmd.to_string();

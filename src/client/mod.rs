@@ -14,12 +14,7 @@ mod wizard;
 
 pub fn run_client(client: CliClient) -> Result<(), String> {
     match client.command {
-        CommandsClient::Gen(gen_command) => Generator::create(
-            &gen_command.private_pem_path,
-            &gen_command.public_pem_path,
-            gen_command.key_size,
-        )?
-        .gen(),
+        CommandsClient::Gen(gen_command) => Generator::create(&gen_command.key_path)?.gen(),
         CommandsClient::Send(send_command) => {
             let ntp = send_command.ntp.clone();
             Sender::create(send_command, time_from_ntp(&ntp)?)?.send()
@@ -74,27 +69,22 @@ mod tests {
 
     #[test]
     fn test_send() {
-        let private_file = gen_file_name(".pem");
-        let public_file = gen_file_name(".pem");
+        let key_file = gen_file_name(".key");
 
-        Generator::create(&PathBuf::from(&private_file), &PathBuf::from(&public_file), 1024)
-            .unwrap()
-            .gen()
-            .unwrap();
+        Generator::create(&PathBuf::from(&key_file)).unwrap().gen().unwrap();
 
         let result = run_client(CliClient::parse_from(vec![
             "ruroco",
             "send",
             "-a",
             "127.0.0.1:1234",
-            "-p",
-            &private_file,
+            "-k",
+            &key_file,
             "-i",
             "192.168.178.123",
         ]));
 
-        let _ = fs::remove_file(&private_file);
-        let _ = fs::remove_file(&public_file);
+        let _ = fs::remove_file(&key_file);
 
         assert!(result.is_ok());
     }

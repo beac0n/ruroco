@@ -2,12 +2,11 @@
 pub mod blocklist;
 /// responsible for executing the commands that are defined in the config file
 pub mod commander;
+use crate::common::crypto_handler::{CryptoHandler, SHA256_DIGEST_LENGTH};
 use crate::common::data::{ClientData, CommanderData};
-use crate::common::{error, info, time_from_ntp, RSA_PADDING, SHA256_DIGEST_LENGTH};
+use crate::common::{error, info, time_from_ntp};
 use crate::config::config_server::{CliServer, ConfigServer};
 use crate::server::blocklist::Blocklist;
-use openssl::pkey::Public;
-use openssl::rsa::Rsa;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -18,11 +17,10 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub struct Server {
     config: ConfigServer,
-    rsa: HashMap<Vec<u8>, Rsa<Public>>,
-    rsa_size: usize,
+    crypto_handlers: HashMap<Vec<u8>, CryptoHandler>,
+    msg_size: usize,
     socket: UdpSocket,
     client_recv_data: Vec<u8>,
-    decrypted_data: Vec<u8>,
     socket_path: PathBuf,
     blocklist: Blocklist,
 }
@@ -38,22 +36,16 @@ impl Server {
     pub fn create(config: ConfigServer, address: Option<String>) -> Result<Server, String> {
         config.validate_ips()?;
 
-        let (rsa_size, rsa) = config.create_rsa()?;
-
+        let msg_size = 160;
         Ok(Server {
-            rsa,
-            rsa_size,
+            crypto_handlers: config.create_crypto_handlers()?,
             socket: config.create_server_udp_socket(address)?,
-            decrypted_data: vec![0; rsa_size],
-            client_recv_data: vec![0; Self::get_client_recv_data_size(rsa_size)],
+            msg_size,
+            client_recv_data: vec![0; msg_size],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist: config.create_blocklist(),
             config,
         })
-    }
-
-    fn get_client_recv_data_size(rsa_size: usize) -> usize {
-        rsa_size + SHA256_DIGEST_LENGTH
     }
 
     pub fn run(&mut self) -> Result<(), String> {
@@ -65,16 +57,15 @@ impl Server {
     }
 
     fn run_loop_iteration(&mut self, data: std::io::Result<(usize, SocketAddr)>) -> Option<String> {
-        let data_size = Self::get_client_recv_data_size(self.rsa_size);
         let error_msg = match data {
-            Ok((count, src)) if count != data_size => {
-                Some(format!("Invalid read count {count}, expected {data_size} from {src}"))
+            Ok((count, src)) if count != self.msg_size => {
+                Some(format!("Invalid read count {count}, expected {} from {src}", self.msg_size))
             }
             Ok((count, src)) => {
                 info(&format!("Successfully received {count} bytes from {src}"));
                 match self.decrypt() {
-                    Ok(count) => {
-                        self.validate(count, src.ip());
+                    Ok(decrypted) => {
+                        self.validate(&decrypted, src.ip());
                         None
                     }
                     Err(e) => Some(e),
@@ -83,8 +74,7 @@ impl Server {
             Err(e) => Some(format!("Could not recv_from socket from {:?}: {e}", self.socket)),
         };
 
-        self.client_recv_data = vec![0; data_size];
-        self.decrypted_data = vec![0; self.rsa_size];
+        self.client_recv_data = vec![0; self.msg_size];
 
         match error_msg {
             Some(s) => {
@@ -99,28 +89,24 @@ impl Server {
         self.socket.recv_from(&mut self.client_recv_data)
     }
 
-    fn decrypt(&mut self) -> Result<usize, String> {
+    fn decrypt(&mut self) -> Result<Vec<u8>, String> {
         let hash_bytes = &self.client_recv_data[..SHA256_DIGEST_LENGTH];
         let encrypted_data = &self.client_recv_data[SHA256_DIGEST_LENGTH..];
-        match self
-            .rsa
+
+        self.crypto_handlers
             .get(hash_bytes)
-            .map(|rsa| rsa.public_decrypt(encrypted_data, &mut self.decrypted_data, RSA_PADDING))
-        {
-            Some(r) => r.map_err(|e| format!("Could not decrypt {encrypted_data:X?}: {e}")),
-            None => Err(format!("Could not find public pem for hash {hash_bytes:X?}")),
-        }
+            .map(|crypto_handler| crypto_handler.decrypt(encrypted_data))
+            .unwrap_or_else(|| Err(format!("Could not find key for hash {hash_bytes:X?}")))
     }
 
-    fn validate(&mut self, count: usize, src_ip_addr: IpAddr) {
+    fn validate(&mut self, decrypted_data: &[u8], src_ip_addr: IpAddr) {
         let src_ip = match src_ip_addr.to_string() {
             // see https://datatracker.ietf.org/doc/html/rfc5156#section-2.2
             ip if ip.starts_with("::ffff:") => ip.replacen("::ffff:", "", 1),
             ip => ip,
         };
 
-        self.decrypted_data.truncate(count);
-        match self.decode() {
+        match self.decode(decrypted_data) {
             Ok((now_ns, client_data)) if now_ns > client_data.deadline() => {
                 let deadline = client_data.deadline();
                 error(&format!("Invalid deadline - now {now_ns} is after {deadline}"))
@@ -181,8 +167,8 @@ impl Server {
         Ok(())
     }
 
-    fn decode(&self) -> Result<(u128, ClientData), String> {
-        match ClientData::deserialize(&self.decrypted_data) {
+    fn decode(&self, decrypted_data: &[u8]) -> Result<(u128, ClientData), String> {
+        match ClientData::deserialize(decrypted_data) {
             Ok(data) => Ok((time_from_ntp(&self.config.ntp)?, data)),
             Err(e) => Err(e),
         }
@@ -209,7 +195,6 @@ mod tests {
     impl PartialEq for Server {
         fn eq(&self, other: &Self) -> bool {
             self.client_recv_data == other.client_recv_data
-                && self.decrypted_data == other.decrypted_data
                 && self.socket_path == other.socket_path
                 && self.blocklist == other.blocklist
         }
@@ -313,7 +298,7 @@ mod tests {
         let mut server = create_server();
         let success_data: io::Result<(usize, SocketAddr)> =
             Ok((160, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
-        assert_eq!(server.run_loop_iteration(success_data).unwrap(), "Could not find public pem for hash [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]");
+        assert_eq!(server.run_loop_iteration(success_data).unwrap(), "Could not find key for hash [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]");
     }
 
     #[test]
@@ -330,19 +315,12 @@ mod tests {
 
     fn create_server() -> Server {
         let test_folder_path = PathBuf::from("/dev/shm").join(gen_file_name(""));
-        let private_pem_dir = test_folder_path.join("private");
-
         let _ = fs::create_dir_all(&test_folder_path);
-        let _ = fs::create_dir_all(&private_pem_dir);
 
-        Generator::create(
-            &private_pem_dir.join(gen_file_name(".pem")),
-            &test_folder_path.join(gen_file_name(".pem")),
-            1024,
-        )
-        .unwrap()
-        .gen()
-        .expect("could not generate key");
+        Generator::create(&test_folder_path.join(gen_file_name(".key")))
+            .unwrap()
+            .gen()
+            .expect("could not generate key");
 
         Server::create(
             ConfigServer {

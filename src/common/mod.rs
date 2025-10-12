@@ -1,4 +1,5 @@
 pub mod data;
+pub mod crypto_handler;
 
 use openssl::hash::{Hasher, MessageDigest};
 use openssl::rsa::Padding;
@@ -12,8 +13,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
 pub const RSA_PADDING: Padding = Padding::PKCS1;
-pub const PADDING_SIZE: usize = 11; // see https://www.rfc-editor.org/rfc/rfc3447#section-7.2.1
-pub const SHA256_DIGEST_LENGTH: usize = 32;
+pub const PADDING_SIZE: usize = 11;
 pub const NTP_SYSTEM: &str = "system";
 
 pub fn set_permissions(path: &str, permissions_mode: u32) -> Result<(), String> {
@@ -58,10 +58,10 @@ pub fn time() -> Result<u128, String> {
     Ok(duration.as_nanos())
 }
 
-pub fn hash_public_key(pem_pub_key: Vec<u8>) -> Result<Vec<u8>, String> {
+pub fn hash_key(key: &[u8]) -> Result<Vec<u8>, String> {
     let digest = MessageDigest::sha256();
     let mut hasher = Hasher::new(digest).map_err(|e| format!("Could not create hasher: {e}"))?;
-    hasher.update(pem_pub_key.as_slice()).map_err(|e| format!("Could not update hasher: {e}"))?;
+    hasher.update(key).map_err(|e| format!("Could not update hasher: {e}"))?;
     let hash_bytes = hasher.finish().map_err(|e| format!("Could not finish hasher: {e}"))?;
     Ok(hash_bytes.to_vec())
 }

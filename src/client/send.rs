@@ -1,20 +1,16 @@
+use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data::ClientData;
-use crate::common::{hash_public_key, info, PADDING_SIZE, RSA_PADDING};
+use crate::common::info;
 use crate::config::config_client::SendCommand;
-use openssl::pkey::Private;
-use openssl::rsa::Rsa;
 use openssl::version::version;
 use std::fmt::{Debug, Display};
-use std::fs;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
-use std::path::Path;
 
 #[derive(Debug)]
 pub struct Sender {
     cmd: SendCommand,
     now: u128,
-    rsa: Rsa<Private>,
-    rsa_size: usize,
+    crypto_handler: CryptoHandler,
 }
 
 impl Sender {
@@ -23,13 +19,10 @@ impl Sender {
     /// * `send_command` - data holding information how to send the command - see SendCommand
     /// * `now` - current timestamp in ns
     pub fn create(cmd: SendCommand, now: u128) -> Result<Self, String> {
-        let rsa = Self::get_rsa_private(&cmd.private_pem_path)?;
-        let rsa_size = rsa.size() as usize;
         Ok(Self {
+            crypto_handler: CryptoHandler::from_key_path(&cmd.key_path)?,
             cmd,
             now,
-            rsa,
-            rsa_size,
         })
     }
 
@@ -38,7 +31,7 @@ impl Sender {
         info(&format!(
             "Connecting to udp://{}, loading PEM from {:?}, using {} ...",
             &self.cmd.address,
-            &self.cmd.private_pem_path,
+            &self.cmd.key_path,
             version(),
         ));
 
@@ -107,39 +100,21 @@ impl Sender {
         Ok(())
     }
 
-    fn get_rsa_private(pem_path: &Path) -> Result<Rsa<Private>, String> {
-        // encrypt data we want to send - load RSA private key from PEM file for that
-        let pem_data = fs::read(pem_path).map_err(|e| Self::pem_load_err(e, pem_path))?;
-        Rsa::private_key_from_pem(&pem_data).map_err(|e| Self::pem_load_err(e, pem_path))
-    }
-
     fn get_data_to_send(&self, data_to_encrypt: &Vec<u8>) -> Result<Vec<u8>, String> {
-        let pem_pub_key = self
-            .rsa
-            .public_key_to_pem()
-            .map_err(|e| format!("Could not create public pem from private key: {e}"))?;
-        let mut data_to_send = hash_public_key(pem_pub_key)?;
-        let encrypted_data = self.encrypt_data(data_to_encrypt)?;
+        let mut data_to_send = self.crypto_handler.get_key_hash()?;
+        let encrypted_data = self.crypto_handler.encrypt(data_to_encrypt)?;
         data_to_send.extend(encrypted_data);
 
+        let data_to_send_len = data_to_send.len();
+        let max_size = 160;
+        if data_to_send_len > max_size {
+            return Err(format!(
+                "Too much data, must be at most {max_size} bytes, \
+                but was {data_to_send_len} bytes. Reduce command name length."
+            ));
+        }
+
         Ok(data_to_send)
-    }
-
-    fn encrypt_data(&self, data_to_encrypt: &Vec<u8>) -> Result<Vec<u8>, String> {
-        let mut encrypted_data = vec![0; self.rsa_size];
-        self.rsa.private_encrypt(data_to_encrypt, &mut encrypted_data, RSA_PADDING).map_err(
-            |e| {
-                format!(
-                    "Could not encrypt ({} bytes) {data_to_encrypt:?}: {e}",
-                    data_to_encrypt.len()
-                )
-            },
-        )?;
-        Ok(encrypted_data)
-    }
-
-    fn pem_load_err<I: Display, E: Debug>(err: I, val: E) -> String {
-        format!("Could not load {val:?}: {err}")
     }
 
     fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
@@ -156,14 +131,6 @@ impl Sender {
             self.now,
         )
         .serialize()?;
-        let data_to_encrypt_len = data_to_encrypt.len();
-        if data_to_encrypt_len + PADDING_SIZE > self.rsa_size {
-            let max_size = self.rsa_size - PADDING_SIZE;
-            return Err(format!(
-            "Too much data, must be at most {max_size} bytes, but was {data_to_encrypt_len} bytes. \
-            Reduce command name length or create a bigger RSA key size."
-        ));
-        }
 
         Ok(data_to_encrypt)
     }
@@ -209,11 +176,11 @@ mod tests {
 
     #[test]
     fn test_send_no_such_file() {
-        let pem_file_name = gen_file_name(".pem");
+        let key_file_name = gen_file_name(".key");
 
         let result = Sender::create(
             SendCommand {
-                private_pem_path: PathBuf::from(&pem_file_name),
+                key_path: PathBuf::from(&key_file_name),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -221,48 +188,43 @@ mod tests {
         );
 
         assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("Could not load \"{pem_file_name}\": No such file or directory (os error 2)")
+            result.unwrap_err(),
+            format!("Could not read key file: No such file or directory (os error 2)")
         );
     }
 
     #[test]
-    fn test_send_invalid_pem() {
-        let pem_file_name = gen_file_name(".pem");
-        File::create(&pem_file_name).unwrap();
+    fn test_send_invalid_key() {
+        let key_file_name = gen_file_name(".key");
+        File::create(&key_file_name).unwrap();
 
         let result = Sender::create(
             SendCommand {
-                private_pem_path: PathBuf::from(&pem_file_name),
+                key_path: PathBuf::from(&key_file_name),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
             time().unwrap(),
         );
 
-        let _ = fs::remove_file(&pem_file_name);
+        let _ = fs::remove_file(&key_file_name);
 
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("No supported data to decode. Input type: PEM"));
+        assert_eq!(result.unwrap_err(), "Key length must be 32");
     }
 
     #[test]
     fn test_send_invalid_port_value() {
-        let private_file = gen_file_name(".pem");
-        let public_file = gen_file_name(".pem");
+        let key_file = gen_file_name(".key");
 
-        let private_pem_path = PathBuf::from(&private_file);
-        let public_pem_path = PathBuf::from(&public_file);
-        Generator::create(&private_pem_path, &public_pem_path, 1024).unwrap().gen().unwrap();
+        let key_path = PathBuf::from(&key_file);
+        Generator::create(&key_path).unwrap().gen().unwrap();
 
         let address = "127.0.0.1:asd".to_string();
 
         let sender = Sender::create(
             SendCommand {
                 address: address.clone(),
-                private_pem_path,
+                key_path: key_path,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -272,8 +234,7 @@ mod tests {
 
         let result = sender.send();
 
-        let _ = fs::remove_file(&private_file);
-        let _ = fs::remove_file(&public_file);
+        let _ = fs::remove_file(&key_file);
 
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -283,19 +244,17 @@ mod tests {
 
     #[test]
     fn test_send_unknown_service() {
-        let private_file = gen_file_name(".pem");
-        let public_file = gen_file_name(".pem");
+        let key_file = gen_file_name(".key");
 
-        let private_pem_path = PathBuf::from(&private_file);
-        let public_pem_path = PathBuf::from(&public_file);
-        Generator::create(&private_pem_path, &public_pem_path, 1024).unwrap().gen().unwrap();
+        let key_path = PathBuf::from(&key_file);
+        Generator::create(&key_path).unwrap().gen().unwrap();
 
         let address = "999.999.999.999:9999".to_string();
 
         let sender = Sender::create(
             SendCommand {
                 address: address.clone(),
-                private_pem_path,
+                key_path,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -305,8 +264,7 @@ mod tests {
 
         let result = sender.send();
 
-        let _ = fs::remove_file(&private_file);
-        let _ = fs::remove_file(&public_file);
+        let _ = fs::remove_file(&key_file);
 
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -319,16 +277,14 @@ mod tests {
 
     #[test]
     fn test_send_command_too_long() {
-        let private_file = gen_file_name(".pem");
-        let public_file = gen_file_name(".pem");
+        let key_file = gen_file_name(".key");
+        let key_path = PathBuf::from(&key_file);
 
-        let private_pem_path = PathBuf::from(&private_file);
-        let public_pem_path = PathBuf::from(&public_file);
-        Generator::create(&private_pem_path, &public_pem_path, 1024).unwrap().gen().unwrap();
+        Generator::create(&key_path).unwrap().gen().unwrap();
 
         let sender = Sender::create(
             SendCommand {
-                private_pem_path,
+                key_path,
                 command: "#".repeat(66),
                 ip: Some(IP.to_string()),
                 ..Default::default()
@@ -339,13 +295,12 @@ mod tests {
 
         let result = sender.send();
 
-        let _ = fs::remove_file(&private_file);
-        let _ = fs::remove_file(&public_file);
+        let _ = fs::remove_file(&key_file);
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Too much data, must be at most 117 bytes, but was 132 bytes. \
-                Reduce command name length or create a bigger RSA key size."
+            "Too much data, must be at most 160 bytes, but was 176 bytes. \
+                Reduce command name length."
                 .to_string()
         );
     }
@@ -361,17 +316,15 @@ mod tests {
     }
 
     fn send_test(address: &str) -> Result<(), String> {
-        let private_file = gen_file_name(".pem");
-        let public_file = gen_file_name(".pem");
+        let key_file = gen_file_name(".key");
 
-        let private_pem_path = PathBuf::from(&private_file);
-        let public_pem_path = PathBuf::from(&public_file);
-        Generator::create(&private_pem_path, &public_pem_path, 1024)?.gen()?;
+        let key_path = PathBuf::from(&key_file);
+        Generator::create(&key_path)?.gen()?;
 
         let sender = Sender::create(
             SendCommand {
                 address: address.to_string(),
-                private_pem_path,
+                key_path,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -380,8 +333,7 @@ mod tests {
 
         let result = sender?.send();
 
-        let _ = fs::remove_file(&private_file);
-        let _ = fs::remove_file(&public_file);
+        let _ = fs::remove_file(&key_file);
 
         result
     }
@@ -392,16 +344,14 @@ mod tests {
     }
 
     fn get_ip_addresses(host: &str) -> Vec<IpAddr> {
-        let private_file = gen_file_name(".pem");
-        let public_file = gen_file_name(".pem");
-        let private_pem_path = PathBuf::from(&private_file);
-        let public_pem_path = PathBuf::from(&public_file);
-        Generator::create(&private_pem_path, &public_pem_path, 1024).unwrap().gen().unwrap();
+        let key_file = gen_file_name(".key");
+        let key_path = PathBuf::from(&key_file);
+        Generator::create(&key_path).unwrap().gen().unwrap();
 
         let sender = Sender::create(
             SendCommand {
                 address: host.to_string(),
-                private_pem_path,
+                key_path,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },

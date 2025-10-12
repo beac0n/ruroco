@@ -2,9 +2,7 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
-use crate::common::{
-    get_commander_unix_socket_path, hash_public_key, info, resolve_path, NTP_SYSTEM,
-};
+use crate::common::{get_commander_unix_socket_path, info, resolve_path, NTP_SYSTEM};
 use crate::server::blocklist::Blocklist;
 use clap::Parser;
 use serde::Deserialize;
@@ -12,14 +10,13 @@ use std::collections::HashMap;
 use std::fs::ReadDir;
 use std::net::{IpAddr, UdpSocket};
 
-use openssl::pkey::Public;
-use openssl::rsa::Rsa;
+use crate::common::crypto_handler::CryptoHandler;
 use openssl::version::version;
 use std::os::fd::{FromRawFd, RawFd};
 use std::path::PathBuf;
 use std::{env, fs};
 
-type RsaResult = Result<(usize, HashMap<Vec<u8>, Rsa<Public>>), String>;
+type CryptoHandlerResult = Result<HashMap<Vec<u8>, CryptoHandler>, String>;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -92,60 +89,34 @@ impl ConfigServer {
         Blocklist::create(&self.resolve_config_dir())
     }
 
-    pub fn create_rsa(&self) -> RsaResult {
-        let pem_paths = self.get_pem_paths()?;
-        let openssl_version = version();
+    pub fn create_crypto_handlers(&self) -> CryptoHandlerResult {
+        let key_paths = self.get_key_paths()?;
         info(&format!(
-            "Creating server, loading public PEMs from {pem_paths:?}, using {openssl_version} ..."
+            "Creating server, loading keys from {key_paths:?}, using {} ...", version()
         ));
 
-        let pem_data_list = pem_paths
+        let crypto_handlers = key_paths
             .into_iter()
-            .map(|p| {
-                fs::read(&p)
-                    .map(|d| (format!("{p:?}"), d))
-                    .map_err(|e| format!("Could not read {p:?}: {e}"))
-            })
-            .collect::<Result<Vec<(String, Vec<u8>)>, String>>()?;
+            .map(|p| CryptoHandler::from_key_path(&p))
+            .collect::<Result<Vec<CryptoHandler>, String>>()?;
 
-        let rsa = pem_data_list
+        let hashmap_data = crypto_handlers
             .into_iter()
-            .map(|(p, d)| {
-                Rsa::public_key_from_pem(&d)
-                    .map_err(|e| format!("Could not load public key from {p}: {e}"))
+            .map(|h| {
+                let hash_bytes = h.get_key_hash()?;
+                info(&format!("loading key with hash {hash_bytes:X?}"));
+                Ok((hash_bytes, h))
             })
-            .collect::<Result<Vec<Rsa<Public>>, String>>()?;
+            .collect::<Result<Vec<(Vec<u8>, CryptoHandler)>, String>>()?;
 
-        let mut sizes: Vec<usize> = rsa.iter().map(|r| r.size() as usize).collect();
-
-        sizes.sort();
-        sizes.dedup();
-
-        let sizes_len = sizes.len();
-        if sizes_len > 1 {
-            return Err(format!("All RSA public keys must have the same size, but found {sizes_len} different sizes: {sizes:?}"));
-        }
-
-        let hashmap_data = rsa
-            .into_iter()
-            .map(|rsa| {
-                let pem_pub_key = rsa
-                    .public_key_to_pem()
-                    .map_err(|e| format!("Could not create public pem from public key: {e}"))?;
-                let hash_bytes = hash_public_key(pem_pub_key)?;
-                info(&format!("loading public key PEM with hash {hash_bytes:X?}"));
-                Ok((hash_bytes, rsa))
-            })
-            .collect::<Result<Vec<(Vec<u8>, Rsa<Public>)>, String>>()?;
-
-        Ok((sizes[0], hashmap_data.into_iter().collect()))
+        Ok(hashmap_data.into_iter().collect())
     }
 
     pub fn get_commander_unix_socket_path(&self) -> PathBuf {
         get_commander_unix_socket_path(&self.resolve_config_dir())
     }
 
-    fn get_pem_paths(&self) -> Result<Vec<PathBuf>, String> {
+    fn get_key_paths(&self) -> Result<Vec<PathBuf>, String> {
         let config_dir = self.resolve_config_dir();
 
         let entries: ReadDir = match fs::read_dir(&config_dir) {
@@ -153,15 +124,15 @@ impl ConfigServer {
             Err(e) => return Err(format!("Error reading directory {config_dir:?}: {e}")),
         };
 
-        let pem_files: Vec<PathBuf> = entries
+        let key_files: Vec<PathBuf> = entries
             .flatten()
             .map(|entry| entry.path())
-            .filter(|path| path.is_file() && path.extension().is_some_and(|e| e == "pem"))
+            .filter(|path| path.is_file() && path.extension().is_some_and(|e| e == "key"))
             .collect();
 
-        match pem_files.len() {
-            0 => Err(format!("Could not find any .pem files in {config_dir:?}")),
-            _ => Ok(pem_files),
+        match key_files.len() {
+            0 => Err(format!("Could not find any .key files in {config_dir:?}")),
+            _ => Ok(key_files),
         }
     }
 
@@ -215,7 +186,7 @@ mod tests {
         };
 
         assert_eq!(
-            config_server.get_pem_paths().unwrap_err().to_string(),
+            config_server.get_key_paths().unwrap_err().to_string(),
             r#"Error reading directory "/foo/bar/baz": No such file or directory (os error 2)"#
         );
     }

@@ -20,16 +20,9 @@ pub const MIN_KEY_SIZE: u16 = 4096;
 
 #[derive(Parser, Debug)]
 pub struct GenCommand {
-    /// Path to the private PEM file
-    #[arg(short = 'r', long, default_value = default_private_pem_path().into_os_string())]
-    pub private_pem_path: PathBuf,
-    /// Path to the public PEM file
-    #[arg(short = 'u', long, default_value = default_public_pem_path().into_os_string())]
-    pub public_pem_path: PathBuf,
-    /// Key size for the PEM file
-    #[arg(short = 'k', long, default_value_t = DEFAULT_KEY_SIZE.into(), value_parser = validate_key_size
-    )]
-    pub key_size: u32,
+    /// Path to the key file
+    #[arg(short = 'r', long, default_value = default_key_path().into_os_string())]
+    pub key_path: PathBuf,
 }
 
 #[derive(Parser, Debug)]
@@ -37,9 +30,9 @@ pub struct SendCommand {
     /// Address to send the command to.
     #[arg(short, long)]
     pub address: String,
-    /// Path to the private PEM file.
-    #[arg(short, long, default_value = default_private_pem_path().into_os_string())]
-    pub private_pem_path: PathBuf,
+    /// Path to the aes key file.
+    #[arg(short, long, default_value = default_key_path().into_os_string())]
+    pub key_path: PathBuf,
     /// Command to send
     #[arg(short, long, default_value = DEFAULT_COMMAND)]
     pub command: String,
@@ -91,7 +84,7 @@ impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
             address: "127.0.0.1:1234".to_string(),
-            private_pem_path: default_private_pem_path(),
+            key_path: default_key_path(),
             command: DEFAULT_COMMAND.to_string(),
             deadline: 5,
             permissive: false,
@@ -122,12 +115,8 @@ pub enum CommandsClient {
     Wizard(WizardCommand),
 }
 
-pub fn default_private_pem_path() -> PathBuf {
+pub fn default_key_path() -> PathBuf {
     get_default_pem_path("ruroco_private.pem")
-}
-
-pub fn default_public_pem_path() -> PathBuf {
-    get_default_pem_path("ruroco_public.pem")
 }
 
 fn get_default_pem_path(pem_name: &str) -> PathBuf {
@@ -155,19 +144,9 @@ pub fn get_conf_dir() -> PathBuf {
     }
 }
 
-fn validate_key_size(key_str: &str) -> Result<u32, String> {
-    match key_str.parse() {
-        Ok(size) if size >= MIN_KEY_SIZE as u32 => Ok(size),
-        Ok(size) => {
-            Err(format!("Key size must be at least {MIN_KEY_SIZE}, but {size} was provided"))
-        }
-        Err(e) => Err(format!("Could not parse {key_str} to u32: {e}")),
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::config::config_client::{default_private_pem_path, validate_key_size, CliClient};
+    use crate::config::config_client::{default_key_path, CliClient};
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
     use std::env;
@@ -180,19 +159,10 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_key_size() {
-        assert!(validate_key_size("invalid").is_err());
-        assert!(validate_key_size("1024").is_err());
-        assert!(validate_key_size("2048").is_err());
-        assert!(validate_key_size("4096").is_ok());
-        assert!(validate_key_size("8192").is_ok());
-    }
-
-    #[test]
-    fn test_default_private_pem_path() {
+    fn test_default_key_path() {
         assert_eq!(
-            default_private_pem_path().into_os_string(),
-            PathBuf::from(env::var("HOME").unwrap()).join(".config/ruroco/ruroco_private.pem")
+            default_key_path().into_os_string(),
+            PathBuf::from(env::var("HOME").unwrap()).join(".config/ruroco/ruroco.key")
         );
     }
 }

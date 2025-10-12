@@ -22,8 +22,7 @@ mod tests {
         test_file_path: PathBuf,
         socket_path: PathBuf,
         blocklist_path: PathBuf,
-        public_pem_path: PathBuf,
-        private_pem_path: PathBuf,
+        key_path: PathBuf,
         server_address: String,
         config_dir: PathBuf,
         test_file_exists: bool,
@@ -46,8 +45,7 @@ mod tests {
                 test_file_path: test_folder_path.join(TestData::gen_file_name(".test")),
                 socket_path: get_commander_unix_socket_path(&test_folder_path),
                 blocklist_path: get_blocklist_path(&test_folder_path),
-                public_pem_path: test_folder_path.join(TestData::gen_file_name(".pem")),
-                private_pem_path: private_pem_dir.join(TestData::gen_file_name(".pem")),
+                key_path: private_pem_dir.join(TestData::gen_file_name(".key")),
                 server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
                 block_list_exists: false,
@@ -69,9 +67,7 @@ mod tests {
         }
 
         fn run_client_gen(&self) {
-            let key_size = 1024;
-
-            Generator::create(&self.private_pem_path, &self.public_pem_path, key_size)
+            Generator::create(&self.key_path)
                 .unwrap()
                 .gen()
                 .unwrap();
@@ -86,7 +82,7 @@ mod tests {
             let sender = Sender::create(
                 SendCommand {
                     address: self.server_address.to_string(),
-                    private_pem_path: self.private_pem_path.clone(),
+                    key_path: self.key_path.clone(),
                     command: "default".to_string(),
                     deadline: self.deadline,
                     permissive: !self.strict,
@@ -184,8 +180,7 @@ mod tests {
 
         fn assert_file_paths(&self) {
             let test_file_exists = self.test_file_path.exists();
-            let private_exists = self.private_pem_path.exists();
-            let public_exists = self.public_pem_path.exists();
+            let private_exists = self.key_path.exists();
             let socket_exists = self.socket_path.exists();
             let blocklist_exists = self.blocklist_path.exists();
 
@@ -194,7 +189,6 @@ mod tests {
             assert_eq!(test_file_exists, self.test_file_exists);
             assert_eq!(blocklist_exists, self.block_list_exists);
             assert!(private_exists);
-            assert!(public_exists);
             assert!(socket_exists);
         }
     }
