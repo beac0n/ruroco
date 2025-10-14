@@ -1,4 +1,4 @@
-//! This module is responsible for sending data to the server and for generating PEM files
+//! This module is responsible for sending data to the server and for generating key file
 
 use crate::client::gen::Generator;
 use crate::client::send::Sender;
@@ -47,22 +47,11 @@ mod tests {
 
     #[test]
     fn test_gen() {
-        let private_file_name = gen_file_name(".pem");
-        let public_file_name = gen_file_name(".pem");
+        let key_file_name = gen_file_name(".key");
 
-        let result = run_client(CliClient::parse_from(vec![
-            "ruroco",
-            "gen",
-            "-r",
-            &private_file_name,
-            "-u",
-            &public_file_name,
-            "-k",
-            "4096",
-        ]));
+        let result = run_client(CliClient::parse_from(vec!["ruroco", "gen", "-k", &key_file_name]));
 
-        let _ = fs::remove_file(&private_file_name);
-        let _ = fs::remove_file(&public_file_name);
+        let _ = fs::remove_file(&key_file_name);
 
         assert!(result.is_ok());
     }

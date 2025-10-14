@@ -29,7 +29,7 @@ impl Sender {
     /// Send data to the server to execute a predefined command
     pub fn send(&self) -> Result<(), String> {
         info(&format!(
-            "Connecting to udp://{}, loading PEM from {:?}, using {} ...",
+            "Connecting to udp://{}, loading key from {:?}, using {} ...",
             &self.cmd.address,
             &self.cmd.key_path,
             version(),

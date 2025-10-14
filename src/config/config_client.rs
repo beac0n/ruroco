@@ -21,7 +21,7 @@ pub const MIN_KEY_SIZE: u16 = 4096;
 #[derive(Parser, Debug)]
 pub struct GenCommand {
     /// Path to the key file
-    #[arg(short = 'r', long, default_value = default_key_path().into_os_string())]
+    #[arg(short = 'k', long, default_value = default_key_path().into_os_string())]
     pub key_path: PathBuf,
 }
 
@@ -105,7 +105,7 @@ pub struct CliClient {
 
 #[derive(Debug, Subcommand)]
 pub enum CommandsClient {
-    /// Generate a pair of private and public PEM keys.
+    /// Generate a pair of key file.
     Gen(GenCommand),
     /// Send a command to a specific address.
     Send(SendCommand),
@@ -116,11 +116,7 @@ pub enum CommandsClient {
 }
 
 pub fn default_key_path() -> PathBuf {
-    get_default_pem_path("ruroco_private.pem")
-}
-
-fn get_default_pem_path(pem_name: &str) -> PathBuf {
-    get_conf_dir().join(pem_name)
+    get_conf_dir().join("ruroco.key")
 }
 
 pub fn get_conf_dir() -> PathBuf {
