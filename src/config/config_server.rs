@@ -16,8 +16,6 @@ use std::os::fd::{FromRawFd, RawFd};
 use std::path::PathBuf;
 use std::{env, fs};
 
-type CryptoHandlerResult = Result<HashMap<Vec<u8>, CryptoHandler>, String>;
-
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct CliServer {
@@ -89,7 +87,7 @@ impl ConfigServer {
         Blocklist::create(&self.resolve_config_dir())
     }
 
-    pub fn create_crypto_handlers(&self) -> CryptoHandlerResult {
+    pub fn create_crypto_handlers(&self) -> Result<HashMap<Vec<u8>, CryptoHandler>, String> {
         let key_paths = self.get_key_paths()?;
         info(&format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
 
@@ -101,9 +99,8 @@ impl ConfigServer {
         let hashmap_data = crypto_handlers
             .into_iter()
             .map(|h| {
-                let hash_bytes = h.get_key_hash()?;
-                info(&format!("loading key with hash {hash_bytes:X?}"));
-                Ok((hash_bytes, h))
+                info(&format!("loading key with id {:X?}", &h.id));
+                Ok((h.id.clone(), h))
             })
             .collect::<Result<Vec<(Vec<u8>, CryptoHandler)>, String>>()?;
 

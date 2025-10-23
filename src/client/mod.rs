@@ -14,7 +14,10 @@ mod wizard;
 
 pub fn run_client(client: CliClient) -> Result<(), String> {
     match client.command {
-        CommandsClient::Gen(gen_command) => Generator::create(&gen_command.key_path)?.gen(),
+        CommandsClient::Gen(_) => {
+            Generator::create()?.gen()?;
+            Ok(())
+        }
         CommandsClient::Send(send_command) => {
             let ntp = send_command.ntp.clone();
             Sender::create(send_command, time_from_ntp(&ntp)?)?.send()
@@ -36,31 +39,16 @@ mod tests {
     use crate::client::run_client;
     use crate::config::config_client::CliClient;
     use clap::Parser;
-    use rand::distr::{Alphanumeric, SampleString};
-    use std::fs;
-    use std::path::PathBuf;
-
-    fn gen_file_name(suffix: &str) -> String {
-        let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
-        format!("{rand_str}{suffix}")
-    }
 
     #[test]
     fn test_gen() {
-        let key_file_name = gen_file_name(".key");
-
-        let result = run_client(CliClient::parse_from(vec!["ruroco", "gen", "-k", &key_file_name]));
-
-        let _ = fs::remove_file(&key_file_name);
-
+        let result = run_client(CliClient::parse_from(vec!["ruroco", "gen"]));
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_send() {
-        let key_file = gen_file_name(".key");
-
-        Generator::create(&PathBuf::from(&key_file)).unwrap().gen().unwrap();
+        let key = Generator::create().unwrap().gen().unwrap();
 
         let result = run_client(CliClient::parse_from(vec![
             "ruroco",
@@ -68,12 +56,10 @@ mod tests {
             "-a",
             "127.0.0.1:1234",
             "-k",
-            &key_file,
+            &key,
             "-i",
             "192.168.178.123",
         ]));
-
-        let _ = fs::remove_file(&key_file);
 
         assert!(result.is_ok());
     }

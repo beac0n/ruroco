@@ -64,8 +64,11 @@ mod tests {
             format!("{rand_str}{suffix}")
         }
 
-        fn run_client_gen(&self) {
-            Generator::create(&self.key_path).unwrap().gen().unwrap();
+        fn run_client_gen(&self) -> String {
+            Generator::create()
+                .expect("could not create key generator")
+                .gen()
+                .expect("could not generate key")
         }
 
         fn get_blocked_list(&self) -> Vec<u128> {
@@ -77,7 +80,7 @@ mod tests {
             let sender = Sender::create(
                 SendCommand {
                     address: self.server_address.to_string(),
-                    key: self.key_path.clone(),
+                    key: fs::read_to_string(&self.key_path).expect("failed to read key"),
                     command: "default".to_string(),
                     deadline: self.deadline,
                     permissive: !self.strict,
@@ -86,11 +89,11 @@ mod tests {
                     ipv4: false,
                     ipv6: false,
                 },
-                self.now.unwrap_or_else(|| time().unwrap()),
+                self.now.unwrap_or_else(|| time().expect("could not get time")),
             )
-            .unwrap();
+            .expect("could not create sender");
 
-            sender.send().unwrap();
+            sender.send().expect("could not send command");
             thread::sleep(Duration::from_secs(10)); // wait for files to be written and blocklist to be updated
         }
 
@@ -209,7 +212,7 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        let now = time().unwrap();
+        let now = time().expect("could not get time");
         test_data.with_deadline(5).with_now(now).run_client_send();
         let _ = fs::remove_file(&test_data.test_file_path);
 
@@ -257,7 +260,10 @@ mod tests {
 
         test_data.with_ip(ip).with_strict(false).run_client_send();
 
-        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), ip.to_string());
+        assert_eq!(
+            fs::read_to_string(&test_data.test_file_path).expect("could not read file"),
+            ip.to_string()
+        );
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
     }
 
@@ -282,7 +288,10 @@ mod tests {
 
         test_data.with_ip(ip).run_client_send();
 
-        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), ip.to_string());
+        assert_eq!(
+            fs::read_to_string(&test_data.test_file_path).expect("could not read file"),
+            ip.to_string()
+        );
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
     }
 

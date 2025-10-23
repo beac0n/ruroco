@@ -1,9 +1,10 @@
-use openssl::hash::{Hasher, MessageDigest};
+use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
 use rand::RngCore;
 use std::fs;
+use std::num::ParseIntError;
 use std::path::Path;
 
 // see https://www.rfc-editor.org/rfc/rfc3447#section-7.2.1
@@ -16,17 +17,26 @@ pub struct CryptoHandler {
 }
 
 impl CryptoHandler {
-    pub fn create(key_string: String) -> Result<Self, String> {
+    pub fn from_key_path(key_path: &Path) -> Result<Self, String> {
+        let key = fs::read_to_string(key_path).map_err(|e| format!("Could not read key: {}", e))?;
+        Self::create(&key)
+    }
+
+    pub fn create(key_string: &str) -> Result<Self, String> {
+        if key_string.len() != 80 {
+            return Err("Key length must be 80 hex characters (40 bytes)")?;
+        }
+
         let bytes = (0..key_string.len())
             .step_by(2)
             .map(|i| u8::from_str_radix(&key_string[i..i + 2], 16))
-            .collect()
+            .collect::<Result<Vec<u8>, ParseIntError>>()
             .map_err(|e| format!("invalid hex: {e}"))?;
 
         let (id, key) = bytes.split_at(8);
 
         if key.len() != 32 {
-            return Err("Key length must be 32")?;
+            return Err("Key length must be 32 bytes")?;
         }
 
         Ok(CryptoHandler {
@@ -47,17 +57,17 @@ impl CryptoHandler {
         pbkdf2_hmac(&secret, &salt, iterations, MessageDigest::sha256(), &mut key)
             .map_err(|e| format!("Could not generate AES key: {e}"))?;
 
-        let mut rng = rand::rng();
-        let mut random_bytes = [0u8; 8];
-        rng.fill_bytes(&mut random_bytes);
+        let mut id = [0u8; 8];
+        rand::rng().fill_bytes(&mut id);
+        id[0] |= 1;
 
-        let random_hex: String = random_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+        let id_hex: String = id.iter().map(|b| format!("{:02x}", b)).collect();
         let key_hex: String = key.iter().map(|b| format!("{:02x}", b)).collect();
 
-        Ok(format!("{}{}", random_hex, key_hex))
+        Ok(format!("{}{}", id_hex, key_hex))
     }
 
-    pub fn encrypt(&self, plaintext: &[u8]) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), String> {
+    pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, String> {
         let cipher = Cipher::aes_256_gcm();
         let mut iv = vec![0u8; 12];
         rand_bytes(&mut iv).map_err(|e| e.to_string())?;
@@ -79,10 +89,14 @@ impl CryptoHandler {
         let mut tag = vec![0u8; 16];
         crypter.get_tag(&mut tag).map_err(|e| format!("Could not get tag from crypter: {}", e))?;
 
-        Ok((iv, ciphertext, tag))
+        Ok([iv, tag, ciphertext].concat())
     }
 
-    pub fn decrypt(&self, iv: &[u8], ciphertext: &[u8], tag: &[u8]) -> Result<Vec<u8>, String> {
+    pub fn decrypt(&self, iv_tag_ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+        let iv = &iv_tag_ciphertext[..12];
+        let tag = &iv_tag_ciphertext[12..28];
+        let ciphertext = &iv_tag_ciphertext[28..];
+
         let cipher = Cipher::aes_256_gcm();
         let mut decrypter = Crypter::new(cipher, Mode::Decrypt, &self.key, Some(iv))
             .map_err(|e| format!("Could not create decrypter: {}", e))?;
@@ -115,8 +129,8 @@ mod tests {
         let key = CryptoHandler::gen_key().unwrap();
         let handler = CryptoHandler::create(&key).unwrap();
 
-        let (iv, cipher, tag) = handler.encrypt(plaintext).unwrap();
-        let decrypted = handler.decrypt(&iv, &cipher, &tag).unwrap();
+        let ciphertext = handler.encrypt(plaintext).unwrap();
+        let decrypted = handler.decrypt(&ciphertext).unwrap();
 
         assert_eq!(decrypted, plaintext);
     }

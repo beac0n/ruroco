@@ -80,7 +80,8 @@ impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
             address: "127.0.0.1:1234".to_string(),
-            key: default_key_path(),
+            key: "FFFFFFFFFFFFFFFFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF"
+                .to_string(),
             command: DEFAULT_COMMAND.to_string(),
             deadline: 5,
             permissive: false,

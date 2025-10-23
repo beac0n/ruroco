@@ -2,6 +2,7 @@ use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data::ClientData;
 use crate::common::info;
 use crate::config::config_client::SendCommand;
+use openssl::rand::rand_bytes;
 use openssl::version::version;
 use std::fmt::{Debug, Display};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
@@ -20,7 +21,7 @@ impl Sender {
     /// * `now` - current timestamp in ns
     pub fn create(cmd: SendCommand, now: u128) -> Result<Self, String> {
         Ok(Self {
-            crypto_handler: CryptoHandler::from_key_path(&cmd.key)?,
+            crypto_handler: CryptoHandler::create(&cmd.key)?,
             cmd,
             now,
         })
@@ -101,17 +102,23 @@ impl Sender {
     }
 
     fn get_data_to_send(&self, data_to_encrypt: &[u8]) -> Result<Vec<u8>, String> {
-        let (iv, cipher, tag) = self.crypto_handler.encrypt(data_to_encrypt)?;
-        let data_to_send_len = iv.len() + cipher.len() + tag.len();
-        let max_size = 160;
+        let ciphertext = self.crypto_handler.encrypt(data_to_encrypt)?;
+        let data_to_send = [vec![0u8], self.crypto_handler.id.clone(), ciphertext].concat();
+        let data_to_send_len = data_to_send.len();
+
+        let max_size = 201; // 1 byte prefix + 8 bytes id + 192 bytes encrypted data
         if data_to_send_len > max_size {
-            return Err(format!(
+            Err(format!(
                 "Too much data, must be at most {max_size} bytes, \
                 but was {data_to_send_len} bytes. Reduce command name length."
-            ));
+            ))
+        } else if data_to_send_len < max_size {
+            let mut prefix = vec![0u8; max_size - data_to_send_len];
+            rand_bytes(&mut prefix).map_err(|e| format!("Could not generate random bytes: {e}"))?;
+            Ok([prefix, data_to_send].concat())
+        } else {
+            Ok(data_to_send)
         }
-
-        Ok([iv, cipher, tag].concat())
     }
 
     fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
@@ -146,7 +153,6 @@ mod tests {
     use std::fs;
     use std::fs::File;
     use std::net::IpAddr;
-    use std::path::PathBuf;
 
     const IP: &str = "192.168.178.123";
 
@@ -172,32 +178,13 @@ mod tests {
     }
 
     #[test]
-    fn test_send_no_such_file() {
-        let key_file_name = gen_file_name(".key");
-
-        let result = Sender::create(
-            SendCommand {
-                key: PathBuf::from(&key_file_name),
-                ip: Some(IP.to_string()),
-                ..Default::default()
-            },
-            time().unwrap(),
-        );
-
-        assert_eq!(
-            result.unwrap_err(),
-            format!("Could not read key file: No such file or directory (os error 2)")
-        );
-    }
-
-    #[test]
     fn test_send_invalid_key() {
         let key_file_name = gen_file_name(".key");
         File::create(&key_file_name).unwrap();
 
         let result = Sender::create(
             SendCommand {
-                key: PathBuf::from(&key_file_name),
+                key: "DEADBEEF".to_string(),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -206,22 +193,17 @@ mod tests {
 
         let _ = fs::remove_file(&key_file_name);
 
-        assert_eq!(result.unwrap_err(), "Key length must be 32");
+        assert_eq!(result.unwrap_err(), "Key length must be 80 hex characters (40 bytes)");
     }
 
     #[test]
     fn test_send_invalid_port_value() {
-        let key_file = gen_file_name(".key");
-
-        let key_path = PathBuf::from(&key_file);
-        Generator::create(&key_path).unwrap().gen().unwrap();
-
+        let key = Generator::create().unwrap().gen().unwrap();
         let address = "127.0.0.1:asd".to_string();
-
         let sender = Sender::create(
             SendCommand {
                 address: address.clone(),
-                key: key_path,
+                key,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -230,8 +212,6 @@ mod tests {
         .unwrap();
 
         let result = sender.send();
-
-        let _ = fs::remove_file(&key_file);
 
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -241,17 +221,11 @@ mod tests {
 
     #[test]
     fn test_send_unknown_service() {
-        let key_file = gen_file_name(".key");
-
-        let key_path = PathBuf::from(&key_file);
-        Generator::create(&key_path).unwrap().gen().unwrap();
-
         let address = "999.999.999.999:9999".to_string();
-
         let sender = Sender::create(
             SendCommand {
                 address: address.clone(),
-                key: key_path,
+                key: Generator::create().unwrap().gen().unwrap(),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -260,9 +234,6 @@ mod tests {
         .unwrap();
 
         let result = sender.send();
-
-        let _ = fs::remove_file(&key_file);
-
         assert_eq!(
             result.unwrap_err().to_string(),
             format!(
@@ -274,15 +245,10 @@ mod tests {
 
     #[test]
     fn test_send_command_too_long() {
-        let key_file = gen_file_name(".key");
-        let key_path = PathBuf::from(&key_file);
-
-        Generator::create(&key_path).unwrap().gen().unwrap();
-
         let sender = Sender::create(
             SendCommand {
-                key: key_path,
-                command: "#".repeat(66),
+                key: Generator::create().unwrap().gen().unwrap(),
+                command: "#".repeat(67),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -291,12 +257,9 @@ mod tests {
         .unwrap();
 
         let result = sender.send();
-
-        let _ = fs::remove_file(&key_file);
-
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Too much data, must be at most 160 bytes, but was 176 bytes. \
+            "Too much data, must be at most 160 bytes, but was 161 bytes. \
                 Reduce command name length."
                 .to_string()
         );
@@ -313,15 +276,10 @@ mod tests {
     }
 
     fn send_test(address: &str) -> Result<(), String> {
-        let key_file = gen_file_name(".key");
-
-        let key_path = PathBuf::from(&key_file);
-        Generator::create(&key_path)?.gen()?;
-
         let sender = Sender::create(
             SendCommand {
                 address: address.to_string(),
-                key: key_path,
+                key: Generator::create()?.gen()?,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -329,8 +287,6 @@ mod tests {
         );
 
         let result = sender?.send();
-
-        let _ = fs::remove_file(&key_file);
 
         result
     }
@@ -341,14 +297,10 @@ mod tests {
     }
 
     fn get_ip_addresses(host: &str) -> Vec<IpAddr> {
-        let key_file = gen_file_name(".key");
-        let key_path = PathBuf::from(&key_file);
-        Generator::create(&key_path).unwrap().gen().unwrap();
-
         let sender = Sender::create(
             SendCommand {
                 address: host.to_string(),
-                key: key_path,
+                key: Generator::create().unwrap().gen().unwrap(),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },

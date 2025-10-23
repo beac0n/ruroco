@@ -2,7 +2,7 @@
 pub mod blocklist;
 /// responsible for executing the commands that are defined in the config file
 pub mod commander;
-use crate::common::crypto_handler::{CryptoHandler, SHA256_DIGEST_LENGTH};
+use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data::{ClientData, CommanderData};
 use crate::common::{error, info, time_from_ntp};
 use crate::config::config_server::{CliServer, ConfigServer};
@@ -90,13 +90,13 @@ impl Server {
     }
 
     fn decrypt(&mut self) -> Result<Vec<u8>, String> {
-        let hash_bytes = &self.client_recv_data[..SHA256_DIGEST_LENGTH];
-        let encrypted_data = &self.client_recv_data[SHA256_DIGEST_LENGTH..];
+        let key_id = &self.client_recv_data[..8];
+        let encrypted_data = &self.client_recv_data[8..];
 
         self.crypto_handlers
-            .get(hash_bytes)
+            .get(key_id)
             .map(|crypto_handler| crypto_handler.decrypt(encrypted_data))
-            .unwrap_or_else(|| Err(format!("Could not find key for hash {hash_bytes:X?}")))
+            .unwrap_or_else(|| Err(format!("Could not find key for id {key_id:X?}")))
     }
 
     fn validate(&mut self, decrypted_data: &[u8], src_ip_addr: IpAddr) {
@@ -317,10 +317,9 @@ mod tests {
         let test_folder_path = PathBuf::from("/dev/shm").join(gen_file_name(""));
         let _ = fs::create_dir_all(&test_folder_path);
 
-        Generator::create(&test_folder_path.join(gen_file_name(".key")))
-            .unwrap()
-            .gen()
-            .expect("could not generate key");
+        let key_path = test_folder_path.join(gen_file_name(".key"));
+        let key = Generator::create().unwrap().gen().expect("could not generate key");
+        fs::write(&key_path, key).expect("failed to write key");
 
         Server::create(
             ConfigServer {

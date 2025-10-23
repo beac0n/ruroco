@@ -1,8 +1,6 @@
 pub mod crypto_handler;
 pub mod data;
 
-use openssl::hash::{Hasher, MessageDigest};
-use openssl::rsa::Padding;
 use sntpc::{NtpContext, StdTimestampGen};
 use std::net::{ToSocketAddrs, UdpSocket};
 use std::os::unix::fs::chown;
@@ -12,8 +10,6 @@ use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
-pub const RSA_PADDING: Padding = Padding::PKCS1;
-pub const PADDING_SIZE: usize = 11;
 pub const NTP_SYSTEM: &str = "system";
 
 pub fn set_permissions(path: &str, permissions_mode: u32) -> Result<(), String> {
@@ -56,14 +52,6 @@ pub fn time() -> Result<u128, String> {
         .duration_since(SystemTime::UNIX_EPOCH)
         .map_err(|e| format!("Could not get duration since: {e}"))?;
     Ok(duration.as_nanos())
-}
-
-pub fn hash_key(key: &[u8]) -> Result<Vec<u8>, String> {
-    let digest = MessageDigest::sha256();
-    let mut hasher = Hasher::new(digest).map_err(|e| format!("Could not create hasher: {e}"))?;
-    hasher.update(key).map_err(|e| format!("Could not update hasher: {e}"))?;
-    let hash_bytes = hasher.finish().map_err(|e| format!("Could not finish hasher: {e}"))?;
-    Ok(hash_bytes.to_vec())
 }
 
 pub fn get_commander_unix_socket_path(config_dir: &Path) -> PathBuf {

@@ -9,7 +9,6 @@ use crate::ui::saved_command_list::CommandsList;
 use clap::Parser;
 use slint::{Color, Model, ModelRc, SharedString, VecModel, Weak};
 use std::error::Error;
-use std::fs;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -24,30 +23,6 @@ pub struct RustSlintBridge {
     app: App,
     commands_list: Arc<Mutex<CommandsList>>,
     key_path: String,
-}
-
-#[derive(Clone)]
-pub struct RustSlintBridgeExecutor {
-    app: Weak<App>,
-    key_path: String,
-}
-
-impl RustSlintBridgeExecutor {
-    pub fn enable_key_gen_popup(&self) {
-        self.app.unwrap().global::<SlintRustBridge>().set_generating_keys(true)
-    }
-
-    pub fn disable_key_gen_popup(&self) {
-        self.app.unwrap().global::<SlintRustBridge>().set_generating_keys(false)
-    }
-
-    pub fn set_public_key(&self) -> Result<(), Box<dyn Error>> {
-        self.app
-            .unwrap()
-            .global::<SlintRustBridge>()
-            .set_public_key(fs::read_to_string(&self.key_path)?.into());
-        Ok(())
-    }
 }
 
 impl RustSlintBridge {
@@ -68,13 +43,6 @@ impl RustSlintBridge {
             commands_list: Arc::new(Mutex::new(commands_list)),
             key_path: key_path.to_str().ok_or("Could not convert key path to string")?.to_string(),
         })
-    }
-
-    pub fn create_executor(&self) -> RustSlintBridgeExecutor {
-        RustSlintBridgeExecutor {
-            app: self.app.as_weak(),
-            key_path: self.key_path.clone(),
-        }
     }
 
     pub fn run(&self) -> Result<(), slint::PlatformError> {
