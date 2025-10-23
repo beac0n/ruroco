@@ -1,5 +1,5 @@
-pub mod data;
 pub mod crypto_handler;
+pub mod data;
 
 use openssl::hash::{Hasher, MessageDigest};
 use openssl::rsa::Padding;

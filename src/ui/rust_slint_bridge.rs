@@ -66,10 +66,7 @@ impl RustSlintBridge {
         Ok(RustSlintBridge {
             app,
             commands_list: Arc::new(Mutex::new(commands_list)),
-            key_path: key_path
-                .to_str()
-                .ok_or("Could not convert key path to string")?
-                .to_string(),
+            key_path: key_path.to_str().ok_or("Could not convert key path to string")?.to_string(),
         })
     }
 

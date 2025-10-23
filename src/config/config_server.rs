@@ -91,9 +91,7 @@ impl ConfigServer {
 
     pub fn create_crypto_handlers(&self) -> CryptoHandlerResult {
         let key_paths = self.get_key_paths()?;
-        info(&format!(
-            "Creating server, loading keys from {key_paths:?}, using {} ...", version()
-        ));
+        info(&format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
 
         let crypto_handlers = key_paths
             .into_iter()

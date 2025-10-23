@@ -115,7 +115,6 @@ mod tests {
         let key = CryptoHandler::gen_key().unwrap();
         let handler = CryptoHandler::create(&key).unwrap();
 
-
         let (iv, cipher, tag) = handler.encrypt(plaintext).unwrap();
         let decrypted = handler.decrypt(&iv, &cipher, &tag).unwrap();
 
