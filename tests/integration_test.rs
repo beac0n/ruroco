@@ -67,10 +67,7 @@ mod tests {
         }
 
         fn run_client_gen(&self) {
-            Generator::create(&self.key_path)
-                .unwrap()
-                .gen()
-                .unwrap();
+            Generator::create(&self.key_path).unwrap().gen().unwrap();
         }
 
         fn get_blocked_list(&self) -> Vec<u128> {
@@ -82,7 +79,7 @@ mod tests {
             let sender = Sender::create(
                 SendCommand {
                     address: self.server_address.to_string(),
-                    key_path: self.key_path.clone(),
+                    key: self.key_path.clone(),
                     command: "default".to_string(),
                     deadline: self.deadline,
                     permissive: !self.strict,

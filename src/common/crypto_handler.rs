@@ -2,6 +2,7 @@ use openssl::hash::{Hasher, MessageDigest};
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
+use rand::RngCore;
 use std::fs;
 use std::path::Path;
 
@@ -12,14 +13,19 @@ pub const SHA256_DIGEST_LENGTH: usize = 32;
 pub struct CryptoHandler {
     pub key: Vec<u8>,
     pub iv: Vec<u8>,
+    pub id: Vec<u8>,
 }
 
 impl CryptoHandler {
-    pub fn from_key_path(key_path: &Path) -> Result<Self, String> {
-        let key = fs::read(key_path).map_err(|e| format!("Could not read key file: {}", e))?;
-        Self::create(&key)
-    }
-    pub fn create(key: &[u8]) -> Result<Self, String> {
+    pub fn create(key_string: String) -> Result<Self, String> {
+        let bytes = (0..key_string.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&key_string[i..i + 2], 16))
+            .collect()
+            .map_err(|e| format!("invalid hex: {e}"))?;
+
+        let (id, key) = bytes.split_at(8);
+
         let mut iv = [0u8; 16];
         rand_bytes(&mut iv).map_err(|e| format!("Could not write iv bytes: {}", e))?;
 
@@ -30,30 +36,30 @@ impl CryptoHandler {
         Ok(CryptoHandler {
             key: key.to_vec(),
             iv: iv.to_vec(),
+            id: id.to_vec(),
         })
     }
 
-    pub fn gen_key() -> Result<Vec<u8>, String> {
+    pub fn gen_key() -> Result<String, String> {
         let mut secret = [0u8; 32];
-        rand_bytes(&mut secret).map_err(|e| format!("Could not generate secret: {}", e))?;
+        rand_bytes(&mut secret).map_err(|e| format!("Could not generate secret: {e}"))?;
 
         let mut salt = [0u8; 16];
-        rand_bytes(&mut salt).map_err(|e| format!("Could not generate salt: {}", e))?;
+        rand_bytes(&mut salt).map_err(|e| format!("Could not generate salt: {e}"))?;
 
         let iterations = 100_000;
         let mut key = [0u8; 32];
         pbkdf2_hmac(&secret, &salt, iterations, MessageDigest::sha256(), &mut key)
-            .map_err(|e| format!("Could not generate aes key: {e}"))?;
+            .map_err(|e| format!("Could not generate AES key: {e}"))?;
 
-        Ok(key.to_vec())
-    }
+        let mut rng = rand::rng();
+        let mut random_bytes = [0u8; 8];
+        rng.fill_bytes(&mut random_bytes);
 
-    pub fn get_key_hash(&self) -> Result<Vec<u8>, String> {
-        let digest = MessageDigest::sha256();
-        let mut hasher = Hasher::new(digest).map_err(|e| format!("Could not create hasher: {e}"))?;
-        hasher.update(self.key.as_slice()).map_err(|e| format!("Could not update hasher: {e}"))?;
-        let hash_bytes = hasher.finish().map_err(|e| format!("Could not finish hasher: {e}"))?;
-        Ok(hash_bytes.to_vec())
+        let random_hex: String = random_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+        let key_hex: String = key.iter().map(|b| format!("{:02x}", b)).collect();
+
+        Ok(format!("{}{}", random_hex, key_hex))
     }
 
     pub fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, String> {
@@ -112,4 +118,3 @@ mod tests {
         assert_eq!(decrypted, plaintext);
     }
 }
-

@@ -20,7 +20,7 @@ impl Sender {
     /// * `now` - current timestamp in ns
     pub fn create(cmd: SendCommand, now: u128) -> Result<Self, String> {
         Ok(Self {
-            crypto_handler: CryptoHandler::from_key_path(&cmd.key_path)?,
+            crypto_handler: CryptoHandler::from_key_path(&cmd.key)?,
             cmd,
             now,
         })
@@ -31,7 +31,7 @@ impl Sender {
         info(&format!(
             "Connecting to udp://{}, loading PEM from {:?}, using {} ...",
             &self.cmd.address,
-            &self.cmd.key_path,
+            &self.cmd.key,
             version(),
         ));
 
@@ -180,7 +180,7 @@ mod tests {
 
         let result = Sender::create(
             SendCommand {
-                key_path: PathBuf::from(&key_file_name),
+                key: PathBuf::from(&key_file_name),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -200,7 +200,7 @@ mod tests {
 
         let result = Sender::create(
             SendCommand {
-                key_path: PathBuf::from(&key_file_name),
+                key: PathBuf::from(&key_file_name),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -224,7 +224,7 @@ mod tests {
         let sender = Sender::create(
             SendCommand {
                 address: address.clone(),
-                key_path: key_path,
+                key: key_path,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -254,7 +254,7 @@ mod tests {
         let sender = Sender::create(
             SendCommand {
                 address: address.clone(),
-                key_path,
+                key: key_path,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -284,7 +284,7 @@ mod tests {
 
         let sender = Sender::create(
             SendCommand {
-                key_path,
+                key: key_path,
                 command: "#".repeat(66),
                 ip: Some(IP.to_string()),
                 ..Default::default()
@@ -324,7 +324,7 @@ mod tests {
         let sender = Sender::create(
             SendCommand {
                 address: address.to_string(),
-                key_path,
+                key: key_path,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -351,7 +351,7 @@ mod tests {
         let sender = Sender::create(
             SendCommand {
                 address: host.to_string(),
-                key_path,
+                key: key_path,
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },

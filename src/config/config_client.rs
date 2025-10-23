@@ -19,20 +19,16 @@ pub const DEFAULT_DEADLINE: u16 = 5;
 pub const MIN_KEY_SIZE: u16 = 4096;
 
 #[derive(Parser, Debug)]
-pub struct GenCommand {
-    /// Path to the key file
-    #[arg(short = 'r', long, default_value = default_key_path().into_os_string())]
-    pub key_path: PathBuf,
-}
+pub struct GenCommand {}
 
 #[derive(Parser, Debug)]
 pub struct SendCommand {
     /// Address to send the command to.
     #[arg(short, long)]
     pub address: String,
-    /// Path to the aes key file.
-    #[arg(short, long, default_value = default_key_path().into_os_string())]
-    pub key_path: PathBuf,
+    /// Aes key file in hex format
+    #[arg(short, long)]
+    pub key: String,
     /// Command to send
     #[arg(short, long, default_value = DEFAULT_COMMAND)]
     pub command: String,
@@ -84,7 +80,7 @@ impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
             address: "127.0.0.1:1234".to_string(),
-            key_path: default_key_path(),
+            key: default_key_path(),
             command: DEFAULT_COMMAND.to_string(),
             deadline: 5,
             permissive: false,
