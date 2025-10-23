@@ -135,15 +135,15 @@ impl RustSlintBridge {
 
     pub fn add_on_exec_command(&self) {
         let app_weak = self.app.as_weak();
-        let private_pem_path = self.key_path.clone();
+        let key_path = self.key_path.clone();
 
         self.app.global::<SlintRustBridge>().on_exec_command(move |cmd, idx| {
             let cmd = cmd.to_string();
             let mut cmd_vec: Vec<&str> = cmd.split_whitespace().collect();
             cmd_vec.insert(0, "ruroco");
-            if !cmd.contains("--private-pem-path") {
-                cmd_vec.push("--private-pem-path");
-                cmd_vec.push(&private_pem_path);
+            if !cmd.contains("--key-path") {
+                cmd_vec.push("--key-path");
+                cmd_vec.push(&key_path);
             }
 
             info(&format!("Executing command: {}", cmd_vec.join(" ")));

@@ -36,16 +36,14 @@ mod tests {
     impl TestData {
         fn create() -> TestData {
             let test_folder_path = PathBuf::from("/tmp").join(TestData::gen_file_name(""));
-            let private_pem_dir = test_folder_path.join("private");
             let _ = fs::create_dir_all(&test_folder_path);
-            let _ = fs::create_dir_all(&private_pem_dir);
 
             TestData {
                 config_dir: test_folder_path.clone(),
                 test_file_path: test_folder_path.join(TestData::gen_file_name(".test")),
                 socket_path: get_commander_unix_socket_path(&test_folder_path),
                 blocklist_path: get_blocklist_path(&test_folder_path),
-                key_path: private_pem_dir.join(TestData::gen_file_name(".key")),
+                key_path: test_folder_path.join(TestData::gen_file_name(".key")),
                 server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
                 block_list_exists: false,

@@ -12,7 +12,6 @@ pub const SHA256_DIGEST_LENGTH: usize = 32;
 #[derive(Debug)]
 pub struct CryptoHandler {
     pub key: Vec<u8>,
-    pub iv: Vec<u8>,
     pub id: Vec<u8>,
 }
 
@@ -26,16 +25,12 @@ impl CryptoHandler {
 
         let (id, key) = bytes.split_at(8);
 
-        let mut iv = [0u8; 16];
-        rand_bytes(&mut iv).map_err(|e| format!("Could not write iv bytes: {}", e))?;
-
         if key.len() != 32 {
             return Err("Key length must be 32")?;
         }
 
         Ok(CryptoHandler {
             key: key.to_vec(),
-            iv: iv.to_vec(),
             id: id.to_vec(),
         })
     }
@@ -62,35 +57,47 @@ impl CryptoHandler {
         Ok(format!("{}{}", random_hex, key_hex))
     }
 
-    pub fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, String> {
-        let cipher = Cipher::aes_256_cbc();
-        let mut encrypter = Crypter::new(cipher, Mode::Encrypt, &self.key, Some(&self.iv))
-            .map_err(|e| format!("Could not create encrypter: {}", e))?;
+    pub fn encrypt(&self, plaintext: &[u8]) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), String> {
+        let cipher = Cipher::aes_256_gcm();
+        let mut iv = vec![0u8; 12];
+        rand_bytes(&mut iv).map_err(|e| e.to_string())?;
 
-        let mut ciphertext = vec![0; data.len() + cipher.block_size()];
-        let mut count = encrypter
-            .update(data, &mut ciphertext)
-            .map_err(|e| format!("Could not update encrypter: {}", e))?;
-        count += encrypter
+        let mut crypter = Crypter::new(cipher, Mode::Encrypt, &self.key, Some(&iv))
+            .map_err(|e| format!("Could not create crypter: {}", e))?;
+
+        let mut ciphertext = vec![0; plaintext.len() + cipher.block_size()];
+        let mut count = crypter
+            .update(plaintext, &mut ciphertext)
+            .map_err(|e| format!("Could not update crypter: {}", e))?;
+
+        count += crypter
             .finalize(&mut ciphertext[count..])
-            .map_err(|e| format!("Could not finalize encrypter: {}", e))?;
+            .map_err(|e| format!("Could not finalize crypter: {}", e))?;
+
         ciphertext.truncate(count);
 
-        Ok(ciphertext)
+        let mut tag = vec![0u8; 16];
+        crypter.get_tag(&mut tag).map_err(|e| format!("Could not get tag from crypter: {}", e))?;
+
+        Ok((iv, ciphertext, tag))
     }
 
-    pub fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-        let cipher = Cipher::aes_256_cbc();
-        let mut decrypter = Crypter::new(cipher, Mode::Decrypt, &self.key, Some(&self.iv))
+    pub fn decrypt(&self, iv: &[u8], ciphertext: &[u8], tag: &[u8]) -> Result<Vec<u8>, String> {
+        let cipher = Cipher::aes_256_gcm();
+        let mut decrypter = Crypter::new(cipher, Mode::Decrypt, &self.key, Some(iv))
             .map_err(|e| format!("Could not create decrypter: {}", e))?;
 
         let mut plaintext = vec![0; ciphertext.len() + cipher.block_size()];
         let mut count = decrypter
             .update(ciphertext, &mut plaintext)
             .map_err(|e| format!("Could not update decrypter: {}", e))?;
+
+        // supply the tag before finalize so verification can occur
+        decrypter.set_tag(tag).map_err(|e| format!("Could not set tag: {}", e))?;
+
         count += decrypter
             .finalize(&mut plaintext[count..])
-            .map_err(|e| format!("Could not finalize decrypter: {}", e))?;
+            .map_err(|e| format!("Could not finalize decrypter (auth failed?): {}", e))?;
         plaintext.truncate(count);
 
         Ok(plaintext)
@@ -108,12 +115,9 @@ mod tests {
         let key = CryptoHandler::gen_key().unwrap();
         let handler = CryptoHandler::create(&key).unwrap();
 
-        let iv = handler.iv.clone();
-        let mut handler_decrypt = CryptoHandler::create(&key).unwrap();
-        handler_decrypt.iv = iv;
 
-        let ciphertext = handler.encrypt(plaintext).unwrap();
-        let decrypted = handler_decrypt.decrypt(&ciphertext).unwrap();
+        let (iv, cipher, tag) = handler.encrypt(plaintext).unwrap();
+        let decrypted = handler.decrypt(&iv, &cipher, &tag).unwrap();
 
         assert_eq!(decrypted, plaintext);
     }

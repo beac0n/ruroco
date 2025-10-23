@@ -179,7 +179,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_get_pem_path() {
+    fn test_get_key_path() {
         let config_server = ConfigServer {
             config_dir: PathBuf::from("/foo/bar/baz"),
             ..Default::default()

@@ -58,7 +58,7 @@ impl Server {
 
     fn run_loop_iteration(&mut self, data: std::io::Result<(usize, SocketAddr)>) -> Option<String> {
         let error_msg = match data {
-            Ok((count, src)) if count != self.msg_size => {
+            Ok((count, src)) if count > self.msg_size => {
                 Some(format!("Invalid read count {count}, expected {} from {src}", self.msg_size))
             }
             Ok((count, src)) => {
