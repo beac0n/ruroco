@@ -100,12 +100,9 @@ impl Sender {
         Ok(())
     }
 
-    fn get_data_to_send(&self, data_to_encrypt: &Vec<u8>) -> Result<Vec<u8>, String> {
-        let mut data_to_send = self.crypto_handler.get_key_hash()?;
-        let encrypted_data = self.crypto_handler.encrypt(data_to_encrypt)?;
-        data_to_send.extend(encrypted_data);
-
-        let data_to_send_len = data_to_send.len();
+    fn get_data_to_send(&self, data_to_encrypt: &[u8]) -> Result<Vec<u8>, String> {
+        let (iv, cipher, tag) = self.crypto_handler.encrypt(data_to_encrypt)?;
+        let data_to_send_len = iv.len() + cipher.len() + tag.len();
         let max_size = 160;
         if data_to_send_len > max_size {
             return Err(format!(
@@ -114,7 +111,7 @@ impl Sender {
             ));
         }
 
-        Ok(data_to_send)
+        Ok([iv, cipher, tag].concat())
     }
 
     fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
