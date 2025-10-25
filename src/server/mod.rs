@@ -14,13 +14,14 @@ use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 
+const MSG_SIZE: usize = 201;
+
 #[derive(Debug)]
 pub struct Server {
     config: ConfigServer,
     crypto_handlers: HashMap<Vec<u8>, CryptoHandler>,
-    msg_size: usize,
     socket: UdpSocket,
-    client_recv_data: Vec<u8>,
+    client_recv_data: [u8; MSG_SIZE],
     socket_path: PathBuf,
     blocklist: Blocklist,
 }
@@ -36,12 +37,10 @@ impl Server {
     pub fn create(config: ConfigServer, address: Option<String>) -> Result<Server, String> {
         config.validate_ips()?;
 
-        let msg_size = 160;
         Ok(Server {
             crypto_handlers: config.create_crypto_handlers()?,
             socket: config.create_server_udp_socket(address)?,
-            msg_size,
-            client_recv_data: vec![0; msg_size],
+            client_recv_data: [0u8; 201],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist: config.create_blocklist(),
             config,
@@ -51,47 +50,30 @@ impl Server {
     pub fn run(&mut self) -> Result<(), String> {
         info(&format!("Running server on {:?}", self.socket));
         loop {
-            let data = self.receive();
+            let data = self.socket.recv_from(&mut self.client_recv_data);
             self.run_loop_iteration(data);
         }
     }
 
     fn run_loop_iteration(&mut self, data: std::io::Result<(usize, SocketAddr)>) -> Option<String> {
         let error_msg = match data {
-            Ok((count, src)) if count > self.msg_size => {
-                Some(format!("Invalid read count {count}, expected {} from {src}", self.msg_size))
+            Ok((count, src)) if count != MSG_SIZE => {
+                Some(format!("Invalid read count {count}, expected {MSG_SIZE} from {src}"))
             }
             Ok((count, src)) => {
                 info(&format!("Successfully received {count} bytes from {src}"));
-                match self.decrypt() {
-                    Ok(decrypted) => {
-                        self.validate(&decrypted, src.ip());
-                        None
-                    }
-                    Err(e) => Some(e),
-                }
+                self.decrypt().map_or_else(Some, |d| self.validate_and_send_command(&d, src.ip()))
             }
-            Err(e) => Some(format!("Could not recv_from socket from {:?}: {e}", self.socket)),
+            Err(e) => Some(format!("Could not receive bytes from socket: {e}")),
         };
 
-        self.client_recv_data = vec![0; self.msg_size];
-
-        match error_msg {
-            Some(s) => {
-                error(&s);
-                Some(s)
-            }
-            None => None,
-        }
-    }
-
-    fn receive(&mut self) -> std::io::Result<(usize, SocketAddr)> {
-        self.socket.recv_from(&mut self.client_recv_data)
+        error_msg.inspect(|s| error(s))
     }
 
     fn decrypt(&mut self) -> Result<Vec<u8>, String> {
-        let key_id = &self.client_recv_data[..8];
-        let encrypted_data = &self.client_recv_data[8..];
+        let key_id_start = self.get_key_id_start_index()?;
+        let key_id = &self.client_recv_data[key_id_start..key_id_start + 8];
+        let encrypted_data = &self.client_recv_data[key_id_start + 8..];
 
         self.crypto_handlers
             .get(key_id)
@@ -99,7 +81,21 @@ impl Server {
             .unwrap_or_else(|| Err(format!("Could not find key for id {key_id:X?}")))
     }
 
-    fn validate(&mut self, decrypted_data: &[u8], src_ip_addr: IpAddr) {
+    fn get_key_id_start_index(&mut self) -> Result<usize, String> {
+        for (i, &b) in self.client_recv_data.iter().enumerate() {
+            if b == 0 {
+                return Ok(i + 1);
+            }
+        }
+
+        Err("Could not get index of zero byte")?
+    }
+
+    fn validate_and_send_command(
+        &mut self,
+        decrypted_data: &[u8],
+        src_ip_addr: IpAddr,
+    ) -> Option<String> {
         let src_ip = match src_ip_addr.to_string() {
             // see https://datatracker.ietf.org/doc/html/rfc5156#section-2.2
             ip if ip.starts_with("::ffff:") => ip.replacen("::ffff:", "", 1),
@@ -109,19 +105,19 @@ impl Server {
         match self.decode(decrypted_data) {
             Ok((now_ns, client_data)) if now_ns > client_data.deadline() => {
                 let deadline = client_data.deadline();
-                error(&format!("Invalid deadline - now {now_ns} is after {deadline}"))
+                Some(format!("Invalid deadline - now {now_ns} is after {deadline}"))
             }
             Ok((_, client_data)) if !self.config.ips.contains(&client_data.destination_ip()) => {
                 let destination_ip = client_data.destination_ip();
                 let ips = &self.config.ips;
-                error(&format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
+                Some(format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
             }
             Ok((_, client_data)) if self.blocklist.is_blocked(client_data.deadline()) => {
-                error(&format!("Invalid deadline - {} is on blocklist", client_data.deadline()))
+                Some(format!("Invalid deadline - {} is on blocklist", client_data.deadline()))
             }
             Ok((_, client_data)) if client_data.validate_source_ip(&src_ip) => {
                 let client_src_ip_str = client_data.source_ip().unwrap();
-                error(&format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
+                Some(format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
             }
             Ok((now_ns, client_data)) => {
                 let command_name = client_data.c.to_string();
@@ -130,8 +126,9 @@ impl Server {
 
                 self.send_command(CommanderData { command_name, ip });
                 self.update_block_list(now_ns, client_data.deadline());
+                None
             }
-            Err(e) => error(&format!("Could not decode data: {e}")),
+            Err(e) => Some(format!("Could not decode data: {e}")),
         }
     }
 
@@ -289,7 +286,7 @@ mod tests {
 
         assert_eq!(
             server.run_loop_iteration(success_data).unwrap(),
-            "Invalid read count 0, expected 160 from 127.0.0.1:8080".to_string()
+            "Invalid read count 0, expected 201 from 127.0.0.1:8080".to_string()
         );
     }
 
@@ -297,8 +294,11 @@ mod tests {
     fn test_loop_iteration_decrypt_error() {
         let mut server = create_server();
         let success_data: io::Result<(usize, SocketAddr)> =
-            Ok((160, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
-        assert_eq!(server.run_loop_iteration(success_data).unwrap(), "Could not find key for hash [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]");
+            Ok((201, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
+        assert_eq!(
+            server.run_loop_iteration(success_data).unwrap(),
+            "Could not find key for id [0, 0, 0, 0, 0, 0, 0, 0]"
+        );
     }
 
     #[test]
@@ -307,10 +307,10 @@ mod tests {
         let error_data: io::Result<(usize, SocketAddr)> =
             Err(io::Error::other("An error occurred"));
 
-        assert!(server
-            .run_loop_iteration(error_data)
-            .unwrap()
-            .starts_with("Could not recv_from socket from UdpSocket { addr: 127.0.0.1:"));
+        assert_eq!(
+            server.run_loop_iteration(error_data).unwrap(),
+            "Could not receive bytes from socket: An error occurred"
+        );
     }
 
     fn create_server() -> Server {

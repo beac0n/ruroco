@@ -101,24 +101,35 @@ impl Sender {
         Ok(())
     }
 
-    fn get_data_to_send(&self, data_to_encrypt: &[u8]) -> Result<Vec<u8>, String> {
+    fn get_data_to_send(&self, data_to_encrypt: &[u8]) -> Result<[u8; 201], String> {
+        let max_cipher_size = 192;
         let ciphertext = self.crypto_handler.encrypt(data_to_encrypt)?;
-        let data_to_send = [vec![0u8], self.crypto_handler.id.clone(), ciphertext].concat();
-        let data_to_send_len = data_to_send.len();
-
-        let max_size = 201; // 1 byte prefix + 8 bytes id + 192 bytes encrypted data
-        if data_to_send_len > max_size {
+        let ciphertext_len = ciphertext.len();
+        if ciphertext_len > max_cipher_size {
             Err(format!(
-                "Too much data, must be at most {max_size} bytes, \
-                but was {data_to_send_len} bytes. Reduce command name length."
-            ))
-        } else if data_to_send_len < max_size {
-            let mut prefix = vec![0u8; max_size - data_to_send_len];
-            rand_bytes(&mut prefix).map_err(|e| format!("Could not generate random bytes: {e}"))?;
-            Ok([prefix, data_to_send].concat())
-        } else {
-            Ok(data_to_send)
+                "Too much data, must be at most {max_cipher_size} bytes, \
+                but was {ciphertext_len} bytes. Reduce command name length."
+            ))?
         }
+
+        let data_to_send_len = 201; // 1 zero byte prefix + 8 bytes id + 192 bytes encrypted data
+        let mut data_to_send = [0u8; 201];
+        let ciphertext_start = data_to_send_len - ciphertext_len;
+        let key_id_start = ciphertext_start - 8;
+        data_to_send[ciphertext_start..].copy_from_slice(&ciphertext);
+        data_to_send[key_id_start..ciphertext_start].copy_from_slice(&self.crypto_handler.id);
+
+        if key_id_start > 1 {
+            rand_bytes(&mut data_to_send[..key_id_start - 1])
+                .map_err(|e| format!("Could not generate random bytes: {e}"))?;
+            for b in &mut data_to_send[..key_id_start - 1] {
+                if *b == 0 {
+                    *b = 1;
+                }
+            }
+        }
+
+        Ok(data_to_send)
     }
 
     fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {
@@ -126,7 +137,7 @@ impl Sender {
     }
 
     fn get_data_to_encrypt(&self, destination_ip: String) -> Result<Vec<u8>, String> {
-        let data_to_encrypt = ClientData::create(
+        ClientData::create(
             &self.cmd.command,
             self.cmd.deadline,
             !self.cmd.permissive,
@@ -134,9 +145,7 @@ impl Sender {
             destination_ip,
             self.now,
         )
-        .serialize()?;
-
-        Ok(data_to_encrypt)
+        .serialize()
     }
 }
 
@@ -248,7 +257,7 @@ mod tests {
         let sender = Sender::create(
             SendCommand {
                 key: Generator::create().unwrap().gen().unwrap(),
-                command: "#".repeat(67),
+                command: "#".repeat(99),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -259,7 +268,7 @@ mod tests {
         let result = sender.send();
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Too much data, must be at most 160 bytes, but was 161 bytes. \
+            "Too much data, must be at most 192 bytes, but was 193 bytes. \
                 Reduce command name length."
                 .to_string()
         );
