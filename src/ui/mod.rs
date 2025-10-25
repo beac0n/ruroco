@@ -10,15 +10,12 @@ pub mod rust_slint_bridge;
 /// saves commands configured in ui
 pub mod saved_command_list;
 
-use crate::config::config_client::default_key_path;
 use crate::ui::rust_slint_bridge::RustSlintBridge;
 
 use std::error::Error;
 
 pub fn run_ui() -> Result<(), Box<dyn Error>> {
-    let key_path = default_key_path();
-
-    let rust_slint_bridge = RustSlintBridge::create(&key_path)?;
+    let rust_slint_bridge = RustSlintBridge::create()?;
 
     rust_slint_bridge.add_on_reset_commands_config();
     rust_slint_bridge.add_on_set_commands_config();
@@ -26,6 +23,7 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     rust_slint_bridge.add_on_add_command();
     rust_slint_bridge.add_on_del_command();
     rust_slint_bridge.add_on_exec_command();
+    rust_slint_bridge.add_on_generate_key();
     rust_slint_bridge.run()?;
 
     Ok(())

@@ -81,22 +81,39 @@ export component Dashboard inherits VerticalLayout {
         height: 10px;
     }
 
-    public_key_box := TextEdit {
+    key_box := TextEdit {
         visible: false;
         enabled: false;
         width: 0;
         height: 0;
         has-focus: false;
-        text <=> SlintRustBridge.public_key;
+        text <=> SlintRustBridge.key;
     }
 
     Button {
         height: 50px;
-        text: "Copy Public Key";
+        text: "Generate Key";
         clicked => {
-            public_key_box.select-all();
-            public_key_box.copy();
-            public_key_box.clear-selection()
+            key_box.text = SlintRustBridge.generate_key()
+        }
+    }
+
+    Button {
+        height: 50px;
+        text: "Copy Key";
+        clicked => {
+            key_box.select-all();
+            key_box.copy();
+            key_box.clear-selection()
+        }
+    }
+
+    Button {
+        height: 50px;
+        text: "Paste Key";
+        clicked => {
+            key_box.text = "";
+            key_box.paste();
         }
     }
 }

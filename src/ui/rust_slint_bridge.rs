@@ -3,13 +3,13 @@ use crate::ui::android_util::AndroidUtil;
 
 use crate::client::run_client;
 use crate::client::update::Updater;
+use crate::common::crypto_handler::CryptoHandler;
 use crate::common::{error, info, NTP_SYSTEM};
 use crate::config::config_client::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
 use crate::ui::saved_command_list::CommandsList;
 use clap::Parser;
 use slint::{Color, Model, ModelRc, SharedString, VecModel, Weak};
 use std::error::Error;
-use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -22,11 +22,10 @@ const GRAY: Color = Color::from_rgb_u8(204, 204, 204);
 pub struct RustSlintBridge {
     app: App,
     commands_list: Arc<Mutex<CommandsList>>,
-    key_path: String,
 }
 
 impl RustSlintBridge {
-    pub fn create(key_path: &Path) -> Result<Self, Box<dyn Error>> {
+    pub fn create() -> Result<Self, Box<dyn Error>> {
         let app = App::new()?;
 
         let commands_list = CommandsList::create(&get_conf_dir());
@@ -41,7 +40,6 @@ impl RustSlintBridge {
         Ok(RustSlintBridge {
             app,
             commands_list: Arc::new(Mutex::new(commands_list)),
-            key_path: key_path.to_str().ok_or("Could not convert key path to string")?.to_string(),
         })
     }
 
@@ -87,28 +85,27 @@ impl RustSlintBridge {
         self.app.global::<SlintRustBridge>().on_del_command(move |cmd, index| {
             info(&format!("Removing command: {cmd}"));
 
+            Self::with_app_commands_list(&app_weak, |cl| {
+                cl.remove(index as usize);
+            });
+
             Self::with_file_commands_list(&cmds_list_mutex, |cl| {
                 cl.remove(cmd.to_string());
                 Self::reload_commands_config(&app_weak, cl);
-            });
-
-            Self::with_app_commands_list(&app_weak, |cl| {
-                cl.remove(index as usize);
             });
         });
     }
 
     pub fn add_on_exec_command(&self) {
         let app_weak = self.app.as_weak();
-        let key_path = self.key_path.clone();
 
-        self.app.global::<SlintRustBridge>().on_exec_command(move |cmd, idx| {
+        self.app.global::<SlintRustBridge>().on_exec_command(move |cmd, idx, key| {
             let cmd = cmd.to_string();
+            let key = key.to_string();
             let mut cmd_vec: Vec<&str> = cmd.split_whitespace().collect();
             cmd_vec.insert(0, "ruroco");
-            if !cmd.contains("--key-path") {
-                cmd_vec.push("--key-path");
-                cmd_vec.push(&key_path);
+            if !cmd.contains("--key") && !key.is_empty() {
+                cmd_vec.extend(["--key", key.as_str()]);
             }
 
             info(&format!("Executing command: {}", cmd_vec.join(" ")));
@@ -130,12 +127,12 @@ impl RustSlintBridge {
         self.app.global::<SlintRustBridge>().on_add_command(move |cmd| {
             info(&format!("Adding new command: {cmd}"));
 
-            Self::with_file_commands_list(&cmds_list_mutex, |cl| {
-                cl.add(cmd.to_string());
-            });
-
             Self::with_app_commands_list(&app_weak, |cl| {
                 cl.push(Self::create_command_tuple(cmd.as_ref()));
+            });
+
+            Self::with_file_commands_list(&cmds_list_mutex, |cl| {
+                cl.add(cmd.to_string());
             });
         });
     }
@@ -157,6 +154,12 @@ impl RustSlintBridge {
                 Self::update_android();
             }
         });
+    }
+
+    pub fn add_on_generate_key(&self) {
+        self.app
+            .global::<SlintRustBridge>()
+            .on_generate_key(|| SharedString::from(CryptoHandler::gen_key().unwrap()));
     }
 
     fn reload_commands_config(app_weak: &Weak<App>, cl: &mut MutexGuard<CommandsList>) {
