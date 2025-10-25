@@ -64,11 +64,12 @@ mod tests {
             format!("{rand_str}{suffix}")
         }
 
-        fn run_client_gen(&self) -> String {
-            Generator::create()
+        fn run_client_gen(&self) {
+            let key = Generator::create()
                 .expect("could not create key generator")
                 .gen()
-                .expect("could not generate key")
+                .expect("could not generate key");
+            fs::write(&self.key_path, key).expect("failed to write key")
         }
 
         fn get_blocked_list(&self) -> Vec<u128> {
@@ -178,7 +179,7 @@ mod tests {
 
         fn assert_file_paths(&self) {
             let test_file_exists = self.test_file_path.exists();
-            let private_exists = self.key_path.exists();
+            let key_exists = self.key_path.exists();
             let socket_exists = self.socket_path.exists();
             let blocklist_exists = self.blocklist_path.exists();
 
@@ -186,7 +187,7 @@ mod tests {
 
             assert_eq!(test_file_exists, self.test_file_exists);
             assert_eq!(blocklist_exists, self.block_list_exists);
-            assert!(private_exists);
+            assert!(key_exists);
             assert!(socket_exists);
         }
     }
