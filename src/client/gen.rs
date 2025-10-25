@@ -35,15 +35,8 @@ mod tests {
 
     #[test]
     fn test_gen() {
-        let result = gen();
-        assert!(result.is_ok());
-
-        let key = result.unwrap();
+        let key = Generator::create().unwrap().gen().unwrap();
         assert!(key.chars().all(|c| c.is_ascii_hexdigit()), "Key is not a valid hex string");
         assert_eq!(key.len(), 80, "Key length is not 256 bits + 8 bytes");
-    }
-
-    fn gen() -> Result<String, String> {
-        Ok(Generator::create()?.gen()?)
     }
 }

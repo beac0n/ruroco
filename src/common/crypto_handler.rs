@@ -2,7 +2,6 @@ use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
-use rand::RngCore;
 use std::fs;
 use std::num::ParseIntError;
 use std::path::Path;

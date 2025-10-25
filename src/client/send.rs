@@ -294,10 +294,7 @@ mod tests {
             },
             time()?,
         );
-
-        let result = sender?.send();
-
-        result
+        sender?.send()
     }
 
     fn gen_file_name(suffix: &str) -> String {
