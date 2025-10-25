@@ -58,8 +58,7 @@ impl CryptoHandler {
             .map_err(|e| format!("Could not generate AES key: {e}"))?;
 
         let mut id = [0u8; 8];
-        rand::rng().fill_bytes(&mut id);
-        id[0] |= 1;
+        rand_bytes(&mut id).map_err(|e| format!("Could not generate key id: {e}"))?;
 
         let id_hex: String = id.iter().map(|b| format!("{:02x}", b)).collect();
         let key_hex: String = key.iter().map(|b| format!("{:02x}", b)).collect();
