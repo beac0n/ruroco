@@ -111,11 +111,6 @@ pub enum CommandsClient {
     /// Run the wizard to set up the server side.
     Wizard(WizardCommand),
 }
-
-pub fn default_key_path() -> PathBuf {
-    get_conf_dir().join("ruroco.key")
-}
-
 pub fn get_conf_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
@@ -139,23 +134,13 @@ pub fn get_conf_dir() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::config_client::{default_key_path, CliClient};
+    use crate::config::config_client::CliClient;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
-    use std::env;
-    use std::path::PathBuf;
 
     #[test]
     fn test_print_help() {
         let result = CliClient::try_parse_from(vec!["ruroco", "--help"]);
         assert_eq!(result.unwrap_err().kind(), DisplayHelp);
-    }
-
-    #[test]
-    fn test_default_key_path() {
-        assert_eq!(
-            default_key_path().into_os_string(),
-            PathBuf::from(env::var("HOME").unwrap()).join(".config/ruroco/ruroco.key")
-        );
     }
 }
