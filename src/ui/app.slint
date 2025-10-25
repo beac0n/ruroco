@@ -11,36 +11,6 @@ export component App inherits Window {
     preferred-height: 1200px;
     preferred-width: 540px;
 
-    Rectangle {
-        visible: SlintRustBridge.generating_keys;
-        height: 100%;
-        width: 100%;
-        background: black;
-        z: 1000;
-
-        Rectangle {
-            width: 50%;
-            height: 50%;
-            border-radius: 15px;
-            border-width: 2px;
-            border-color: white;
-            x: parent.width / 2 - self.width / 2;
-            y: parent.height / 2 - self.height / 2;
-
-            Text {
-                width: 100%;
-                height: 100%;
-                text: "Generating keys, please wait...";
-                stroke-width: 2px;
-                stroke: darkblue;
-                color: white;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                wrap: word-wrap;
-            }
-        }
-    }
-
     TabWidget {
         Tab {
             title: "Dashboard";
