@@ -1,5 +1,6 @@
 pub mod crypto_handler;
 pub mod data;
+pub mod data_parser;
 
 use sntpc::{NtpContext, StdTimestampGen};
 use std::net::{ToSocketAddrs, UdpSocket};

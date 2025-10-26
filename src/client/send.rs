@@ -1,8 +1,8 @@
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data::ClientData;
+use crate::common::data_parser::DataParser;
 use crate::common::info;
 use crate::config::config_client::SendCommand;
-use openssl::rand::rand_bytes;
 use openssl::version::version;
 use std::fmt::{Debug, Display};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
@@ -11,7 +11,7 @@ use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
 pub struct Sender {
     cmd: SendCommand,
     now: u128,
-    crypto_handler: CryptoHandler,
+    data_parser: DataParser,
 }
 
 impl Sender {
@@ -21,7 +21,7 @@ impl Sender {
     /// * `now` - current timestamp in ns
     pub fn create(cmd: SendCommand, now: u128) -> Result<Self, String> {
         Ok(Self {
-            crypto_handler: CryptoHandler::create(&cmd.key)?,
+            data_parser: DataParser::create(&cmd.key)?,
             cmd,
             now,
         })
@@ -89,7 +89,7 @@ impl Sender {
 
         info(&format!("Connecting to {ip_str}..."));
         let data_to_encrypt = self.get_data_to_encrypt(ip_str)?;
-        let data_to_send = self.get_data_to_send(&data_to_encrypt)?;
+        let data_to_send = self.data_parser.encode_data(&data_to_encrypt)?;
 
         // create UDP socket and send the encrypted data to the specified address
         let address = &self.cmd.address;
@@ -99,37 +99,6 @@ impl Sender {
 
         info(&format!("Sent command {} from {bind_address} to udp://{address}", &self.cmd.command));
         Ok(())
-    }
-
-    fn get_data_to_send(&self, data_to_encrypt: &[u8]) -> Result<[u8; 201], String> {
-        let max_cipher_size = 192;
-        let ciphertext = self.crypto_handler.encrypt(data_to_encrypt)?;
-        let ciphertext_len = ciphertext.len();
-        if ciphertext_len > max_cipher_size {
-            Err(format!(
-                "Too much data, must be at most {max_cipher_size} bytes, \
-                but was {ciphertext_len} bytes. Reduce command name length."
-            ))?
-        }
-
-        let data_to_send_len = 201; // 1 zero byte prefix + 8 bytes id + 192 bytes encrypted data
-        let mut data_to_send = [0u8; 201];
-        let ciphertext_start = data_to_send_len - ciphertext_len;
-        let key_id_start = ciphertext_start - 8;
-        data_to_send[ciphertext_start..].copy_from_slice(&ciphertext);
-        data_to_send[key_id_start..ciphertext_start].copy_from_slice(&self.crypto_handler.id);
-
-        if key_id_start > 1 {
-            rand_bytes(&mut data_to_send[..key_id_start - 1])
-                .map_err(|e| format!("Could not generate random bytes: {e}"))?;
-            for b in &mut data_to_send[..key_id_start - 1] {
-                if *b == 0 {
-                    *b = 1;
-                }
-            }
-        }
-
-        Ok(data_to_send)
     }
 
     fn socket_err<I: Display, E: Debug>(err: I, val: E) -> String {

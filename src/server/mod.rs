@@ -4,6 +4,7 @@ pub mod blocklist;
 pub mod commander;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data::{ClientData, CommanderData};
+use crate::common::data_parser::{DataParser, MSG_SIZE};
 use crate::common::{error, info, time_from_ntp};
 use crate::config::config_server::{CliServer, ConfigServer};
 use crate::server::blocklist::Blocklist;
@@ -13,8 +14,6 @@ use std::io::Write;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-
-const MSG_SIZE: usize = 201;
 
 #[derive(Debug)]
 pub struct Server {
@@ -40,7 +39,7 @@ impl Server {
         Ok(Server {
             crypto_handlers: config.create_crypto_handlers()?,
             socket: config.create_server_udp_socket(address)?,
-            client_recv_data: [0u8; 201],
+            client_recv_data: [0u8; MSG_SIZE],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist: config.create_blocklist(),
             config,
@@ -71,9 +70,7 @@ impl Server {
     }
 
     fn decrypt(&mut self) -> Result<Vec<u8>, String> {
-        let key_id_start = self.get_key_id_start_index()?;
-        let key_id = &self.client_recv_data[key_id_start..key_id_start + 8];
-        let encrypted_data = &self.client_recv_data[key_id_start + 8..];
+        let (key_id, encrypted_data) = DataParser::decode_data(&self.client_recv_data)?;
 
         self.crypto_handlers
             .get(key_id)
