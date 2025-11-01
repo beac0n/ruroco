@@ -26,6 +26,7 @@ impl CryptoHandler {
     }
 
     pub fn create(key_string: &str) -> Result<Self, String> {
+        let key_string = key_string.trim();
         let key_string_len = KEY_ID_SIZE + KEY_SIZE;
         let key_string_len_hex = key_string_len * 2;
         if key_string.len() != key_string_len_hex {
