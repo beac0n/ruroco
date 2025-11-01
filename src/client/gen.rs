@@ -1,5 +1,4 @@
 use crate::common::crypto_handler::CryptoHandler;
-use crate::common::info;
 
 pub struct Generator {}
 
@@ -11,10 +10,8 @@ impl Generator {
 
     /// Generate a key file with the provided arguments used in create
     pub fn gen(&self) -> Result<String, String> {
-        info("Generating new aes-256 key. This might take a while...");
         let key = CryptoHandler::gen_key()?;
-        info(&format!("Generated new aes-256 key: {:?}", key));
-
+        print!("{}", key);
         Ok(key)
     }
 }
