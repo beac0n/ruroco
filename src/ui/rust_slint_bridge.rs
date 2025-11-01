@@ -102,10 +102,12 @@ impl RustSlintBridge {
         self.app.global::<SlintRustBridge>().on_exec_command(move |cmd, idx, key| {
             let cmd = cmd.to_string();
             let key = key.to_string();
+            let key = key.trim();
             let mut cmd_vec: Vec<&str> = cmd.split_whitespace().collect();
             cmd_vec.insert(0, "ruroco");
+
             if !cmd.contains("--key") && !key.is_empty() {
-                cmd_vec.extend(["--key", key.as_str()]);
+                cmd_vec.extend(["--key", key]);
             }
 
             info(&format!("Executing command: {}", cmd_vec.join(" ")));
