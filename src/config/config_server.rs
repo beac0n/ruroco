@@ -100,7 +100,7 @@ impl ConfigServer {
             .into_iter()
             .map(|h| {
                 info(&format!("loading key with id {:X?}", &h.id));
-                Ok((h.id.clone(), h))
+                Ok((h.id.to_vec(), h))
             })
             .collect::<Result<Vec<(Vec<u8>, CryptoHandler)>, String>>()?;
 
