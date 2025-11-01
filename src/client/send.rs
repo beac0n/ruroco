@@ -28,13 +28,7 @@ impl Sender {
 
     /// Send data to the server to execute a predefined command
     pub fn send(&self) -> Result<(), String> {
-        info(&format!(
-            "Connecting to udp://{}, loading key from {:?}, using {} ...",
-            &self.cmd.address,
-            &self.cmd.key,
-            version(),
-        ));
-
+        info(&format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
         let destination_ips_validated = self.get_destination_ips()?;
         info(&format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
         match destination_ips_validated.as_slice() {
