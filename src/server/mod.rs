@@ -78,16 +78,6 @@ impl Server {
             .unwrap_or_else(|| Err(format!("Could not find key for id {key_id:X?}")))
     }
 
-    fn get_key_id_start_index(&mut self) -> Result<usize, String> {
-        for (i, &b) in self.client_recv_data.iter().enumerate() {
-            if b == 0 {
-                return Ok(i + 1);
-            }
-        }
-
-        Err("Could not get index of zero byte")?
-    }
-
     fn validate_and_send_command(
         &mut self,
         decrypted_data: &[u8],
