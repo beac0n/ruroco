@@ -100,6 +100,10 @@ impl CryptoHandler {
     }
 
     pub fn decrypt(&self, iv_tag_ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+        if iv_tag_ciphertext.len() <= IV_SIZE + TAG_SIZE {
+            return Err("Ciphertext shorter than IV + tag".to_string());
+        }
+
         let iv = &iv_tag_ciphertext[..IV_SIZE];
         let tag = &iv_tag_ciphertext[IV_SIZE..IV_SIZE + TAG_SIZE];
         let ciphertext = &iv_tag_ciphertext[IV_SIZE + TAG_SIZE..];
@@ -158,5 +162,16 @@ mod tests {
                 "mismatched length for size {size}"
             );
         }
+    }
+
+    #[test]
+    fn decrypt_rejects_truncated_ciphertext() {
+        let key = CryptoHandler::gen_key().unwrap();
+        let handler = CryptoHandler::create(&key).unwrap();
+
+        let ciphertext = handler.encrypt(b"valid").unwrap();
+        let truncated = &ciphertext[..IV_SIZE + TAG_SIZE - 1];
+        let err = handler.decrypt(truncated).unwrap_err();
+        assert_eq!(err, "Ciphertext shorter than IV + tag");
     }
 }
