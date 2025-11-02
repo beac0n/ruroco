@@ -193,6 +193,7 @@ mod tests {
 
     #[test]
     fn test_create_server_udp_socket() {
+        env::remove_var("LISTEN_FDS");
         env::remove_var("LISTEN_PID");
         env::remove_var("RUROCO_LISTEN_ADDRESS");
         let socket = ConfigServer::default().create_server_udp_socket(None).unwrap();
@@ -203,6 +204,7 @@ mod tests {
     #[test]
     fn test_create_invalid_pid() {
         env::set_var("LISTEN_PID", "12345");
+        env::set_var("LISTEN_FDS", "1");
 
         let config_dir =
             env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests").join("conf_dir");
@@ -216,7 +218,7 @@ mod tests {
         );
 
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), "LISTEN_PID was set, but not to our PID");
+        assert_eq!(result.err().unwrap(), "LISTEN_PID (12345) does not match current PID");
     }
 
     #[test]
