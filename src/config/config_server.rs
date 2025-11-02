@@ -2,9 +2,7 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
-use crate::common::{
-    get_commander_unix_socket_path, hash_public_key, info, resolve_path, NTP_SYSTEM,
-};
+use crate::common::{get_commander_unix_socket_path, info, resolve_path, NTP_SYSTEM};
 use crate::server::blocklist::Blocklist;
 use clap::Parser;
 use serde::Deserialize;
@@ -12,14 +10,11 @@ use std::collections::HashMap;
 use std::fs::ReadDir;
 use std::net::{IpAddr, UdpSocket};
 
-use openssl::pkey::Public;
-use openssl::rsa::Rsa;
+use crate::common::crypto_handler::CryptoHandler;
 use openssl::version::version;
 use std::os::fd::{FromRawFd, RawFd};
 use std::path::PathBuf;
 use std::{env, fs};
-
-type RsaResult = Result<(usize, HashMap<Vec<u8>, Rsa<Public>>), String>;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -58,24 +53,37 @@ impl ConfigServer {
     }
 
     pub fn create_server_udp_socket(&self, address: Option<String>) -> Result<UdpSocket, String> {
-        match (env::var("LISTEN_PID").ok(), env::var("RUROCO_LISTEN_ADDRESS").ok(), address) {
-            (_, _, Some(address)) => {
+        match (
+            env::var("LISTEN_PID").ok(),
+            env::var("LISTEN_FDS").ok(),
+            env::var("RUROCO_LISTEN_ADDRESS").ok(),
+            address,
+        ) {
+            (_, _, _, Some(address)) => {
                 info(&format!("UdpSocket bind to {address} - argument"));
                 UdpSocket::bind(&address)
                     .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
             }
-            (None, Some(address), _) => {
+            (_, _, Some(address), _) => {
                 info(&format!("UdpSocket bind to {address} - RUROCO_LISTEN_ADDRESS"));
                 UdpSocket::bind(&address)
                     .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
             }
-            (Some(listen_pid), _, _) if listen_pid == std::process::id().to_string() => {
-                let system_socket_fd: RawFd = 3;
-                info(&format!("UdpSocket from_raw_fd {system_socket_fd}"));
-                Ok(unsafe { UdpSocket::from_raw_fd(system_socket_fd) })
+            (Some(listen_pid), Some(listen_fds), _, _)
+                if listen_pid == std::process::id().to_string() && listen_fds == "1" =>
+            {
+                let fd: RawFd = 3;
+                info(&format!("UdpSocket from_raw_fd {fd} (systemd socket activation)"));
+                let sock = unsafe { UdpSocket::from_raw_fd(fd) };
+                Ok(sock)
             }
-            (Some(_), _, _) => Err("LISTEN_PID was set, but not to our PID".to_string()),
-            (None, None, None) => {
+            (Some(_), Some(listen_fds), _, _) if listen_fds != "1" => {
+                Err(format!("LISTEN_FDS was set to {listen_fds}, expected 1"))
+            }
+            (Some(listen_pid), Some(_), _, _) if listen_pid != std::process::id().to_string() => {
+                Err(format!("LISTEN_PID ({listen_pid}) does not match current PID"))
+            }
+            _ => {
                 // port is calculated by using the alphabet indexes of the word ruroco:
                 // r = 18, u = 21, r = 18, o = 15, c = 3, o = 15
                 // and multiplying the distinct values with each other times two:
@@ -92,60 +100,31 @@ impl ConfigServer {
         Blocklist::create(&self.resolve_config_dir())
     }
 
-    pub fn create_rsa(&self) -> RsaResult {
-        let pem_paths = self.get_pem_paths()?;
-        let openssl_version = version();
-        info(&format!(
-            "Creating server, loading public PEMs from {pem_paths:?}, using {openssl_version} ..."
-        ));
+    pub fn create_crypto_handlers(&self) -> Result<HashMap<Vec<u8>, CryptoHandler>, String> {
+        let key_paths = self.get_key_paths()?;
+        info(&format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
 
-        let pem_data_list = pem_paths
+        let crypto_handlers = key_paths
             .into_iter()
-            .map(|p| {
-                fs::read(&p)
-                    .map(|d| (format!("{p:?}"), d))
-                    .map_err(|e| format!("Could not read {p:?}: {e}"))
-            })
-            .collect::<Result<Vec<(String, Vec<u8>)>, String>>()?;
+            .map(|p| CryptoHandler::from_key_path(&p))
+            .collect::<Result<Vec<CryptoHandler>, String>>()?;
 
-        let rsa = pem_data_list
+        let hashmap_data = crypto_handlers
             .into_iter()
-            .map(|(p, d)| {
-                Rsa::public_key_from_pem(&d)
-                    .map_err(|e| format!("Could not load public key from {p}: {e}"))
+            .map(|h| {
+                info(&format!("loading key with id {:X?}", &h.id));
+                Ok((h.id.to_vec(), h))
             })
-            .collect::<Result<Vec<Rsa<Public>>, String>>()?;
+            .collect::<Result<Vec<(Vec<u8>, CryptoHandler)>, String>>()?;
 
-        let mut sizes: Vec<usize> = rsa.iter().map(|r| r.size() as usize).collect();
-
-        sizes.sort();
-        sizes.dedup();
-
-        let sizes_len = sizes.len();
-        if sizes_len > 1 {
-            return Err(format!("All RSA public keys must have the same size, but found {sizes_len} different sizes: {sizes:?}"));
-        }
-
-        let hashmap_data = rsa
-            .into_iter()
-            .map(|rsa| {
-                let pem_pub_key = rsa
-                    .public_key_to_pem()
-                    .map_err(|e| format!("Could not create public pem from public key: {e}"))?;
-                let hash_bytes = hash_public_key(pem_pub_key)?;
-                info(&format!("loading public key PEM with hash {hash_bytes:X?}"));
-                Ok((hash_bytes, rsa))
-            })
-            .collect::<Result<Vec<(Vec<u8>, Rsa<Public>)>, String>>()?;
-
-        Ok((sizes[0], hashmap_data.into_iter().collect()))
+        Ok(hashmap_data.into_iter().collect())
     }
 
     pub fn get_commander_unix_socket_path(&self) -> PathBuf {
         get_commander_unix_socket_path(&self.resolve_config_dir())
     }
 
-    fn get_pem_paths(&self) -> Result<Vec<PathBuf>, String> {
+    fn get_key_paths(&self) -> Result<Vec<PathBuf>, String> {
         let config_dir = self.resolve_config_dir();
 
         let entries: ReadDir = match fs::read_dir(&config_dir) {
@@ -153,15 +132,15 @@ impl ConfigServer {
             Err(e) => return Err(format!("Error reading directory {config_dir:?}: {e}")),
         };
 
-        let pem_files: Vec<PathBuf> = entries
+        let key_files: Vec<PathBuf> = entries
             .flatten()
             .map(|entry| entry.path())
-            .filter(|path| path.is_file() && path.extension().is_some_and(|e| e == "pem"))
+            .filter(|path| path.is_file() && path.extension().is_some_and(|e| e == "key"))
             .collect();
 
-        match pem_files.len() {
-            0 => Err(format!("Could not find any .pem files in {config_dir:?}")),
-            _ => Ok(pem_files),
+        match key_files.len() {
+            0 => Err(format!("Could not find any .key files in {config_dir:?}")),
+            _ => Ok(key_files),
         }
     }
 
@@ -208,14 +187,14 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_get_pem_path() {
+    fn test_get_key_path() {
         let config_server = ConfigServer {
             config_dir: PathBuf::from("/foo/bar/baz"),
             ..Default::default()
         };
 
         assert_eq!(
-            config_server.get_pem_paths().unwrap_err().to_string(),
+            config_server.get_key_paths().unwrap_err().to_string(),
             r#"Error reading directory "/foo/bar/baz": No such file or directory (os error 2)"#
         );
     }

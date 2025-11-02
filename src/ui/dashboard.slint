@@ -1,102 +1,158 @@
-import { Button, TextEdit, ScrollView } from "std-widgets.slint";
+import { Button, TextEdit, LineEdit, ScrollView } from "std-widgets.slint";
 import { SlintRustBridge } from "slint-rust-bridge.slint";
 
 export component Dashboard inherits VerticalLayout {
-    padding-top: 10px;
-    padding-left: 10px;
-    padding-right: 10px;
+    property <bool> show_key: false;
+    alignment: start;
+    spacing: 0px;
+    padding: 0px;
 
-    commands_config_box := TextEdit {
-        font-size: 9px;
-        enabled: false;
-        wrap: word-wrap;
-        has-focus: false;
-        text <=> SlintRustBridge.commands_config;
-    }
+    VerticalLayout {
+        spacing: 10px;
+        padding-top: 10px;
+        padding-left: 10px;
+        padding-right: 10px;
+        height: 45%;
 
-    Rectangle {
-        height: 10px;
-    }
+        commands_config_box := TextEdit {
+            font-size: 12px;
+            enabled: false;
+            wrap: word-wrap;
+            has-focus: false;
+            text <=> SlintRustBridge.commands_config;
+        }
 
-    Button {
-        height: 50px;
-        text: "Save Commands";
-        clicked => {
-            SlintRustBridge.set_commands_config(SlintRustBridge.commands_config);
+        HorizontalLayout {
+            spacing: 10px;
+
+            Button {
+                height: 50px;
+                text: "Rst";
+                clicked => {
+                    SlintRustBridge.reset_commands_config();
+                }
+            }
+
+            Button {
+                height: 50px;
+                text: "💾";
+                clicked => {
+                    SlintRustBridge.set_commands_config(SlintRustBridge.commands_config);
+                }
+            }
+
+            Button {
+                height: 50px;
+                text: "📋";
+                clicked => {
+                    commands_config_box.select-all();
+                    commands_config_box.copy();
+                    commands_config_box.clear-selection();
+                }
+            }
+
+            Button {
+                height: 50px;
+                text: "📥";
+                clicked => {
+                    commands_config_box.text = "";
+                    commands_config_box.paste();
+                }
+            }
         }
     }
 
-    Rectangle {
-        height: 10px;
-    }
+    VerticalLayout {
+        spacing: 10px;
+        padding-top: 10px;
+        padding-left: 10px;
+        padding-right: 10px;
+        height: 5%;
+        alignment: center;
 
-    Button {
-        height: 50px;
-        text: "Copy Commands";
-        clicked => {
-            commands_config_box.select-all();
-            commands_config_box.copy();
-            commands_config_box.clear-selection()
+        Rectangle {
+            width: 100%;
+            height: 1px;
+            background: lightgray;
         }
     }
 
-    Rectangle {
-        height: 10px;
-    }
+    VerticalLayout {
+        alignment: start;
+        spacing: 10px;
+        padding-top: 10px;
+        padding-left: 10px;
+        padding-right: 10px;
+        height: 25%;
 
-    Button {
-        height: 50px;
-        text: "Paste Commands";
-        clicked => {
-            commands_config_box.text = "";
-            commands_config_box.paste();
+        HorizontalLayout {
+            spacing: 10px;
+
+            Text {
+                font-size: 12px;
+                vertical-alignment: center;
+                text: "AES Key:";
+            }
+
+            key_box := LineEdit {
+                placeholder-text: "Generate or paste your key here - use the buttons below";
+                input-type: root.show_key ? text : password;
+                font-size: 12px;
+                enabled: false;
+                text <=> SlintRustBridge.key;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 10px;
+
+            Button {
+                height: 50px;
+                text: "Gen";
+                clicked => {
+                    key_box.text = SlintRustBridge.generate_key();
+                }
+            }
+
+            Button {
+                height: 50px;
+                text: root.show_key ? "🔒" : "🔓";
+                clicked => {
+                    root.show_key = !root.show_key;
+                }
+            }
+
+            Button {
+                height: 50px;
+                text: "📋";
+                clicked => {
+                    key_box.select-all();
+                    key_box.copy();
+                    key_box.clear-selection();
+                }
+            }
+
+            Button {
+                height: 50px;
+                text: "📥";
+                clicked => {
+                    key_box.text = "";
+                    key_box.paste();
+                }
+            }
         }
     }
 
-    Rectangle {
-        height: 10px;
-    }
+    VerticalLayout {
+        height: 25%;
+        alignment: end;
 
-    Button {
-        height: 50px;
-        text: "Reset Commands";
-        clicked => {
-            SlintRustBridge.reset_commands_config();
-        }
-    }
-
-    Rectangle {
-        height: 10px;
-    }
-
-    Button {
-        height: 50px;
-        text: "Update Application";
-        clicked => {
-            SlintRustBridge.update_application();
-        }
-    }
-
-    Rectangle {
-        height: 10px;
-    }
-
-    public_key_box := TextEdit {
-        visible: false;
-        enabled: false;
-        width: 0;
-        height: 0;
-        has-focus: false;
-        text <=> SlintRustBridge.public_key;
-    }
-
-    Button {
-        height: 50px;
-        text: "Copy Public Key";
-        clicked => {
-            public_key_box.select-all();
-            public_key_box.copy();
-            public_key_box.clear-selection()
+        Button {
+            height: 50px;
+            text: "Update Application";
+            clicked => {
+                SlintRustBridge.update_application();
+            }
         }
     }
 }

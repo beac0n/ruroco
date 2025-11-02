@@ -22,8 +22,7 @@ mod tests {
         test_file_path: PathBuf,
         socket_path: PathBuf,
         blocklist_path: PathBuf,
-        public_pem_path: PathBuf,
-        private_pem_path: PathBuf,
+        key_path: PathBuf,
         server_address: String,
         config_dir: PathBuf,
         test_file_exists: bool,
@@ -37,17 +36,14 @@ mod tests {
     impl TestData {
         fn create() -> TestData {
             let test_folder_path = PathBuf::from("/tmp").join(TestData::gen_file_name(""));
-            let private_pem_dir = test_folder_path.join("private");
             let _ = fs::create_dir_all(&test_folder_path);
-            let _ = fs::create_dir_all(&private_pem_dir);
 
             TestData {
                 config_dir: test_folder_path.clone(),
                 test_file_path: test_folder_path.join(TestData::gen_file_name(".test")),
                 socket_path: get_commander_unix_socket_path(&test_folder_path),
                 blocklist_path: get_blocklist_path(&test_folder_path),
-                public_pem_path: test_folder_path.join(TestData::gen_file_name(".pem")),
-                private_pem_path: private_pem_dir.join(TestData::gen_file_name(".pem")),
+                key_path: test_folder_path.join(TestData::gen_file_name(".key")),
                 server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
                 block_list_exists: false,
@@ -69,12 +65,11 @@ mod tests {
         }
 
         fn run_client_gen(&self) {
-            let key_size = 1024;
-
-            Generator::create(&self.private_pem_path, &self.public_pem_path, key_size)
-                .unwrap()
+            let key = Generator::create()
+                .expect("could not create key generator")
                 .gen()
-                .unwrap();
+                .expect("could not generate key");
+            fs::write(&self.key_path, key).expect("failed to write key")
         }
 
         fn get_blocked_list(&self) -> Vec<u128> {
@@ -86,7 +81,7 @@ mod tests {
             let sender = Sender::create(
                 SendCommand {
                     address: self.server_address.to_string(),
-                    private_pem_path: self.private_pem_path.clone(),
+                    key: fs::read_to_string(&self.key_path).expect("failed to read key"),
                     command: "default".to_string(),
                     deadline: self.deadline,
                     permissive: !self.strict,
@@ -95,11 +90,11 @@ mod tests {
                     ipv4: false,
                     ipv6: false,
                 },
-                self.now.unwrap_or_else(|| time().unwrap()),
+                self.now.unwrap_or_else(|| time().expect("could not get time")),
             )
-            .unwrap();
+            .expect("could not create sender");
 
-            sender.send().unwrap();
+            sender.send().expect("could not send command");
             thread::sleep(Duration::from_secs(10)); // wait for files to be written and blocklist to be updated
         }
 
@@ -184,8 +179,7 @@ mod tests {
 
         fn assert_file_paths(&self) {
             let test_file_exists = self.test_file_path.exists();
-            let private_exists = self.private_pem_path.exists();
-            let public_exists = self.public_pem_path.exists();
+            let key_exists = self.key_path.exists();
             let socket_exists = self.socket_path.exists();
             let blocklist_exists = self.blocklist_path.exists();
 
@@ -193,8 +187,7 @@ mod tests {
 
             assert_eq!(test_file_exists, self.test_file_exists);
             assert_eq!(blocklist_exists, self.block_list_exists);
-            assert!(private_exists);
-            assert!(public_exists);
+            assert!(key_exists);
             assert!(socket_exists);
         }
     }
@@ -220,7 +213,7 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        let now = time().unwrap();
+        let now = time().expect("could not get time");
         test_data.with_deadline(5).with_now(now).run_client_send();
         let _ = fs::remove_file(&test_data.test_file_path);
 
@@ -268,7 +261,10 @@ mod tests {
 
         test_data.with_ip(ip).with_strict(false).run_client_send();
 
-        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), ip.to_string());
+        assert_eq!(
+            fs::read_to_string(&test_data.test_file_path).expect("could not read file"),
+            ip.to_string()
+        );
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
     }
 
@@ -293,7 +289,10 @@ mod tests {
 
         test_data.with_ip(ip).run_client_send();
 
-        assert_eq!(fs::read_to_string(&test_data.test_file_path).unwrap(), ip.to_string());
+        assert_eq!(
+            fs::read_to_string(&test_data.test_file_path).expect("could not read file"),
+            ip.to_string()
+        );
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
     }
 

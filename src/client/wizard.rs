@@ -40,14 +40,11 @@ impl Wizard {
         info("=========================================");
         info("Ruroco Server Side installed successfully");
         info(&format!("Please check the config in {CONFIG_TOML_PATH} and edit it accordingly"));
-        info("Generate public and private pem files with ruroco-client gen command");
+        info("Generate key file with ruroco-client gen command");
         info(&format!(
-            "Save public pem file you just generated in 'config_dir' as defined in {CONFIG_TOML_PATH}"
+            "Save key file you just generated in 'config_dir' as defined in {CONFIG_TOML_PATH}"
         ));
-        info(&format!(
-            "Save public and private pem file you just generated on your client in {:?}",
-            get_conf_dir()
-        ));
+        info(&format!("Save key file you just generated on your client in {:?}", get_conf_dir()));
         info("=========================================");
 
         Ok(())

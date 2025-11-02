@@ -68,9 +68,9 @@ impl CommandsList {
             })
             .collect();
 
-        if let Some(i) = parts.iter().position(|x| x.contains("private-pem-path")) {
-            parts.remove(i); // remove --private-pem-path
-            parts.remove(i); // remove the private pem path
+        if let Some(i) = parts.iter().position(|x| x.contains("key-path")) {
+            parts.remove(i); // remove --key-path
+            parts.remove(i); // remove the key path
         };
 
         parts.join("")
