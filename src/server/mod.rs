@@ -166,6 +166,7 @@ pub fn run_server(server: CliServer) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use crate::client::gen::Generator;
+    use crate::common::data_parser::MSG_SIZE;
     use crate::config::config_server::{CliServer, ConfigServer};
     use crate::server::Server;
     use clap::error::ErrorKind::DisplayHelp;
@@ -273,7 +274,7 @@ mod tests {
 
         assert_eq!(
             server.run_loop_iteration(success_data).unwrap(),
-            "Invalid read count 0, expected 201 from 127.0.0.1:8080".to_string()
+            format!("Invalid read count 0, expected {MSG_SIZE} from 127.0.0.1:8080")
         );
     }
 
@@ -281,7 +282,7 @@ mod tests {
     fn test_loop_iteration_decrypt_error() {
         let mut server = create_server();
         let success_data: io::Result<(usize, SocketAddr)> =
-            Ok((201, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
+            Ok((MSG_SIZE, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
         assert_eq!(
             server.run_loop_iteration(success_data).unwrap(),
             "Could not find key for id [0, 0, 0, 0, 0, 0, 0, 0]"

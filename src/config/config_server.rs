@@ -53,24 +53,37 @@ impl ConfigServer {
     }
 
     pub fn create_server_udp_socket(&self, address: Option<String>) -> Result<UdpSocket, String> {
-        match (env::var("LISTEN_PID").ok(), env::var("RUROCO_LISTEN_ADDRESS").ok(), address) {
-            (_, _, Some(address)) => {
+        match (
+            env::var("LISTEN_PID").ok(),
+            env::var("LISTEN_FDS").ok(),
+            env::var("RUROCO_LISTEN_ADDRESS").ok(),
+            address,
+        ) {
+            (_, _, _, Some(address)) => {
                 info(&format!("UdpSocket bind to {address} - argument"));
                 UdpSocket::bind(&address)
                     .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
             }
-            (None, Some(address), _) => {
+            (_, _, Some(address), _) => {
                 info(&format!("UdpSocket bind to {address} - RUROCO_LISTEN_ADDRESS"));
                 UdpSocket::bind(&address)
                     .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
             }
-            (Some(listen_pid), _, _) if listen_pid == std::process::id().to_string() => {
-                let system_socket_fd: RawFd = 3;
-                info(&format!("UdpSocket from_raw_fd {system_socket_fd}"));
-                Ok(unsafe { UdpSocket::from_raw_fd(system_socket_fd) })
+            (Some(listen_pid), Some(listen_fds), _, _)
+                if listen_pid == std::process::id().to_string() && listen_fds == "1" =>
+            {
+                let fd: RawFd = 3;
+                info(&format!("UdpSocket from_raw_fd {fd} (systemd socket activation)"));
+                let sock = unsafe { UdpSocket::from_raw_fd(fd) };
+                Ok(sock)
             }
-            (Some(_), _, _) => Err("LISTEN_PID was set, but not to our PID".to_string()),
-            (None, None, None) => {
+            (Some(_), Some(listen_fds), _, _) if listen_fds != "1" => {
+                Err(format!("LISTEN_FDS was set to {listen_fds}, expected 1"))
+            }
+            (Some(listen_pid), Some(_), _, _) if listen_pid != std::process::id().to_string() => {
+                Err(format!("LISTEN_PID ({listen_pid}) does not match current PID"))
+            }
+            _ => {
                 // port is calculated by using the alphabet indexes of the word ruroco:
                 // r = 18, u = 21, r = 18, o = 15, c = 3, o = 15
                 // and multiplying the distinct values with each other times two:

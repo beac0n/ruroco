@@ -219,7 +219,7 @@ mod tests {
         let sender = Sender::create(
             SendCommand {
                 key: Generator::create().unwrap().gen().unwrap(),
-                command: "#".repeat(99),
+                command: "#".repeat(600),
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
@@ -230,9 +230,7 @@ mod tests {
         let result = sender.send();
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Too much data, must be at most 192 bytes, but was 193 bytes. \
-                Reduce command name length."
-                .to_string()
+            "Too much data, must be at most 491 bytes, but was 694 bytes. Reduce command name length.".to_string()
         );
     }
 
@@ -243,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_send_ipv6() {
-        assert!(send_test("::1:1234").is_ok());
+        assert!(send_test("[::1]:1234").is_ok());
     }
 
     fn send_test(address: &str) -> Result<(), String> {

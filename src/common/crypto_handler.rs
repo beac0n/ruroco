@@ -7,9 +7,10 @@ use std::num::ParseIntError;
 use std::path::Path;
 
 pub const KEY_ID_SIZE: usize = 8;
+pub const IV_SIZE: usize = 12;
+pub const TAG_SIZE: usize = 16;
+pub const BLOCK_SIZE: usize = 16;
 const KEY_SIZE: usize = 32;
-const IV_SIZE: usize = 12;
-const TAG_SIZE: usize = 16;
 const SALT_SIZE: usize = 16;
 const KEY_DERIVATION_ITERATIONS: usize = 100_000;
 
@@ -81,7 +82,7 @@ impl CryptoHandler {
         let mut crypter = Crypter::new(cipher, Mode::Encrypt, &self.key, Some(&iv))
             .map_err(|e| format!("Could not create crypter: {}", e))?;
 
-        let mut ciphertext = vec![0; plaintext.len() + cipher.block_size()];
+        let mut ciphertext = vec![0; plaintext.len() + BLOCK_SIZE];
         let mut count = crypter
             .update(plaintext, &mut ciphertext)
             .map_err(|e| format!("Could not update crypter: {}", e))?;
@@ -107,7 +108,7 @@ impl CryptoHandler {
         let mut decrypter = Crypter::new(cipher, Mode::Decrypt, &self.key, Some(iv))
             .map_err(|e| format!("Could not create decrypter: {}", e))?;
 
-        let mut plaintext = vec![0; ciphertext.len() + cipher.block_size()];
+        let mut plaintext = vec![0; ciphertext.len() + BLOCK_SIZE];
         let mut count = decrypter
             .update(ciphertext, &mut plaintext)
             .map_err(|e| format!("Could not update decrypter: {}", e))?;
@@ -126,7 +127,7 @@ impl CryptoHandler {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::crypto_handler::CryptoHandler;
+    use crate::common::crypto_handler::{CryptoHandler, IV_SIZE, TAG_SIZE};
 
     #[test]
     fn test_encrypt() {
@@ -139,5 +140,23 @@ mod tests {
         let decrypted = handler.decrypt(&ciphertext).unwrap();
 
         assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn ciphertext_length_matches_plaintext_length() {
+        let key = CryptoHandler::gen_key().unwrap();
+        let handler = CryptoHandler::create(&key).unwrap();
+
+        for size in [0usize, 1, 5, 16, 31, 64, 255] {
+            let plaintext = vec![b'a'; size];
+            let ciphertext = handler.encrypt(&plaintext).unwrap();
+
+            let encrypted_section = &ciphertext[IV_SIZE + TAG_SIZE..];
+            assert_eq!(
+                encrypted_section.len(),
+                plaintext.len(),
+                "mismatched length for size {size}"
+            );
+        }
     }
 }
