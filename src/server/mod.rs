@@ -205,6 +205,7 @@ mod tests {
     fn test_create_invalid_pid() {
         env::set_var("LISTEN_PID", "12345");
         env::set_var("LISTEN_FDS", "1");
+        env::remove_var("RUROCO_LISTEN_ADDRESS");
 
         let config_dir =
             env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests").join("conf_dir");
