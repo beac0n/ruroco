@@ -103,6 +103,8 @@ impl RustSlintBridge {
             let cmd = cmd.to_string();
             let key = key.to_string();
             let key = key.trim();
+            //TODO: Replace naive split_whitespace with proper shell/Clap parsing so quoted
+            // arguments survive.
             let mut cmd_vec: Vec<&str> = cmd.split_whitespace().collect();
             cmd_vec.insert(0, "ruroco");
 
@@ -143,6 +145,8 @@ impl RustSlintBridge {
         self.app.global::<SlintRustBridge>().on_update_application(move || {
             #[cfg(target_os = "linux")]
             {
+                //TODO: Bubble Updater errors instead of unwrap() so transient network issues don't
+                // crash the UI thread.
                 match Updater::create(false, None, None, false).unwrap().update() {
                     Ok(_) => {}
                     Err(err) => {
@@ -159,9 +163,11 @@ impl RustSlintBridge {
     }
 
     pub fn add_on_generate_key(&self) {
-        self.app
-            .global::<SlintRustBridge>()
-            .on_generate_key(|| SharedString::from(CryptoHandler::gen_key().unwrap()));
+        self.app.global::<SlintRustBridge>().on_generate_key(|| {
+            //TODO: Handle key generation failures gracefully rather than unwrap()-panicking
+            // the GUI.
+            SharedString::from(CryptoHandler::gen_key().unwrap())
+        });
     }
 
     fn reload_commands_config(app_weak: &Weak<App>, cl: &mut MutexGuard<CommandsList>) {
@@ -207,6 +213,8 @@ impl RustSlintBridge {
 
     #[cfg(target_os = "android")]
     fn update_android() {
+        //TODO: Surface updater fetch/asset errors instead of unwrap() so Android UI can recover
+        // from API failures.
         let data = Updater::get_github_api_data(None).unwrap();
         let asset = data.assets.into_iter().find(|a| a.name.ends_with(".apk")).unwrap();
 

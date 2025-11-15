@@ -206,6 +206,8 @@ impl Updater {
         permissions_mode: u32,
         user_and_group: Option<&str>,
     ) -> Result<(), String> {
+        //TODO: Verify release signatures or checksums before swapping binaries to prevent
+        // MITM/upstream compromise.
         info(&format!("downloading from {bin_url}"));
 
         let target_bin_path = &self.bin_path.join(bin_name);

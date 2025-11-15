@@ -104,11 +104,14 @@ impl Commander {
             .env(format!("{ENV_PREFIX}IP"), ip_str)
             .output()
         {
-            Ok(result) => info(&format!(
-                "Successfully executed {command}\nstdout: {}\nstderr: {}",
-                Commander::vec_to_str(&result.stdout),
-                Commander::vec_to_str(&result.stderr)
-            )),
+            Ok(result) => {
+                //TODO: Check result.status.success() and surface failures instead of always logging success.
+                info(&format!(
+                    "Successfully executed {command}\nstdout: {}\nstderr: {}",
+                    Commander::vec_to_str(&result.stdout),
+                    Commander::vec_to_str(&result.stderr)
+                ))
+            }
             Err(e) => error(&format!("Error executing {command}: {e}")),
         };
     }

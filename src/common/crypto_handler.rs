@@ -27,6 +27,7 @@ impl CryptoHandler {
     }
 
     pub fn create(key_string: &str) -> Result<Self, String> {
+        // TODO: key_string is base64 => decode first
         let key_string = key_string.trim();
         let key_string_len = KEY_ID_SIZE + KEY_SIZE;
         let key_string_len_hex = key_string_len * 2;
@@ -71,7 +72,7 @@ impl CryptoHandler {
         let id_hex: String = id.iter().map(|b| format!("{:02x}", b)).collect();
         let key_hex: String = key.iter().map(|b| format!("{:02x}", b)).collect();
 
-        Ok(format!("{id_hex}{key_hex}"))
+        Ok(format!("{id_hex}{key_hex}")) // TODO: base64
     }
 
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, String> {
