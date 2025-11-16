@@ -5,13 +5,14 @@ use crate::client::gen::Generator;
 use crate::client::send::Sender;
 use crate::client::update::Updater;
 use crate::client::wizard::Wizard;
-use crate::common::time_from_ntp;
+use crate::common::time_util::TimeUtil;
 
 /// data structures for using CLI arguments for the client binary
 pub mod config;
 pub mod gen;
 pub mod send;
 pub mod update;
+pub mod util;
 mod wizard;
 
 pub fn run_client(client: CliClient) -> Result<(), String> {
@@ -22,7 +23,7 @@ pub fn run_client(client: CliClient) -> Result<(), String> {
         }
         CommandsClient::Send(send_command) => {
             let ntp = send_command.ntp.clone();
-            Sender::create(send_command, time_from_ntp(&ntp)?)?.send()
+            Sender::create(send_command, TimeUtil::time_from_ntp(&ntp)?)?.send()
         }
         CommandsClient::Update(update_command) => Updater::create(
             update_command.force,

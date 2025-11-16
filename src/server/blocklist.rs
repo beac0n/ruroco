@@ -51,7 +51,7 @@ impl Blocklist {
         })
     }
 
-    fn get_blocklist_path(config_dir: &Path) -> PathBuf {
+    pub fn get_blocklist_path(config_dir: &Path) -> PathBuf {
         resolve_path(config_dir).join("blocklist.toml")
     }
 

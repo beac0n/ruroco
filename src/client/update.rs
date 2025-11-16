@@ -1,4 +1,5 @@
-use crate::common::{change_file_ownership, info, set_permissions};
+use crate::client::util::set_permissions;
+use crate::common::{change_file_ownership, info};
 use rand::distr::{Alphanumeric, SampleString};
 use reqwest::blocking::{get, Client};
 use serde::{Deserialize, Serialize};

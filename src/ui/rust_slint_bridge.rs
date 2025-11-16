@@ -5,7 +5,8 @@ use crate::client::config::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DE
 use crate::client::run_client;
 use crate::client::update::Updater;
 use crate::common::crypto_handler::CryptoHandler;
-use crate::common::{error, info, NTP_SYSTEM};
+use crate::common::time_util::NTP_SYSTEM;
+use crate::common::{error, info};
 use crate::ui::saved_command_list::CommandsList;
 use clap::Parser;
 use slint::{Color, Model, ModelRc, SharedString, VecModel, Weak};

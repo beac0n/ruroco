@@ -15,9 +15,9 @@ impl DataParser {
         })
     }
 
-    pub fn encode_data(&self, data_to_encrypt: &[u8]) -> Result<[u8; MSG_SIZE], String> {
+    pub fn encode(&self, data: &[u8]) -> Result<[u8; MSG_SIZE], String> {
         let max_cipher_size = MSG_SIZE - 1 - KEY_ID_SIZE;
-        let ciphertext = self.crypto_handler.encrypt(data_to_encrypt)?;
+        let ciphertext = self.crypto_handler.encrypt(data)?;
         let ciphertext_len = ciphertext.len();
         if ciphertext_len > max_cipher_size {
             Err(format!(
@@ -26,30 +26,30 @@ impl DataParser {
             ))?
         }
 
-        let data_to_send_len = MSG_SIZE; // 1 zero byte prefix + 8 bytes id + remaining encrypted data
-        let mut data_to_send = [0u8; MSG_SIZE];
-        let ciphertext_start = data_to_send_len - ciphertext_len;
+        let data_encoded_len = MSG_SIZE; // 1 zero byte prefix + 8 bytes id + remaining encrypted data
+        let mut data_encoded = [0u8; MSG_SIZE];
+        let ciphertext_start = data_encoded_len - ciphertext_len;
         let key_id_start = ciphertext_start - KEY_ID_SIZE;
-        data_to_send[ciphertext_start..].copy_from_slice(&ciphertext);
-        data_to_send[key_id_start..ciphertext_start].copy_from_slice(&self.crypto_handler.id);
+        data_encoded[ciphertext_start..].copy_from_slice(&ciphertext);
+        data_encoded[key_id_start..ciphertext_start].copy_from_slice(&self.crypto_handler.id);
 
         if key_id_start > 1 {
-            rand_bytes(&mut data_to_send[..key_id_start - 1])
+            rand_bytes(&mut data_encoded[..key_id_start - 1])
                 .map_err(|e| format!("Could not generate random bytes: {e}"))?;
-            for b in &mut data_to_send[..key_id_start - 1] {
+            for b in &mut data_encoded[..key_id_start - 1] {
                 if *b == 0 {
                     *b = 1;
                 }
             }
         }
 
-        Ok(data_to_send)
+        Ok(data_encoded)
     }
-    pub fn decode_data(data: &[u8]) -> Result<(&[u8], &[u8]), String> {
+    pub fn decode(data: &[u8]) -> Result<(&[u8], &[u8]), String> {
         let key_id_start = DataParser::get_key_id_start_index(data)?;
         let key_id = &data[key_id_start..key_id_start + KEY_ID_SIZE];
-        let encrypted_data = &data[key_id_start + KEY_ID_SIZE..];
-        Ok((key_id, encrypted_data))
+        let data_decoded = &data[key_id_start + KEY_ID_SIZE..];
+        Ok((key_id, data_decoded))
     }
 
     fn get_key_id_start_index(data: &[u8]) -> Result<usize, String> {
@@ -89,7 +89,7 @@ mod tests {
         packet[key_id_start - 1] = 0;
         packet[key_id_start..key_id_start + KEY_ID_SIZE].copy_from_slice(&parser.crypto_handler.id);
 
-        let err = DataParser::decode_data(&packet).unwrap_err();
+        let err = DataParser::decode(&packet).unwrap_err();
         assert_eq!(err, "Encrypted payload shorter than IV + tag");
     }
 
@@ -97,9 +97,9 @@ mod tests {
     fn decode_data_accepts_valid_ciphertext() {
         let parser = parser();
         let payload = b"hello world";
-        let encoded = parser.encode_data(payload).expect("encode failed");
+        let encoded = parser.encode(payload).expect("encode failed");
 
-        let (key_id, ciphertext) = DataParser::decode_data(&encoded).expect("decode failed");
+        let (key_id, ciphertext) = DataParser::decode(&encoded).expect("decode failed");
         assert_eq!(key_id, parser.crypto_handler.id);
         assert_eq!(parser.crypto_handler.decrypt(ciphertext).expect("decrypt failed"), payload);
     }
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn decode_data_rejects_payload_with_no_zero_delimiter() {
         let packet = [1u8; MSG_SIZE];
-        let err = DataParser::decode_data(&packet).unwrap_err();
+        let err = DataParser::decode(&packet).unwrap_err();
         assert_eq!(err, "Could not get index of zero byte");
     }
 
@@ -115,7 +115,7 @@ mod tests {
     fn decode_data_rejects_key_overlapping_boundary() {
         let mut packet = [1u8; MSG_SIZE];
         packet[MSG_SIZE - 1] = 0;
-        let err = DataParser::decode_data(&packet).unwrap_err();
+        let err = DataParser::decode(&packet).unwrap_err();
         assert_eq!(err, "Key id overlaps packet boundary");
     }
 }

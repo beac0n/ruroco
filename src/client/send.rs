@@ -1,5 +1,5 @@
 use crate::client::config::SendCommand;
-use crate::common::data::ClientData;
+use crate::common::client_data::ClientData;
 use crate::common::data_parser::DataParser;
 use crate::common::info;
 use openssl::version::version;
@@ -82,7 +82,7 @@ impl Sender {
 
         info(&format!("Connecting to {ip_str}..."));
         let data_to_encrypt = self.get_data_to_encrypt(ip_str)?;
-        let data_to_send = self.data_parser.encode_data(&data_to_encrypt)?;
+        let data_to_send = self.data_parser.encode(&data_to_encrypt)?;
 
         // create UDP socket and send the encrypted data to the specified address
         let address = &self.cmd.address;
@@ -120,7 +120,7 @@ mod tests {
     use crate::client::config::{CliClient, SendCommand};
     use crate::client::gen::Generator;
     use crate::client::send::Sender;
-    use crate::common::time;
+    use crate::common::time_util::TimeUtil;
     use std::fs;
     use std::fs::File;
     use std::net::IpAddr;
@@ -159,7 +159,7 @@ mod tests {
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
-            time().unwrap(),
+            TimeUtil::time().unwrap(),
         );
 
         let _ = fs::remove_file(&key_file_name);
@@ -178,7 +178,7 @@ mod tests {
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
-            time().unwrap(),
+            TimeUtil::time().unwrap(),
         )
         .unwrap();
 
@@ -200,7 +200,7 @@ mod tests {
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
-            time().unwrap(),
+            TimeUtil::time().unwrap(),
         )
         .unwrap();
 
@@ -223,7 +223,7 @@ mod tests {
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
-            time().unwrap(),
+            TimeUtil::time().unwrap(),
         )
         .unwrap();
 
@@ -252,7 +252,7 @@ mod tests {
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
-            time()?,
+            TimeUtil::time()?,
         );
         sender?.send()
     }
@@ -270,7 +270,7 @@ mod tests {
                 ip: Some(IP.to_string()),
                 ..Default::default()
             },
-            time().unwrap(),
+            TimeUtil::time().unwrap(),
         );
 
         let ip_addrs = sender.unwrap().get_destination_ips().unwrap();

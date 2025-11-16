@@ -1,6 +1,7 @@
-use crate::common::data::CommanderData;
-use crate::common::{change_file_ownership, error, get_commander_unix_socket_path, info};
+use crate::common::{change_file_ownership, error, info};
+use crate::server::commander_data::CommanderData;
 use crate::server::config::{CliServer, ConfigServer};
+use crate::server::util::get_commander_unix_socket_path;
 use std::fs::Permissions;
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;

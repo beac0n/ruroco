@@ -2,15 +2,19 @@
 pub mod blocklist;
 /// responsible for executing the commands that are defined in the config file
 pub mod commander;
+pub(crate) mod commander_data;
 /// data structures for loading configuration files and using CLI arguments for server services
 pub mod config;
+pub mod util;
 
+use crate::common::client_data::ClientData;
 use crate::common::crypto_handler::CryptoHandler;
-use crate::common::data::{ClientData, CommanderData};
 use crate::common::data_parser::{DataParser, MSG_SIZE};
-use crate::common::{error, info, time_from_ntp};
+use crate::common::time_util::TimeUtil;
+use crate::common::{error, info};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
+use commander_data::CommanderData;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -73,7 +77,7 @@ impl Server {
     }
 
     fn decrypt(&mut self) -> Result<Vec<u8>, String> {
-        let (key_id, encrypted_data) = DataParser::decode_data(&self.client_recv_data)?;
+        let (key_id, encrypted_data) = DataParser::decode(&self.client_recv_data)?;
 
         self.crypto_handlers
             .get(key_id)
@@ -154,9 +158,9 @@ impl Server {
         Ok(())
     }
 
-    fn decode(&self, decrypted_data: &[u8]) -> Result<(u128, ClientData), String> {
-        match ClientData::deserialize(decrypted_data) {
-            Ok(data) => Ok((time_from_ntp(&self.config.ntp)?, data)),
+    fn decode(&self, data: &[u8]) -> Result<(u128, ClientData), String> {
+        match ClientData::deserialize(data) {
+            Ok(data) => Ok((TimeUtil::time_from_ntp(&self.config.ntp)?, data)),
             Err(e) => Err(e),
         }
     }

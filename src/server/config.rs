@@ -2,7 +2,7 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
-use crate::common::{get_commander_unix_socket_path, info, resolve_path, NTP_SYSTEM};
+use crate::common::{info, resolve_path};
 use crate::server::blocklist::Blocklist;
 use clap::Parser;
 use serde::Deserialize;
@@ -11,6 +11,8 @@ use std::fs::ReadDir;
 use std::net::{IpAddr, UdpSocket};
 
 use crate::common::crypto_handler::CryptoHandler;
+use crate::common::time_util::NTP_SYSTEM;
+use crate::server::util::get_commander_unix_socket_path;
 use openssl::version::version;
 use std::os::fd::{FromRawFd, RawFd};
 use std::path::PathBuf;

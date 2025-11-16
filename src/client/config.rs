@@ -8,9 +8,9 @@ use std::env;
 #[cfg(target_os = "android")]
 use crate::ui::android_util::{AndroidUtil, J_FILE, J_STRING};
 
-use crate::common::NTP_SYSTEM;
 use std::path::PathBuf;
 
+use crate::common::time_util::NTP_SYSTEM;
 use clap::{Parser, Subcommand};
 
 pub const DEFAULT_KEY_SIZE: u16 = 8192;

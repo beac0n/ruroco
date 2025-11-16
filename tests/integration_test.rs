@@ -5,10 +5,11 @@ mod tests {
     use ruroco::client::config::SendCommand;
     use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
-    use ruroco::common::{get_blocklist_path, get_commander_unix_socket_path, time};
+    use ruroco::common::time_util::TimeUtil;
     use ruroco::server::blocklist::Blocklist;
     use ruroco::server::commander::Commander;
     use ruroco::server::config::ConfigServer;
+    use ruroco::server::util::get_commander_unix_socket_path;
     use ruroco::server::Server;
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -42,7 +43,7 @@ mod tests {
                 config_dir: test_folder_path.clone(),
                 test_file_path: test_folder_path.join(TestData::gen_file_name(".test")),
                 socket_path: get_commander_unix_socket_path(&test_folder_path),
-                blocklist_path: get_blocklist_path(&test_folder_path),
+                blocklist_path: Blocklist::get_blocklist_path(&test_folder_path),
                 key_path: test_folder_path.join(TestData::gen_file_name(".key")),
                 server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
@@ -90,7 +91,7 @@ mod tests {
                     ipv4: false,
                     ipv6: false,
                 },
-                self.now.unwrap_or_else(|| time().expect("could not get time")),
+                self.now.unwrap_or_else(|| TimeUtil::time().expect("could not get time")),
             )
             .expect("could not create sender");
 
@@ -213,7 +214,7 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        let now = time().expect("could not get time");
+        let now = TimeUtil::time().expect("could not get time");
         test_data.with_deadline(5).with_now(now).run_client_send();
         let _ = fs::remove_file(&test_data.test_file_path);
 

@@ -1,24 +1,6 @@
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct CommanderData {
-    pub command_name: String,
-    pub ip: String,
-}
-
-impl CommanderData {
-    pub fn deserialize(data: &str) -> Result<CommanderData, String> {
-        toml::from_str::<CommanderData>(data)
-            .map_err(|e| format!("Could not create CommanderData from {data}: {e}"))
-    }
-
-    pub fn serialize(&self) -> Result<String, String> {
-        toml::to_string(&self)
-            .map_err(|e| format!("Could not serialize CommanderData {:?}: {e}", &self))
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 // use one char for each field, to minify serialized size
 pub struct ClientData {
@@ -102,7 +84,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::common::data::ClientData;
+    use crate::common::client_data::ClientData;
 
     #[test]
     fn test_get_minified_server_data() {
