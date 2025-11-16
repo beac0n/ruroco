@@ -118,6 +118,7 @@ pub fn get_conf_dir() -> Result<PathBuf, String> {
     return get_conf_dir_android();
 }
 
+#[cfg(target_os = "linux")]
 fn get_conf_dir_linux() -> Result<PathBuf, String> {
     let current_dir = PathBuf::from("../..");
     Ok(match (env::var("HOME"), env::current_dir()) {
