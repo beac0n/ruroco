@@ -2,13 +2,13 @@
 mod tests {
     use rand::distr::{Alphanumeric, SampleString};
     use rand::Rng;
+    use ruroco::client::config::SendCommand;
     use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
     use ruroco::common::{get_blocklist_path, get_commander_unix_socket_path, time};
-    use ruroco::config::config_client::SendCommand;
-    use ruroco::config::config_server::ConfigServer;
     use ruroco::server::blocklist::Blocklist;
     use ruroco::server::commander::Commander;
+    use ruroco::server::config::ConfigServer;
     use ruroco::server::Server;
     use std::collections::HashMap;
     use std::path::PathBuf;
