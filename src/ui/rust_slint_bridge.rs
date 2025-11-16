@@ -29,7 +29,7 @@ impl RustSlintBridge {
     pub fn create() -> Result<Self, Box<dyn Error>> {
         let app = App::new()?;
 
-        let commands_list = CommandsList::create(&get_conf_dir());
+        let commands_list = CommandsList::create(&get_conf_dir()?);
         let command_logic = app.global::<SlintRustBridge>();
 
         command_logic.set_commands_list(Self::get_commands_list_data(&commands_list));
@@ -145,30 +145,25 @@ impl RustSlintBridge {
     pub fn add_on_update_application(&self) {
         self.app.global::<SlintRustBridge>().on_update_application(move || {
             #[cfg(target_os = "linux")]
-            {
-                //TODO: Bubble Updater errors instead of unwrap() so transient network issues don't
-                // crash the UI thread.
-                match Updater::create(false, None, None, false).unwrap().update() {
-                    Ok(_) => {}
-                    Err(err) => {
-                        error(&format!("Error when updating application: {err}"));
-                    }
-                }
-            }
-
+            let update_result = Self::update_linux();
             #[cfg(target_os = "android")]
-            {
-                Self::update_android();
+            let update_result = Self::update_android();
+
+            if let Err(err) = update_result {
+                error(&format!("Error when updating application: {err}"));
             }
         });
     }
 
+    #[cfg(target_os = "linux")]
+    fn update_linux() -> Result<(), String> {
+        Updater::create(false, None, None, false)?.update()
+    }
+
     pub fn add_on_generate_key(&self) {
-        self.app.global::<SlintRustBridge>().on_generate_key(|| {
-            //TODO: Handle key generation failures gracefully rather than unwrap()-panicking
-            // the GUI.
-            SharedString::from(CryptoHandler::gen_key().unwrap())
-        });
+        self.app
+            .global::<SlintRustBridge>()
+            .on_generate_key(|| SharedString::from(CryptoHandler::gen_key().unwrap_or_else(|e| e)));
     }
 
     fn reload_commands_config(app_weak: &Weak<App>, cl: &mut MutexGuard<CommandsList>) {
@@ -193,13 +188,22 @@ impl RustSlintBridge {
     where
         F: FnOnce(&VecModel<CommandData>),
     {
+        let upgraded_app = match app_weak.upgrade() {
+            Some(a) => a,
+            None => {
+                return error("Failed to upgrade weak reference to App");
+            }
+        };
+
         let commands_list_rc: ModelRc<CommandData> =
-            app_weak.upgrade().unwrap().global::<SlintRustBridge>().get_commands_list();
-        let commands_list: &VecModel<CommandData> = commands_list_rc
-            .as_any()
-            .downcast_ref()
-            .expect("Expected an initialized commands_list, found None");
-        f(commands_list);
+            upgraded_app.global::<SlintRustBridge>().get_commands_list();
+        let commands_list: Option<&VecModel<CommandData>> =
+            commands_list_rc.as_any().downcast_ref();
+
+        match commands_list {
+            Some(cl) => f(cl),
+            None => error("Failed to downcast ModelRc to VecModel<CommandData>"),
+        }
     }
 
     fn app_and_cmds(&self) -> (Weak<App>, Arc<Mutex<CommandsList>>) {
@@ -213,19 +217,23 @@ impl RustSlintBridge {
     }
 
     #[cfg(target_os = "android")]
-    fn update_android() {
-        //TODO: Surface updater fetch/asset errors instead of unwrap() so Android UI can recover
-        // from API failures.
-        let data = Updater::get_github_api_data(None).unwrap();
-        let asset = data.assets.into_iter().find(|a| a.name.ends_with(".apk")).unwrap();
+    fn update_android() -> Result<(), String> {
+        let data = Updater::get_github_api_data(None)?;
+        let asset = data
+            .assets
+            .into_iter()
+            .find(|a| a.name.ends_with(".apk"))
+            .ok_or(Err("No APK asset found in latest release"))?;
 
-        let util = AndroidUtil::create();
-        let uri = util.uri_parse(asset.browser_download_url).unwrap();
-        let intent = util.new_view_intent(&uri).unwrap();
+        let util = AndroidUtil::create()?;
+        let uri = util.uri_parse(asset.browser_download_url)?;
+        let intent = util.new_view_intent(&uri)?;
         let result = util.start_activity(&intent);
         let _ = result.inspect_err(|err| {
             info(&format!("Error (prob. expected) when opening browser window: {err}"))
         });
+
+        Ok(())
     }
 
     fn set_command_data_color(idx: i32, commands_list: &VecModel<CommandData>, color: Color) {

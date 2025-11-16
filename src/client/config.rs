@@ -111,25 +111,28 @@ pub enum CommandsClient {
     /// Run the wizard to set up the server side.
     Wizard(WizardCommand),
 }
-pub fn get_conf_dir() -> PathBuf {
+pub fn get_conf_dir() -> Result<PathBuf, String> {
     #[cfg(target_os = "linux")]
-    {
-        let current_dir = PathBuf::from("../..");
-        match (env::var("HOME"), env::current_dir()) {
-            (Ok(home_dir), _) => PathBuf::from(home_dir).join(".config").join("ruroco"),
-            (_, Ok(current_dir)) => current_dir,
-            (_, _) => current_dir,
-        }
-    }
-
+    return get_conf_dir_linux();
     #[cfg(target_os = "android")]
-    {
-        let util = AndroidUtil::create();
-        let files_dir_obj = util.call_ctx_method("getFilesDir", J_FILE, &[]).unwrap();
-        let abs_path_ref =
-            util.call_method(files_dir_obj, "getAbsolutePath", J_STRING, &[]).unwrap();
-        PathBuf::from(util.global_ref_to_string(abs_path_ref).unwrap())
-    }
+    return get_conf_dir_android();
+}
+
+fn get_conf_dir_linux() -> Result<PathBuf, String> {
+    let current_dir = PathBuf::from("../..");
+    Ok(match (env::var("HOME"), env::current_dir()) {
+        (Ok(home_dir), _) => PathBuf::from(home_dir).join(".config").join("ruroco"),
+        (_, Ok(current_dir)) => current_dir,
+        (_, _) => current_dir,
+    })
+}
+
+#[cfg(target_os = "android")]
+fn get_conf_dir_android() -> Result<PathBuf, String> {
+    let util = AndroidUtil::create()?;
+    let files_dir_obj = util.call_ctx_method("getFilesDir", J_FILE, &[])?;
+    let abs_path_ref = util.call_method(files_dir_obj, "getAbsolutePath", J_STRING, &[])?;
+    Ok(PathBuf::from(util.global_ref_to_string(abs_path_ref)?))
 }
 
 #[cfg(test)]

@@ -45,7 +45,7 @@ impl Wizard {
         info(&format!(
             "Save key file you just generated in 'config_dir' as defined in {CONFIG_TOML_PATH}"
         ));
-        info(&format!("Save key file you just generated on your client in {:?}", get_conf_dir()));
+        info(&format!("Save key file you just generated on your client in {:?}", get_conf_dir()?));
         info("=========================================");
 
         Ok(())

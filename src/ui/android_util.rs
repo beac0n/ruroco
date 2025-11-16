@@ -1,5 +1,6 @@
 #![cfg(target_os = "android")]
 
+use clap::builder::Str;
 use jni::objects::{GlobalRef, JObject, JString, JValue, JValueOwned};
 use jni::{AttachGuard, JavaVM};
 use std::ops::Deref;
@@ -13,11 +14,12 @@ pub struct AndroidUtil {
 }
 
 impl AndroidUtil {
-    pub fn create() -> AndroidUtil {
+    pub fn create() -> Result<AndroidUtil, String> {
         let ctx = ndk_context::android_context();
         let obj = unsafe { JObject::from_raw(ctx.context().cast()) };
-        let vm = (unsafe { JavaVM::from_raw(ctx.vm().cast()) }).unwrap();
-        AndroidUtil { ctx: obj, vm }
+        let vm = (unsafe { JavaVM::from_raw(ctx.vm().cast()) })
+            .map_err(|e| format!("Could not get JavaVM from raw: {e}"))?;
+        Ok(AndroidUtil { ctx: obj, vm })
     }
 
     /// see https://developer.android.com/reference/android/content/Context#startActivity(android.content.Intent)

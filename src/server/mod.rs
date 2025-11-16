@@ -110,7 +110,7 @@ impl Server {
                 Some(format!("Invalid deadline - {} is on blocklist", client_data.deadline()))
             }
             Ok((_, client_data)) if client_data.validate_source_ip(&src_ip) => {
-                let client_src_ip_str = client_data.source_ip().unwrap();
+                let client_src_ip_str = client_data.source_ip().unwrap_or("none".to_string());
                 Some(format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
             }
             Ok((now_ns, client_data)) => {
