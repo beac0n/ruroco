@@ -115,11 +115,11 @@ impl Sender {
 mod tests {
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
-    use rand::distr::{Alphanumeric, SampleString};
 
     use crate::client::config::{CliClient, SendCommand};
     use crate::client::gen::Generator;
     use crate::client::send::Sender;
+    use crate::common::get_random_string;
     use crate::common::time_util::TimeUtil;
     use std::fs;
     use std::fs::File;
@@ -164,7 +164,7 @@ mod tests {
 
         let _ = fs::remove_file(&key_file_name);
 
-        assert_eq!(result.unwrap_err(), "Key length must be 80 hex characters (40 bytes)");
+        assert_eq!(result.unwrap_err(), "Key too short");
     }
 
     #[test]
@@ -258,7 +258,7 @@ mod tests {
     }
 
     fn gen_file_name(suffix: &str) -> String {
-        let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
+        let rand_str = get_random_string(16).unwrap();
         format!("{rand_str}{suffix}")
     }
 

@@ -18,6 +18,8 @@ impl Generator {
 
 #[cfg(test)]
 mod tests {
+    use base64::engine::general_purpose;
+    use base64::Engine;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
 
@@ -33,7 +35,7 @@ mod tests {
     #[test]
     fn test_gen() {
         let key = Generator::create().unwrap().gen().unwrap();
-        assert!(key.chars().all(|c| c.is_ascii_hexdigit()), "Key is not a valid hex string");
-        assert_eq!(key.len(), 80, "Key length is not 256 bits + 8 bytes");
+        let key_decoded = general_purpose::STANDARD.decode(key).unwrap();
+        assert_eq!(key_decoded.len(), 40, "Key length is not 256 bits + 8 bytes");
     }
 }

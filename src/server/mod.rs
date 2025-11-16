@@ -174,12 +174,11 @@ pub fn run_server(server: CliServer) -> Result<(), String> {
 mod tests {
     use crate::client::gen::Generator;
     use crate::common::data_parser::MSG_SIZE;
+    use crate::common::{get_random_range, get_random_string};
     use crate::server::config::{CliServer, ConfigServer};
     use crate::server::Server;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
-    use rand::distr::{Alphanumeric, SampleString};
-    use rand::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::path::PathBuf;
     use std::{env, fs, io};
@@ -256,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_create_from_path() {
-        let server_port = rand::rng().random_range(1024..65535);
+        let server_port = get_random_range(1024, 65535).unwrap();
         env::set_var("RUROCO_LISTEN_ADDRESS", format!("[::]:{server_port}"));
 
         let tests_dir_path = env::current_dir().unwrap_or(PathBuf::from("/tmp")).join("tests");
@@ -324,13 +323,13 @@ mod tests {
                 config_dir: test_folder_path.clone(),
                 ..Default::default()
             },
-            Some(format!("127.0.0.1:{}", rand::rng().random_range(1024..65535))),
+            Some(format!("127.0.0.1:{}", get_random_range(1024, 65535).unwrap())),
         )
         .expect("could not create server")
     }
 
     fn gen_file_name(suffix: &str) -> String {
-        let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
+        let rand_str = get_random_string(16).unwrap();
         format!("{rand_str}{suffix}")
     }
 }

@@ -4,10 +4,27 @@ pub mod data_parser;
 pub mod time_util;
 
 use crate::common::time_util::TimeUtil;
+use openssl::rand::rand_bytes;
 use std::os::unix::fs::chown;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
+
+pub fn get_random_string(len: usize) -> Result<String, String> {
+    let mut buf = vec![0u8; len];
+    rand_bytes(&mut buf).map_err(|e| format!("Could not generate random: {e}"))?;
+    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    Ok(buf.iter().map(|b| chars.as_bytes()[(*b as usize) % chars.len()] as char).collect())
+}
+
+pub fn get_random_range(from: u16, to: u16) -> Result<u16, String> {
+    let mut buf = [0u8; 2];
+    rand_bytes(&mut buf).map_err(|e| format!("Could not generate number: {e}"))?;
+
+    let span = to - from;
+    let v = u16::from_be_bytes(buf) % span;
+    Ok(from + v)
+}
 
 pub fn resolve_path(path: &Path) -> PathBuf {
     if path.is_absolute() {

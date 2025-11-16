@@ -136,16 +136,16 @@ pub fn run_commander(server: CliServer) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use crate::common::get_random_string;
     use crate::server::commander::Commander;
     use crate::server::config::ConfigServer;
-    use rand::distr::{Alphanumeric, SampleString};
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use std::{env, fs, thread};
 
     fn gen_file_name(suffix: &str) -> String {
-        let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
+        let rand_str = get_random_string(16).unwrap();
         format!("{rand_str}{suffix}")
     }
 

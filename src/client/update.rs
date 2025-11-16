@@ -1,6 +1,5 @@
 use crate::client::util::set_permissions;
-use crate::common::{change_file_ownership, info};
-use rand::distr::{Alphanumeric, SampleString};
+use crate::common::{change_file_ownership, get_random_string, info};
 use reqwest::blocking::{get, Client};
 use serde::{Deserialize, Serialize};
 use std::env::consts::{ARCH, OS};
@@ -158,7 +157,7 @@ impl Updater {
     }
 
     fn check_if_writeable(path: &Path) -> Result<bool, String> {
-        let tmp_path = path.join(Alphanumeric.sample_string(&mut rand::rng(), 16));
+        let tmp_path = path.join(get_random_string(16)?);
         match fs::write(&tmp_path, b"test") {
             Ok(_) => {
                 fs::remove_file(&tmp_path).map_err(|e| {
@@ -251,13 +250,13 @@ impl Updater {
 #[cfg(test)]
 mod tests {
     use crate::client::update::Updater;
-    use rand::distr::{Alphanumeric, SampleString};
+    use crate::common::get_random_string;
     use std::{env, fs};
 
     #[test_with::env(TEST_UPDATER)]
     #[test]
     fn test_update() {
-        let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
+        let rand_str = get_random_string(16).unwrap();
         let temp_path = env::temp_dir().join(format!("temp_{rand_str}"));
         fs::create_dir_all(&temp_path).unwrap();
 

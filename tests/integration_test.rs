@@ -1,11 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use rand::distr::{Alphanumeric, SampleString};
-    use rand::Rng;
     use ruroco::client::config::SendCommand;
     use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
     use ruroco::common::time_util::TimeUtil;
+    use ruroco::common::{get_random_range, get_random_string};
     use ruroco::server::blocklist::Blocklist;
     use ruroco::server::commander::Commander;
     use ruroco::server::config::ConfigServer;
@@ -56,12 +55,12 @@ mod tests {
         }
 
         fn get_server_address(host: &str) -> String {
-            let server_port = rand::rng().random_range(1024..65535);
+            let server_port = get_random_range(1024, 65535).unwrap();
             format!("{host}:{server_port}")
         }
 
         fn gen_file_name(suffix: &str) -> String {
-            let rand_str = Alphanumeric.sample_string(&mut rand::rng(), 16);
+            let rand_str = get_random_string(16).unwrap();
             format!("{rand_str}{suffix}")
         }
 

@@ -1,9 +1,9 @@
+use base64::{engine::general_purpose, Engine};
 use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs;
-use std::num::ParseIntError;
 use std::path::Path;
 
 pub const KEY_ID_SIZE: usize = 8;
@@ -27,23 +27,12 @@ impl CryptoHandler {
     }
 
     pub fn create(key_string: &str) -> Result<Self, String> {
-        // TODO: key_string is base64 => decode first
         let key_string = key_string.trim();
-        let key_string_len = KEY_ID_SIZE + KEY_SIZE;
-        let key_string_len_hex = key_string_len * 2;
-        if key_string.len() != key_string_len_hex {
-            return Err(&format!(
-                "Key length must be {key_string_len_hex} hex characters ({key_string_len} bytes)"
-            ))?;
-        }
+        let bytes = general_purpose::STANDARD
+            .decode(key_string)
+            .map_err(|e| format!("Could not decode base64 key: {e}"))?;
 
-        let bytes = (0..key_string.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&key_string[i..i + 2], 16))
-            .collect::<Result<Vec<u8>, ParseIntError>>()
-            .map_err(|e| format!("invalid hex: {e}"))?;
-
-        let (id, key) = bytes.split_at(KEY_ID_SIZE);
+        let (id, key) = bytes.split_at_checked(KEY_ID_SIZE).ok_or("Key too short".to_string())?;
 
         if key.len() != KEY_SIZE {
             return Err(&format!("Key length must be {KEY_SIZE} bytes"))?;
@@ -69,10 +58,7 @@ impl CryptoHandler {
         let mut id = [0u8; KEY_ID_SIZE];
         rand_bytes(&mut id).map_err(|e| format!("Could not generate key id: {e}"))?;
 
-        let id_hex: String = id.iter().map(|b| format!("{:02x}", b)).collect();
-        let key_hex: String = key.iter().map(|b| format!("{:02x}", b)).collect();
-
-        Ok(format!("{id_hex}{key_hex}")) // TODO: base64
+        Ok(general_purpose::STANDARD.encode([id.as_slice(), key.as_slice()].concat()))
     }
 
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, String> {

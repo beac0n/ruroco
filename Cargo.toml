@@ -14,7 +14,7 @@ slint = "1.10"
 jni = "0.21"
 ndk-context = "0.1"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
-rand = "0.9"
+base64 = "0.22"
 
 [dev-dependencies]
 test-with = { version = "*", default-features = false, features = [] }
