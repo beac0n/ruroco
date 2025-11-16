@@ -1,6 +1,6 @@
+use crate::client::config::get_conf_dir;
 use crate::client::update::Updater;
 use crate::common::{info, set_permissions};
-use crate::config::config_client::get_conf_dir;
 use std::fs;
 use std::io::Write;
 use std::path::Path;

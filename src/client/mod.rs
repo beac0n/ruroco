@@ -1,12 +1,14 @@
 //! This module is responsible for sending data to the server and for generating key file
 
+use crate::client::config::{CliClient, CommandsClient};
 use crate::client::gen::Generator;
 use crate::client::send::Sender;
 use crate::client::update::Updater;
 use crate::client::wizard::Wizard;
 use crate::common::time_from_ntp;
-use crate::config::config_client::{CliClient, CommandsClient};
 
+/// data structures for using CLI arguments for the client binary
+pub mod config;
 pub mod gen;
 pub mod send;
 pub mod update;
@@ -35,9 +37,9 @@ pub fn run_client(client: CliClient) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use crate::client::config::CliClient;
     use crate::client::gen::Generator;
     use crate::client::run_client;
-    use crate::config::config_client::CliClient;
     use clap::Parser;
 
     #[test]

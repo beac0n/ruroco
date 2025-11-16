@@ -5,7 +5,6 @@
 pub mod client;
 /// common functionality used by client, server and commander
 pub mod common;
-pub mod config;
 
 /// responsible for receiving data from the client and sending that data to the commander
 pub mod server;

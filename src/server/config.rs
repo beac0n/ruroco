@@ -180,7 +180,7 @@ fn default_config_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::config_server::{
+    use crate::server::config::{
         default_config_path, default_ntp, default_socket_group, default_socket_user, ConfigServer,
     };
     use std::collections::HashMap;

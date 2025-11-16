@@ -1,11 +1,11 @@
 #[cfg(target_os = "android")]
 use crate::ui::android_util::AndroidUtil;
 
+use crate::client::config::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
 use crate::client::run_client;
 use crate::client::update::Updater;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::{error, info, NTP_SYSTEM};
-use crate::config::config_client::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
 use crate::ui::saved_command_list::CommandsList;
 use clap::Parser;
 use slint::{Color, Model, ModelRc, SharedString, VecModel, Weak};

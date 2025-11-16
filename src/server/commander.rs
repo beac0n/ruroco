@@ -1,6 +1,6 @@
 use crate::common::data::CommanderData;
 use crate::common::{change_file_ownership, error, get_commander_unix_socket_path, info};
-use crate::config::config_server::{CliServer, ConfigServer};
+use crate::server::config::{CliServer, ConfigServer};
 use std::fs::Permissions;
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
@@ -135,8 +135,8 @@ pub fn run_commander(server: CliServer) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::config_server::ConfigServer;
     use crate::server::commander::Commander;
+    use crate::server::config::ConfigServer;
     use rand::distr::{Alphanumeric, SampleString};
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};

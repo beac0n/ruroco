@@ -2,12 +2,15 @@
 pub mod blocklist;
 /// responsible for executing the commands that are defined in the config file
 pub mod commander;
+/// data structures for loading configuration files and using CLI arguments for server services
+pub mod config;
+
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data::{ClientData, CommanderData};
 use crate::common::data_parser::{DataParser, MSG_SIZE};
 use crate::common::{error, info, time_from_ntp};
-use crate::config::config_server::{CliServer, ConfigServer};
 use crate::server::blocklist::Blocklist;
+use crate::server::config::{CliServer, ConfigServer};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -167,7 +170,7 @@ pub fn run_server(server: CliServer) -> Result<(), String> {
 mod tests {
     use crate::client::gen::Generator;
     use crate::common::data_parser::MSG_SIZE;
-    use crate::config::config_server::{CliServer, ConfigServer};
+    use crate::server::config::{CliServer, ConfigServer};
     use crate::server::Server;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;

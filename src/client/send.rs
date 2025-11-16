@@ -1,7 +1,7 @@
+use crate::client::config::SendCommand;
 use crate::common::data::ClientData;
 use crate::common::data_parser::DataParser;
 use crate::common::info;
-use crate::config::config_client::SendCommand;
 use openssl::version::version;
 use std::fmt::{Debug, Display};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
@@ -117,10 +117,10 @@ mod tests {
     use clap::Parser;
     use rand::distr::{Alphanumeric, SampleString};
 
+    use crate::client::config::{CliClient, SendCommand};
     use crate::client::gen::Generator;
     use crate::client::send::Sender;
     use crate::common::time;
-    use crate::config::config_client::{CliClient, SendCommand};
     use std::fs;
     use std::fs::File;
     use std::net::IpAddr;

@@ -114,7 +114,7 @@ pub enum CommandsClient {
 pub fn get_conf_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
-        let current_dir = PathBuf::from(".");
+        let current_dir = PathBuf::from("../..");
         match (env::var("HOME"), env::current_dir()) {
             (Ok(home_dir), _) => PathBuf::from(home_dir).join(".config").join("ruroco"),
             (_, Ok(current_dir)) => current_dir,
@@ -134,7 +134,7 @@ pub fn get_conf_dir() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::config_client::CliClient;
+    use crate::client::config::CliClient;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
 

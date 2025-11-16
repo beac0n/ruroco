@@ -21,8 +21,8 @@ mod tests {
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
 
+    use crate::client::config::CliClient;
     use crate::client::gen::Generator;
-    use crate::config::config_client::CliClient;
 
     #[test]
     fn test_send_print_help() {
