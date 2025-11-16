@@ -1,6 +1,5 @@
 #![cfg(target_os = "android")]
 
-use clap::builder::Str;
 use jni::objects::{GlobalRef, JObject, JString, JValue, JValueOwned};
 use jni::{AttachGuard, JavaVM};
 use std::ops::Deref;
