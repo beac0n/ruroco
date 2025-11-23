@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Ui: Make commands config box editable
 
+## [0.10.1] - 2025-05-19
+
+### Changed
+
+- Ui: make commands config box read-only and reduce font size
+
 ## [0.10.0] - 2025-05-18
 
 ### Added
@@ -70,6 +76,42 @@ Ui:
 
 Android: changed package name to `org.beac0n.ruroco`
 
+## [0.9.6] - 2025-05-18
+
+### Fixed
+
+- Android: package name
+
+## [0.9.5] - 2025-05-18
+
+### Fixed
+
+- CI: workflow stability
+
+## [0.9.4] - 2025-05-18
+
+### Changed
+
+- Build: run nix for builds except end-to-end tests and release; CI fixes
+
+## [0.9.3] - 2025-05-18
+
+### Changed
+
+- Build: target Ubuntu 22.04 for broader glibc compatibility
+
+## [0.9.2] - 2025-05-18
+
+### Changed
+
+- Build: restrict Android builds to nix to avoid glibc mismatches
+
+## [0.9.1] - 2025-05-18
+
+### Fixed
+
+- Lints
+
 ## [0.9.0] - 2025-05-18
 
 ### Updated
@@ -81,6 +123,26 @@ Ui: Add button to copy commands from text field
 ### Updated
 
 Misc: Diverse build setup and documentation changes
+
+## [0.8.3] - 2025-05-03
+
+### Changed
+
+- Build: add nix commands and use nix for Android packaging
+- Docs: update README; refactors
+
+## [0.8.2] - 2025-04-20
+
+### Fixed
+
+- Android: icon adjustments
+- Logging updates
+
+## [0.8.1] - 2025-04-20
+
+### Fixed
+
+- Lints
 
 ## [0.8.0] - 2025-04-20
 
@@ -94,6 +156,82 @@ Server: Wizard command to automatically install server setup
 
 - Client: Update logic
 - Android: Icon
+
+## [0.7.6] - 2025-04-14
+
+### Fixed
+
+- Android: icon tweaks; import cleanup
+
+## [0.7.5] - 2025-04-14
+
+### Changed
+
+- Networking: prefer IPv6 when both address families are available
+
+## [0.7.4] - 2025-04-14
+
+### Changed
+
+- Update flow: reduce sleep duration
+
+## [0.7.3] - 2025-04-13
+
+### Fixed
+
+- Update logic
+
+## [0.7.2] - 2025-04-13
+
+### Fixed
+
+- Icon sizing
+
+## [0.7.1] - 2025-04-13
+
+### Changed
+
+- Networking: send over IPv4 and IPv6 when flags are omitted; fix binary path
+
+## [0.7.0] - 2025-04-13
+
+### Updated
+
+- Android: icon refresh
+
+## [0.6.9] - 2025-04-13
+
+### Fixed
+
+- Release publishing workflow
+
+## [0.6.8] - 2025-04-13
+
+### Fixed
+
+- Release action reliability
+
+## [0.6.7] - 2025-04-13
+
+### Fixed
+
+- CI: disable update tests
+
+## [0.6.6] - 2025-04-13
+
+### Changed
+
+- Coverage: re-enable reporting; skip update tests in CI
+
+## [0.6.5] - 2025-04-13
+
+### Added
+
+- Tests: run nextest in CI
+
+### Updated
+
+- CI: rust workflow tweaks
 
 ## [0.6.4] - 2025-04-13
 
@@ -125,6 +263,85 @@ Server: Wizard command to automatically install server setup
 ## Changed
 
 Refactored User Interface
+
+## [0.5.13] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.12] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.11] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.10] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.9] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.8] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.7] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.6] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.5] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.4] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.3] - 2024-11-01
+
+### Fixed
+
+- Release: pipeline stability
+
+## [0.5.2] - 2024-11-01
+
+### Fixed
+
+- Android: release packaging
+
+## [0.5.1] - 2024-11-01
+
+### Changed
+
+- Build: Makefile and release flow fixes
+- Docs: README updates
 
 ## [0.5.0] - 2024-11-01
 
@@ -257,17 +474,61 @@ Refactored User Interface
 
 [0.10.3]: https://github.com/beac0n/ruroco/compare/v0.10.2..v0.10.3
 
-[0.10.2]: https://github.com/beac0n/ruroco/compare/v0.10.0..v0.10.2
+[0.10.2]: https://github.com/beac0n/ruroco/compare/v0.10.1..v0.10.2
 
-[0.10.0]: https://github.com/beac0n/ruroco/compare/v0.9.0..v0.10.0
+[0.10.1]: https://github.com/beac0n/ruroco/compare/v0.10.0..v0.10.1
+
+[0.10.0]: https://github.com/beac0n/ruroco/compare/v0.9.6..v0.10.0
+
+[0.9.6]: https://github.com/beac0n/ruroco/compare/v0.9.5..v0.9.6
+
+[0.9.5]: https://github.com/beac0n/ruroco/compare/v0.9.4..v0.9.5
+
+[0.9.4]: https://github.com/beac0n/ruroco/compare/v0.9.3..v0.9.4
+
+[0.9.3]: https://github.com/beac0n/ruroco/compare/v0.9.2..v0.9.3
+
+[0.9.2]: https://github.com/beac0n/ruroco/compare/v0.9.1..v0.9.2
+
+[0.9.1]: https://github.com/beac0n/ruroco/compare/v0.9.0..v0.9.1
 
 [0.9.0]: https://github.com/beac0n/ruroco/compare/v0.8.4..v0.9.0
 
-[0.8.4]: https://github.com/beac0n/ruroco/compare/v0.8.0..v0.8.4
+[0.8.4]: https://github.com/beac0n/ruroco/compare/v0.8.3..v0.8.4
+
+[0.8.3]: https://github.com/beac0n/ruroco/compare/v0.8.2..v0.8.3
+
+[0.8.2]: https://github.com/beac0n/ruroco/compare/v0.8.1..v0.8.2
+
+[0.8.1]: https://github.com/beac0n/ruroco/compare/v0.8.0..v0.8.1
 
 [0.8.0]: https://github.com/beac0n/ruroco/compare/v0.7.7..v0.8.0
 
-[0.7.7]: https://github.com/beac0n/ruroco/compare/v0.6.4..v0.7.7
+[0.7.7]: https://github.com/beac0n/ruroco/compare/v0.7.6..v0.7.7
+
+[0.7.6]: https://github.com/beac0n/ruroco/compare/v0.7.5..v0.7.6
+
+[0.7.5]: https://github.com/beac0n/ruroco/compare/v0.7.4..v0.7.5
+
+[0.7.4]: https://github.com/beac0n/ruroco/compare/v0.7.3..v0.7.4
+
+[0.7.3]: https://github.com/beac0n/ruroco/compare/v0.7.2..v0.7.3
+
+[0.7.2]: https://github.com/beac0n/ruroco/compare/v0.7.1..v0.7.2
+
+[0.7.1]: https://github.com/beac0n/ruroco/compare/v0.7.0..v0.7.1
+
+[0.7.0]: https://github.com/beac0n/ruroco/compare/v0.6.9..v0.7.0
+
+[0.6.9]: https://github.com/beac0n/ruroco/compare/v0.6.8..v0.6.9
+
+[0.6.8]: https://github.com/beac0n/ruroco/compare/v0.6.7..v0.6.8
+
+[0.6.7]: https://github.com/beac0n/ruroco/compare/v0.6.6..v0.6.7
+
+[0.6.6]: https://github.com/beac0n/ruroco/compare/v0.6.5..v0.6.6
+
+[0.6.5]: https://github.com/beac0n/ruroco/compare/v0.6.4..v0.6.5
 
 [0.6.4]: https://github.com/beac0n/ruroco/compare/v0.6.3..v0.6.4
 
@@ -277,7 +538,33 @@ Refactored User Interface
 
 [0.6.1]: https://github.com/beac0n/ruroco/compare/v0.6.0..v0.6.1
 
-[0.6.0]: https://github.com/beac0n/ruroco/compare/v0.5.0..v0.6.0
+[0.6.0]: https://github.com/beac0n/ruroco/compare/v0.5.13..v0.6.0
+
+[0.5.13]: https://github.com/beac0n/ruroco/compare/v0.5.12..v0.5.13
+
+[0.5.12]: https://github.com/beac0n/ruroco/compare/v0.5.11..v0.5.12
+
+[0.5.11]: https://github.com/beac0n/ruroco/compare/v0.5.10..v0.5.11
+
+[0.5.10]: https://github.com/beac0n/ruroco/compare/v0.5.9..v0.5.10
+
+[0.5.9]: https://github.com/beac0n/ruroco/compare/v0.5.8..v0.5.9
+
+[0.5.8]: https://github.com/beac0n/ruroco/compare/v0.5.7..v0.5.8
+
+[0.5.7]: https://github.com/beac0n/ruroco/compare/v0.5.6..v0.5.7
+
+[0.5.6]: https://github.com/beac0n/ruroco/compare/v0.5.5..v0.5.6
+
+[0.5.5]: https://github.com/beac0n/ruroco/compare/v0.5.4..v0.5.5
+
+[0.5.4]: https://github.com/beac0n/ruroco/compare/v0.5.3..v0.5.4
+
+[0.5.3]: https://github.com/beac0n/ruroco/compare/v0.5.2..v0.5.3
+
+[0.5.2]: https://github.com/beac0n/ruroco/compare/v0.5.1..v0.5.2
+
+[0.5.1]: https://github.com/beac0n/ruroco/compare/v0.5.0..v0.5.1
 
 [0.5.0]: https://github.com/beac0n/ruroco/compare/v0.4.0..v0.5.0
 
