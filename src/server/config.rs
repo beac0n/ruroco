@@ -28,7 +28,8 @@ pub struct CliServer {
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ConfigServer {
     pub commands: HashMap<String, String>,
-    pub ips: Vec<String>,
+    #[serde(deserialize_with = "deserialize_ips")]
+    pub ips: Vec<IpAddr>,
     #[serde(default = "default_ntp")]
     pub ntp: String,
     #[serde(default = "default_config_path")]
@@ -39,19 +40,18 @@ pub struct ConfigServer {
     pub socket_group: String,
 }
 
+fn deserialize_ips<'de, D>(d: D) -> Result<Vec<IpAddr>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v: Vec<String> = Vec::<String>::deserialize(d)?;
+    v.into_iter().map(|s| s.parse().map_err(serde::de::Error::custom)).collect()
+}
+
 impl ConfigServer {
     pub fn deserialize(data: &str) -> Result<ConfigServer, String> {
         toml::from_str::<ConfigServer>(data)
             .map_err(|e| format!("Could not create ConfigServer from {data}: {e}"))
-    }
-
-    pub fn validate_ips(&self) -> Result<(), String> {
-        for ip in self.ips.iter() {
-            ip.parse::<IpAddr>()
-                .map_err(|e| format!("Could not parse configured host IP address {ip}: {e}"))?;
-        }
-
-        Ok(())
     }
 
     pub fn create_server_udp_socket(&self, address: Option<String>) -> Result<UdpSocket, String> {
@@ -155,7 +155,7 @@ impl Default for ConfigServer {
     fn default() -> ConfigServer {
         ConfigServer {
             commands: HashMap::new(),
-            ips: vec!["127.0.0.1".to_string()],
+            ips: vec!["127.0.0.1".parse().unwrap()],
             ntp: default_ntp(),
             socket_user: "".to_string(),
             socket_group: "".to_string(),
@@ -207,7 +207,7 @@ mod tests {
             ConfigServer::deserialize("ips = [\"127.0.0.1\"]\n[commands]").unwrap(),
             ConfigServer {
                 commands: HashMap::new(),
-                ips: vec!["127.0.0.1".to_string()],
+                ips: vec!["127.0.0.1".parse().unwrap()],
                 ntp: default_ntp(),
                 config_dir: default_config_path(),
                 socket_user: default_socket_user(),

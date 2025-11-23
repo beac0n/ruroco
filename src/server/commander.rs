@@ -4,6 +4,7 @@ use crate::server::config::{CliServer, ConfigServer};
 use crate::server::util::get_commander_unix_socket_path;
 use std::fs::Permissions;
 use std::io::Read;
+use std::net::IpAddr;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
@@ -97,12 +98,12 @@ impl Commander {
         Ok(())
     }
 
-    fn run_command(&self, command: &str, ip_str: String) {
+    fn run_command(&self, command: &str, ip: IpAddr) {
         info(&format!("Running command {command}"));
         match Command::new("sh")
             .arg("-c")
             .arg(command)
-            .env(format!("{ENV_PREFIX}IP"), ip_str)
+            .env(format!("{ENV_PREFIX}IP"), ip.to_string())
             .output()
         {
             Ok(result) => {
@@ -192,7 +193,7 @@ mod tests {
         assert_eq!(
             Commander::create_from_path(&path),
             Ok(Commander::create(ConfigServer {
-                ips: vec!["127.0.0.1".to_string()],
+                ips: vec!["127.0.0.1".parse().unwrap()],
                 ntp: "system".to_string(),
                 config_dir: PathBuf::from("tests/conf_dir"),
                 socket_user: "ruroco".to_string(),

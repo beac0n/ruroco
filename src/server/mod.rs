@@ -41,8 +41,6 @@ impl Server {
     }
 
     pub fn create(config: ConfigServer, address: Option<String>) -> Result<Server, String> {
-        config.validate_ips()?;
-
         Ok(Server {
             crypto_handlers: config.create_crypto_handlers()?,
             socket: config.create_server_udp_socket(address)?,
@@ -88,12 +86,11 @@ impl Server {
     fn validate_and_send_command(
         &mut self,
         decrypted_data: &[u8],
-        src_ip_addr: IpAddr,
+        src_ip: IpAddr,
     ) -> Option<String> {
-        let src_ip = match src_ip_addr.to_string() {
-            // see https://datatracker.ietf.org/doc/html/rfc5156#section-2.2
-            ip if ip.starts_with("::ffff:") => ip.replacen("::ffff:", "", 1),
-            ip => ip,
+        let src_ip = match src_ip {
+            IpAddr::V6(v6) => v6.to_ipv4_mapped().map(IpAddr::V4).unwrap_or(IpAddr::V6(v6)),
+            _ => src_ip,
         };
 
         match self.decode(decrypted_data) {
@@ -109,8 +106,11 @@ impl Server {
             Ok((_, client_data)) if self.blocklist.is_blocked(client_data.deadline()) => {
                 Some(format!("Invalid deadline - {} is on blocklist", client_data.deadline()))
             }
-            Ok((_, client_data)) if client_data.validate_source_ip(&src_ip) => {
-                let client_src_ip_str = client_data.source_ip().unwrap_or("none".to_string());
+            Ok((_, client_data)) if client_data.validate_source_ip(src_ip) => {
+                let client_src_ip_str = client_data
+                    .source_ip()
+                    .and_then(|i| Some(i.to_string()))
+                    .unwrap_or("none".to_string());
                 Some(format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
             }
             Ok((now_ns, client_data)) => {

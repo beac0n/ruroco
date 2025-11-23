@@ -230,7 +230,7 @@ mod tests {
         let result = sender.send();
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Too much data, must be at most 491 bytes, but was 694 bytes. Reduce command name length.".to_string()
+            "Too much data, must be at most 491 bytes, but was 672 bytes. Reduce command name length.".to_string()
         );
     }
 

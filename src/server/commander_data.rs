@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CommanderData {
     pub command_name: String,
-    pub ip: String,
+    pub ip: IpAddr,
 }
 
 impl CommanderData {

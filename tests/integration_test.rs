@@ -125,7 +125,11 @@ mod tests {
                 Server::create(
                     ConfigServer {
                         config_dir,
-                        ips: vec!["127.0.0.1".to_string(), "::1".to_string(), "::".to_string()],
+                        ips: vec![
+                            "127.0.0.1".parse().unwrap(),
+                            "::1".parse().unwrap(),
+                            "::".parse().unwrap(),
+                        ],
                         ..Default::default()
                     },
                     Some(server_address),
