@@ -4775,9 +4775,9 @@ dependencies = [
 
 [[package]]
 name = "sntpc"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13d84c42dedf8b01d52b62272684741866938260e74b9e58851f680b2a92854b"
+checksum = "1b4225ed8af9afa45007222d268dac20437c9783be704fcbdc3399bffe7e81dc"
 dependencies = [
  "cfg-if",
  "miniloop",
