@@ -8,7 +8,7 @@ pub mod config;
 pub mod util;
 
 use crate::common::client_data::ClientData;
-use crate::common::crypto_handler::CryptoHandler;
+use crate::common::crypto_handler::{CryptoHandler, KEY_ID_SIZE, PLAINTEXT_SIZE};
 use crate::common::data_parser::{DataParser, MSG_SIZE};
 use crate::common::time_util::TimeUtil;
 use crate::common::{error, info};
@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub struct Server {
     config: ConfigServer,
-    crypto_handlers: HashMap<Vec<u8>, CryptoHandler>,
+    crypto_handlers: HashMap<[u8; KEY_ID_SIZE], CryptoHandler>,
     socket: UdpSocket,
     client_recv_data: [u8; MSG_SIZE],
     socket_path: PathBuf,
@@ -74,9 +74,8 @@ impl Server {
         error_msg.inspect(|s| error(s))
     }
 
-    fn decrypt(&mut self) -> Result<Vec<u8>, String> {
+    fn decrypt(&mut self) -> Result<[u8; PLAINTEXT_SIZE], String> {
         let (key_id, encrypted_data) = DataParser::decode(&self.client_recv_data)?;
-
         self.crypto_handlers
             .get(key_id)
             .map(|crypto_handler| crypto_handler.decrypt(encrypted_data))
@@ -94,32 +93,32 @@ impl Server {
         };
 
         match self.decode(decrypted_data) {
-            Ok((now_ns, client_data)) if now_ns > client_data.deadline() => {
-                let deadline = client_data.deadline();
+            Ok((now_ns, client_data)) if now_ns > client_data.deadline => {
+                let deadline = client_data.deadline;
                 Some(format!("Invalid deadline - now {now_ns} is after {deadline}"))
             }
-            Ok((_, client_data)) if !self.config.ips.contains(&client_data.destination_ip()) => {
-                let destination_ip = client_data.destination_ip();
+            Ok((_, client_data)) if !self.config.ips.contains(&client_data.destination_ip) => {
+                let destination_ip = client_data.destination_ip;
                 let ips = &self.config.ips;
                 Some(format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
             }
-            Ok((_, client_data)) if self.blocklist.is_blocked(client_data.deadline()) => {
-                Some(format!("Invalid deadline - {} is on blocklist", client_data.deadline()))
+            Ok((_, client_data)) if self.blocklist.is_blocked(client_data.deadline) => {
+                Some(format!("Invalid deadline - {} is on blocklist", client_data.deadline))
             }
             Ok((_, client_data)) if client_data.validate_source_ip(src_ip) => {
                 let client_src_ip_str = client_data
-                    .source_ip()
+                    .source_ip
                     .and_then(|i| Some(i.to_string()))
                     .unwrap_or("none".to_string());
                 Some(format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
             }
             Ok((now_ns, client_data)) => {
-                let command_name = client_data.c.to_string();
-                let ip = client_data.source_ip().unwrap_or(src_ip);
+                let command_name = client_data.command_hash.to_string();
+                let ip = client_data.source_ip.unwrap_or(src_ip);
                 info(&format!("Valid data - trying {command_name} with {ip}"));
 
                 self.send_command(CommanderData { command_name, ip });
-                self.update_block_list(now_ns, client_data.deadline());
+                self.update_block_list(now_ns, client_data.deadline);
                 None
             }
             Err(e) => Some(format!("Could not decode data: {e}")),

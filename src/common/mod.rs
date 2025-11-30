@@ -4,11 +4,24 @@ pub mod data_parser;
 pub mod time_util;
 
 use crate::common::time_util::TimeUtil;
+use blake2::digest::{Update, VariableOutput};
+use blake2::Blake2bVar;
 use openssl::rand::rand_bytes;
 use std::os::unix::fs::chown;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
+
+pub fn blake2b_u64(s: &str) -> Result<u64, String> {
+    let mut hasher = Blake2bVar::new(8)
+        .map_err(|e| format!("Could not create Blake2b hasher for string {s}: {e}"))?;
+    hasher.update(s.as_bytes());
+    let mut out = [0u8; 8];
+    hasher
+        .finalize_variable(&mut out)
+        .map_err(|e| format!("Could not finalize Blake2b hash for string {s}: {e}"))?;
+    Ok(u64::from_be_bytes(out))
+}
 
 pub fn get_random_string(len: usize) -> Result<String, String> {
     let mut buf = vec![0u8; len];

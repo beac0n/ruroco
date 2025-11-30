@@ -77,11 +77,10 @@ impl Sender {
     }
 
     fn send_data(&self, ip: IpAddr) -> Result<(), String> {
-        let ip_str = ip.to_string();
         let bind_address = if ip.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" };
 
-        info(&format!("Connecting to {ip_str}..."));
-        let data_to_encrypt = self.get_data_to_encrypt(ip_str)?;
+        info(&format!("Connecting to {ip}..."));
+        let data_to_encrypt = self.get_data_to_encrypt(ip)?;
         let data_to_send = self.data_parser.encode(&data_to_encrypt)?;
 
         // create UDP socket and send the encrypted data to the specified address
@@ -98,15 +97,15 @@ impl Sender {
         format!("Could not connect/send data to {val:?}: {err}")
     }
 
-    fn get_data_to_encrypt(&self, destination_ip: String) -> Result<Vec<u8>, String> {
+    fn get_data_to_encrypt(&self, destination_ip: IpAddr) -> Result<[u8; 57], String> {
         ClientData::create(
             &self.cmd.command,
             self.cmd.deadline,
             !self.cmd.permissive,
-            self.cmd.ip.clone(),
+            self.cmd.ip.clone().and_then(|d| d.parse().ok()),
             destination_ip,
             self.now,
-        )
+        )?
         .serialize()
     }
 }
@@ -215,12 +214,13 @@ mod tests {
     }
 
     #[test]
-    fn test_send_command_too_long() {
+    fn test_send_huge_command() {
         let sender = Sender::create(
             SendCommand {
+                address: "[::ffff:127.0.0.1]:1234".to_string(),
                 key: Generator::create().unwrap().gen().unwrap(),
-                command: "#".repeat(600),
-                ip: Some(IP.to_string()),
+                command: "#".repeat(6000),
+                ip: Some("::ffff:192.168.178.123".to_string()),
                 ..Default::default()
             },
             TimeUtil::time().unwrap(),
@@ -228,10 +228,7 @@ mod tests {
         .unwrap();
 
         let result = sender.send();
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "Too much data, must be at most 491 bytes, but was 672 bytes. Reduce command name length.".to_string()
-        );
+        assert!(result.is_ok(),);
     }
 
     #[test]

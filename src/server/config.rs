@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::fs::ReadDir;
 use std::net::{IpAddr, UdpSocket};
 
-use crate::common::crypto_handler::CryptoHandler;
+use crate::common::crypto_handler::{CryptoHandler, KEY_ID_SIZE};
 use crate::common::time_util::NTP_SYSTEM;
 use crate::server::util::get_commander_unix_socket_path;
 use openssl::version::version;
@@ -102,7 +102,9 @@ impl ConfigServer {
         Blocklist::create(&self.resolve_config_dir())
     }
 
-    pub fn create_crypto_handlers(&self) -> Result<HashMap<Vec<u8>, CryptoHandler>, String> {
+    pub fn create_crypto_handlers(
+        &self,
+    ) -> Result<HashMap<[u8; KEY_ID_SIZE], CryptoHandler>, String> {
         let key_paths = self.get_key_paths()?;
         info(&format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
 
@@ -115,9 +117,9 @@ impl ConfigServer {
             .into_iter()
             .map(|h| {
                 info(&format!("loading key with id {:X?}", &h.id));
-                Ok((h.id.to_vec(), h))
+                Ok((h.id, h))
             })
-            .collect::<Result<Vec<(Vec<u8>, CryptoHandler)>, String>>()?;
+            .collect::<Result<Vec<([u8; KEY_ID_SIZE], CryptoHandler)>, String>>()?;
 
         Ok(hashmap_data.into_iter().collect())
     }

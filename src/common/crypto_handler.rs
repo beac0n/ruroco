@@ -6,6 +6,8 @@ use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs;
 use std::path::Path;
 
+pub const PLAINTEXT_SIZE: usize = 57;
+pub const CIPHERTEXT_SIZE: usize = 85;
 pub const KEY_ID_SIZE: usize = 8;
 pub const IV_SIZE: usize = 12;
 pub const TAG_SIZE: usize = 16;
@@ -61,56 +63,69 @@ impl CryptoHandler {
         Ok(general_purpose::STANDARD.encode([id.as_slice(), key.as_slice()].concat()))
     }
 
-    pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, String> {
+    pub fn encrypt(
+        &self,
+        plaintext: &[u8; PLAINTEXT_SIZE],
+    ) -> Result<[u8; CIPHERTEXT_SIZE], String> {
         let cipher = Cipher::aes_256_gcm();
-        let mut iv = vec![0u8; IV_SIZE];
+        let mut iv = [0u8; IV_SIZE];
         rand_bytes(&mut iv).map_err(|e| e.to_string())?;
 
         let mut crypter = Crypter::new(cipher, Mode::Encrypt, &self.key, Some(&iv))
-            .map_err(|e| format!("Could not create crypter: {}", e))?;
+            .map_err(|e| format!("Could not create crypter: {e}"))?;
 
-        let mut ciphertext = vec![0; plaintext.len() + BLOCK_SIZE];
-        let mut count = crypter
+        let mut ciphertext = [0u8; PLAINTEXT_SIZE];
+        let count = crypter
             .update(plaintext, &mut ciphertext)
-            .map_err(|e| format!("Could not update crypter: {}", e))?;
+            .map_err(|e| format!("Could not update crypter: {e}"))?;
 
-        count += crypter
-            .finalize(&mut ciphertext[count..])
-            .map_err(|e| format!("Could not finalize crypter: {}", e))?;
-
-        ciphertext.truncate(count);
-
-        let mut tag = vec![0u8; TAG_SIZE];
-        crypter.get_tag(&mut tag).map_err(|e| format!("Could not get tag from crypter: {}", e))?;
-
-        Ok([iv, tag, ciphertext].concat())
-    }
-
-    pub fn decrypt(&self, iv_tag_ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-        if iv_tag_ciphertext.len() <= IV_SIZE + TAG_SIZE {
-            return Err("Ciphertext shorter than IV + tag".to_string());
+        if count != PLAINTEXT_SIZE {
+            return Err("ciphertext length mismatch".into());
         }
 
+        if crypter.finalize(&mut []).map_err(|e| format!("Could not finalize crypter: {e}"))? != 0 {
+            return Err("GCM finalize returned unexpected bytes".into());
+        }
+
+        let mut tag = [0u8; TAG_SIZE];
+        crypter.get_tag(&mut tag).map_err(|e| format!("Could not get tag from crypter: {e}"))?;
+
+        let mut out = [0u8; CIPHERTEXT_SIZE];
+        out[0..IV_SIZE].copy_from_slice(&iv);
+        out[IV_SIZE..IV_SIZE + TAG_SIZE].copy_from_slice(&tag);
+        out[IV_SIZE + TAG_SIZE..].copy_from_slice(&ciphertext);
+
+        Ok(out)
+    }
+
+    pub fn decrypt(
+        &self,
+        iv_tag_ciphertext: &[u8; CIPHERTEXT_SIZE],
+    ) -> Result<[u8; PLAINTEXT_SIZE], String> {
         let iv = &iv_tag_ciphertext[..IV_SIZE];
         let tag = &iv_tag_ciphertext[IV_SIZE..IV_SIZE + TAG_SIZE];
         let ciphertext = &iv_tag_ciphertext[IV_SIZE + TAG_SIZE..];
 
         let cipher = Cipher::aes_256_gcm();
         let mut decrypter = Crypter::new(cipher, Mode::Decrypt, &self.key, Some(iv))
-            .map_err(|e| format!("Could not create decrypter: {}", e))?;
+            .map_err(|e| format!("Could not create decrypter: {e}"))?;
 
-        let mut plaintext = vec![0; ciphertext.len() + BLOCK_SIZE];
-        let mut count = decrypter
+        let mut plaintext = [0u8; PLAINTEXT_SIZE];
+        let written = decrypter
             .update(ciphertext, &mut plaintext)
-            .map_err(|e| format!("Could not update decrypter: {}", e))?;
+            .map_err(|e| format!("Could not update decrypter: {e}"))?;
 
-        // supply the tag before finalize so verification can occur
-        decrypter.set_tag(tag).map_err(|e| format!("Could not set tag: {}", e))?;
+        if written != PLAINTEXT_SIZE {
+            return Err("Plaintext length mismatch".into());
+        }
 
-        count += decrypter
-            .finalize(&mut plaintext[count..])
-            .map_err(|e| format!("Could not finalize decrypter (auth failed?): {}", e))?;
-        plaintext.truncate(count);
+        decrypter.set_tag(tag).map_err(|e| format!("Could not set tag: {e}"))?;
+
+        if decrypter.finalize(&mut []).map_err(|e| format!("Could not finalize decrypter: {e}"))?
+            != 0
+        {
+            return Err("GCM finalize returned unexpected bytes".into());
+        }
 
         Ok(plaintext)
     }
@@ -118,47 +133,20 @@ impl CryptoHandler {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::crypto_handler::{CryptoHandler, IV_SIZE, TAG_SIZE};
+    use crate::common::crypto_handler::{CryptoHandler, PLAINTEXT_SIZE};
+    use openssl::rand::rand_bytes;
 
     #[test]
     fn test_encrypt() {
-        let plaintext = b"Hello world!";
+        let mut plaintext = [0u8; PLAINTEXT_SIZE];
+        rand_bytes(&mut plaintext).unwrap();
 
         let key = CryptoHandler::gen_key().unwrap();
         let handler = CryptoHandler::create(&key).unwrap();
 
-        let ciphertext = handler.encrypt(plaintext).unwrap();
+        let ciphertext = handler.encrypt(&plaintext).unwrap();
         let decrypted = handler.decrypt(&ciphertext).unwrap();
 
         assert_eq!(decrypted, plaintext);
-    }
-
-    #[test]
-    fn ciphertext_length_matches_plaintext_length() {
-        let key = CryptoHandler::gen_key().unwrap();
-        let handler = CryptoHandler::create(&key).unwrap();
-
-        for size in [0usize, 1, 5, 16, 31, 64, 255] {
-            let plaintext = vec![b'a'; size];
-            let ciphertext = handler.encrypt(&plaintext).unwrap();
-
-            let encrypted_section = &ciphertext[IV_SIZE + TAG_SIZE..];
-            assert_eq!(
-                encrypted_section.len(),
-                plaintext.len(),
-                "mismatched length for size {size}"
-            );
-        }
-    }
-
-    #[test]
-    fn decrypt_rejects_truncated_ciphertext() {
-        let key = CryptoHandler::gen_key().unwrap();
-        let handler = CryptoHandler::create(&key).unwrap();
-
-        let ciphertext = handler.encrypt(b"valid").unwrap();
-        let truncated = &ciphertext[..IV_SIZE + TAG_SIZE - 1];
-        let err = handler.decrypt(truncated).unwrap_err();
-        assert_eq!(err, "Ciphertext shorter than IV + tag");
     }
 }
