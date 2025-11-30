@@ -26,7 +26,7 @@ pub struct SendCommand {
     /// Address to send the command to.
     #[arg(short, long)]
     pub address: String,
-    /// Aes key file in hex format
+    /// Base64 key with id (output of `ruroco-client gen` or the UI)
     #[arg(short, long)]
     pub key: String,
     /// Command to send
@@ -102,7 +102,7 @@ pub struct CliClient {
 
 #[derive(Debug, Subcommand)]
 pub enum CommandsClient {
-    /// Generate a pair of key file.
+    /// Generate a shared AES key (base64 with embedded key id).
     Gen(GenCommand),
     /// Send a command to a specific address.
     Send(SendCommand),
