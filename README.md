@@ -16,6 +16,11 @@ the tool consist of 4 binaries:
 The commands are configured on the server side, so the client does not define what is going to be executed, it only
 picks from existing commands.
 
+## diagrams
+
+- `docs/diagrams/flow_diagram.dot` visualizes the end-to-end send flow from UI/CLI trigger through server validation to command execution.
+- `docs/diagrams/dependency_graph.dot` maps internal module dependencies across client, server, common, and UI crates.
+
 ## security
 
 - client sends UDP packet to server, server never responds to it -> **port-scanning** does not help an adversary
