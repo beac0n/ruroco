@@ -1,0 +1,114 @@
+digraph internal_deps {
+ splines=ortho;
+ graph [rankdir=TB];
+ edge [arrowsize=0.4; fontname="Courier New", fontsize=8, color="#555"];
+ graph  [fontname="Helvetica", fontsize=12];
+ node [
+    shape=box
+    style=filled
+    fontname="Helvetica"
+    fontsize=12
+    fillcolor="white"
+    color="#555"
+ ];
+
+  compound=true;
+  node [shape=box];
+  subgraph "cluster_client" {
+    label="client";
+    style="rounded,filled";
+    color="#1f77b4";
+    fillcolor="#c6dbef";
+    "client::config";
+    "client::wizard";
+    "client::update";
+    "client::send";
+    "client";
+    "client::gen";
+    "client::util";
+  }
+  subgraph "cluster_common" {
+    label="common";
+    style="rounded,filled";
+    color="#ff7f0e";
+    fillcolor="#ffe7c6";
+    "common::crypto_handler";
+    "common::data_parser";
+    "common::time_util";
+    "common";
+    "common::serialization_util";
+    "common::client_data";
+  }
+  subgraph "cluster_server" {
+    label="server";
+    style="rounded,filled";
+    color="#d62728";
+    fillcolor="#f4c6c6";
+    "server::blocklist";
+    "server";
+    "server::util";
+    "server::commander_data";
+    "server::commander";
+    "server::config";
+  }
+  subgraph "cluster_ui" {
+    label="ui";
+    style="rounded,filled";
+    color="#9467bd";
+    fillcolor="#e8d6ef";
+    "ui::android_util";
+    "ui::saved_command_list";
+    "ui";
+    "ui::android";
+    "ui::rust_slint_bridge";
+  }
+  "client::config" -> "common::time_util";
+  "client::config" -> "ui::android_util";
+  "client::gen" -> "common::crypto_handler";
+  "client::send" -> "client::config";
+  "client::send" -> "common";
+  "client::send" -> "common::client_data";
+  "client::send" -> "common::crypto_handler";
+  "client::send" -> "common::data_parser";
+  "client::update" -> "client::util";
+  "client::update" -> "common";
+  "client::wizard" -> "client::config";
+  "client::wizard" -> "client::update";
+  "client::wizard" -> "client::util";
+  "client::wizard" -> "common";
+  "common" -> "common::time_util";
+  "common::client_data" -> "common";
+  "common::client_data" -> "common::crypto_handler";
+  "common::client_data" -> "common::serialization_util";
+  "common::data_parser" -> "common::crypto_handler";
+  "server" -> "common";
+  "server" -> "common::client_data";
+  "server" -> "common::crypto_handler";
+  "server" -> "common::data_parser";
+  "server" -> "common::time_util";
+  "server" -> "server::blocklist";
+  "server" -> "server::config";
+  "server::blocklist" -> "common";
+  "server::commander" -> "common";
+  "server::commander" -> "server::commander_data";
+  "server::commander" -> "server::config";
+  "server::commander" -> "server::util";
+  "server::commander_data" -> "common::serialization_util";
+  "server::config" -> "common";
+  "server::config" -> "common::crypto_handler";
+  "server::config" -> "common::time_util";
+  "server::config" -> "server::blocklist";
+  "server::config" -> "server::util";
+  "server::util" -> "common";
+  "ui" -> "ui::rust_slint_bridge";
+  "ui::android" -> "ui";
+  "ui::rust_slint_bridge" -> "client";
+  "ui::rust_slint_bridge" -> "client::config";
+  "ui::rust_slint_bridge" -> "client::update";
+  "ui::rust_slint_bridge" -> "common";
+  "ui::rust_slint_bridge" -> "common::crypto_handler";
+  "ui::rust_slint_bridge" -> "common::time_util";
+  "ui::rust_slint_bridge" -> "ui::android_util";
+  "ui::rust_slint_bridge" -> "ui::saved_command_list";
+  "ui::saved_command_list" -> "common";
+}
