@@ -1,0 +1,60 @@
+digraph send_flow {
+ splines=ortho;
+ graph [rankdir=TB];
+ edge [arrowsize=0.4; fontname="Courier New", fontsize=8, color="#555"];
+ graph  [fontname="Helvetica", fontsize=12];
+ node [
+    shape=box
+    style=filled
+    fontname="Helvetica"
+    fontsize=12
+    fillcolor="white"
+    color="#555"
+ ];
+
+  compound=true;
+  node [shape=box];
+
+  subgraph "cluster_client" {
+    label="Client (UI/CLI)";
+    style="rounded,filled";
+    color="#1f77b4";
+    fillcolor="#c6dbef";
+    "user_action" [label="User triggers send\n(button or `ruroco send`)"];
+    "slint_handler" [label="rust_slint_bridge.on_exec_command\ninjects --key then builds argv"];
+    "cli_parse" [label="CliClient::try_parse_from\nCommandsClient::Send parsed"];
+    "run_client" [label="run_client -> Sender::create\nTimeUtil::time_from_ntp(now)"];
+    "build_payload" [label="ClientData::create+serialize\n(deadline, strict flag, src/dst IP)"];
+    "encrypt_packet" [label="DataParser::encode\nCryptoHandler::encrypt AES-GCM\nprepend key id"];
+    "udp_send" [label="UdpSocket bind ephemeral\nconnect & send to cmd.address"];
+    "user_action" -> "slint_handler" -> "cli_parse" -> "run_client" -> "build_payload" -> "encrypt_packet" -> "udp_send";
+  }
+
+  subgraph "cluster_server" {
+    label="Server";
+    style="rounded,filled";
+    color="#d62728";
+    fillcolor="#f4c6c6";
+    "udp_listen" [label="Server::run recv_from\nexpect MSG_SIZE bytes"];
+    "decrypt" [label="DataParser::decode\nCryptoHandler::decrypt via key id"];
+    "decode" [label="ClientData::deserialize"];
+    "validate" [label="validate_and_send_command\n- deadline vs now (TimeUtil)\n- dst_ip allowed\n- blocklist replay guard\n- strict src_ip check"];
+    "send_commander" [label="send_command -> write_to_socket\nCommanderData(cmd_hash, ip)"];
+    "update_blocklist" [label="blocklist.clean + add + save\nwith client deadline"];
+    "udp_listen" -> "decrypt" -> "decode" -> "validate" -> "send_commander" -> "update_blocklist";
+  }
+
+  subgraph "cluster_commander" {
+    label="Commander";
+    style="rounded,filled";
+    color="#9467bd";
+    fillcolor="#e8d6ef";
+    "unix_listener" [label="UnixListener accepts\nfrom server socket"];
+    "resolve_cmd" [label="CommanderData::deserialize\nhash lookup -> configured command"];
+    "exec_command" [label="Command::new(\"sh\" \"-c\" cmd)\nRUROCO_IP env\nlog stdout/stderr"];
+    "unix_listener" -> "resolve_cmd" -> "exec_command";
+  }
+
+  "udp_send" -> "udp_listen" [label="UDP packet\n(key id + ciphertext)"];
+  "send_commander" -> "unix_listener" [label="Unix socket payload\n(cmd hash + ip)"];
+}
