@@ -2,7 +2,7 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
-use crate::common::{info, resolve_path};
+use crate::common::{blake2b_u64, info, resolve_path};
 use crate::server::blocklist::Blocklist;
 use clap::Parser;
 use serde::Deserialize;
@@ -49,6 +49,15 @@ where
 }
 
 impl ConfigServer {
+    pub fn get_hash_to_cmd(&self) -> Result<HashMap<u64, String>, String> {
+        self.commands
+            .iter()
+            .map(|(k, v)| {
+                let hash = blake2b_u64(k).map_err(|e| format!("Could not hash {k}: {e}"))?;
+                Ok((hash, v.clone()))
+            })
+            .collect()
+    }
     pub fn deserialize(data: &str) -> Result<ConfigServer, String> {
         toml::from_str::<ConfigServer>(data)
             .map_err(|e| format!("Could not create ConfigServer from {data}: {e}"))

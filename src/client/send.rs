@@ -1,5 +1,6 @@
 use crate::client::config::SendCommand;
 use crate::common::client_data::ClientData;
+use crate::common::crypto_handler::PLAINTEXT_SIZE;
 use crate::common::data_parser::DataParser;
 use crate::common::info;
 use openssl::version::version;
@@ -97,7 +98,7 @@ impl Sender {
         format!("Could not connect/send data to {val:?}: {err}")
     }
 
-    fn get_data_to_encrypt(&self, destination_ip: IpAddr) -> Result<[u8; 57], String> {
+    fn get_data_to_encrypt(&self, destination_ip: IpAddr) -> Result<[u8; PLAINTEXT_SIZE], String> {
         ClientData::create(
             &self.cmd.command,
             self.cmd.deadline,

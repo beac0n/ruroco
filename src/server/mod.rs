@@ -24,6 +24,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Server {
+    hash_to_cmd: HashMap<u64, String>,
     config: ConfigServer,
     crypto_handlers: HashMap<[u8; KEY_ID_SIZE], CryptoHandler>,
     socket: UdpSocket,
@@ -47,6 +48,7 @@ impl Server {
             client_recv_data: [0u8; MSG_SIZE],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist: config.create_blocklist(),
+            hash_to_cmd: config.get_hash_to_cmd()?,
             config,
         })
     }
@@ -66,7 +68,7 @@ impl Server {
             }
             Ok((count, src)) => {
                 info(&format!("Successfully received {count} bytes from {src}"));
-                self.decrypt().map_or_else(Some, |d| self.validate_and_send_command(&d, src.ip()))
+                self.decrypt().map_or_else(Some, |d| self.validate_and_send_command(d, src.ip()))
             }
             Err(e) => Some(format!("Could not receive bytes from socket: {e}")),
         };
@@ -84,7 +86,7 @@ impl Server {
 
     fn validate_and_send_command(
         &mut self,
-        decrypted_data: &[u8],
+        plaintext_data: [u8; PLAINTEXT_SIZE],
         src_ip: IpAddr,
     ) -> Option<String> {
         let src_ip = match src_ip {
@@ -92,13 +94,13 @@ impl Server {
             _ => src_ip,
         };
 
-        match self.decode(decrypted_data) {
+        match self.decode(plaintext_data) {
             Ok((now_ns, client_data)) if now_ns > client_data.deadline => {
                 let deadline = client_data.deadline;
                 Some(format!("Invalid deadline - now {now_ns} is after {deadline}"))
             }
-            Ok((_, client_data)) if !self.config.ips.contains(&client_data.destination_ip) => {
-                let destination_ip = client_data.destination_ip;
+            Ok((_, client_data)) if !self.config.ips.contains(&client_data.dst_ip) => {
+                let destination_ip = client_data.dst_ip;
                 let ips = &self.config.ips;
                 Some(format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
             }
@@ -106,18 +108,17 @@ impl Server {
                 Some(format!("Invalid deadline - {} is on blocklist", client_data.deadline))
             }
             Ok((_, client_data)) if client_data.validate_source_ip(src_ip) => {
-                let client_src_ip_str = client_data
-                    .source_ip
-                    .and_then(|i| Some(i.to_string()))
-                    .unwrap_or("none".to_string());
+                let client_src_ip_str =
+                    client_data.src_ip.map(|i| i.to_string()).unwrap_or("none".to_string());
                 Some(format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
             }
             Ok((now_ns, client_data)) => {
-                let command_name = client_data.command_hash.to_string();
-                let ip = client_data.source_ip.unwrap_or(src_ip);
-                info(&format!("Valid data - trying {command_name} with {ip}"));
+                let cmd_hash = client_data.cmd_hash;
+                let ip = client_data.src_ip.unwrap_or(src_ip);
+                let cmd = self.hash_to_cmd.get(&cmd_hash);
+                info(&format!("Valid data - trying {cmd:?} with {ip}"));
 
-                self.send_command(CommanderData { command_name, ip });
+                self.send_command(CommanderData { cmd_hash, ip });
                 self.update_block_list(now_ns, client_data.deadline);
                 None
             }
@@ -145,10 +146,9 @@ impl Server {
         let mut stream = UnixStream::connect(&self.socket_path)
             .map_err(|e| format!("Could not connect to socket {:?}: {e}", self.socket_path))?;
 
-        let data_to_send = data.serialize()?;
-
-        stream.write_all(data_to_send.as_bytes()).map_err(|e| {
-            format!("Could not write {data_to_send} to socket {:?}: {e}", self.socket_path)
+        let data_to_send = data.serialize();
+        stream.write_all(&data_to_send).map_err(|e| {
+            format!("Could not write {data_to_send:?} to socket {:?}: {e}", self.socket_path)
         })?;
 
         stream
@@ -157,7 +157,7 @@ impl Server {
         Ok(())
     }
 
-    fn decode(&self, data: &[u8]) -> Result<(u128, ClientData), String> {
+    fn decode(&self, data: [u8; PLAINTEXT_SIZE]) -> Result<(u128, ClientData), String> {
         match ClientData::deserialize(data) {
             Ok(data) => Ok((TimeUtil::time_from_ntp(&self.config.ntp)?, data)),
             Err(e) => Err(e),

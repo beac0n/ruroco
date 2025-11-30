@@ -112,6 +112,7 @@ mod tests {
                     config_dir,
                     ..Default::default()
                 })
+                .unwrap()
                 .run()
                 .expect("commander terminated")
             });

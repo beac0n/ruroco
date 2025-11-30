@@ -1,7 +1,8 @@
 use crate::common::{change_file_ownership, error, info};
-use crate::server::commander_data::CommanderData;
+use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::util::get_commander_unix_socket_path;
+use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
 use std::net::IpAddr;
@@ -15,23 +16,27 @@ const ENV_PREFIX: &str = "RUROCO_";
 
 #[derive(Debug, PartialEq)]
 pub struct Commander {
-    config: ConfigServer,
     socket_path: PathBuf,
+    commands: HashMap<u64, String>,
+    socket_user: String,
+    socket_group: String,
 }
 
 impl Commander {
     pub fn create_from_path(path: &Path) -> Result<Commander, String> {
         match fs::read_to_string(path) {
-            Ok(config) => Ok(Commander::create(ConfigServer::deserialize(&config)?)),
+            Ok(config) => Commander::create(ConfigServer::deserialize(&config)?),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),
         }
     }
 
-    pub fn create(config: ConfigServer) -> Commander {
-        Commander {
+    pub fn create(config: ConfigServer) -> Result<Commander, String> {
+        Ok(Commander {
+            commands: config.get_hash_to_cmd()?,
             socket_path: get_commander_unix_socket_path(&config.config_dir),
-            config,
-        }
+            socket_user: config.socket_user,
+            socket_group: config.socket_group,
+        })
     }
 
     pub fn run(&self) -> Result<(), String> {
@@ -77,24 +82,17 @@ impl Commander {
     }
 
     fn change_socket_ownership(&self) -> Result<(), String> {
-        change_file_ownership(
-            &self.socket_path,
-            self.config.socket_user.trim(),
-            self.config.socket_group.trim(),
-        )
+        change_file_ownership(&self.socket_path, self.socket_user.trim(), self.socket_group.trim())
     }
 
     fn run_cycle(&self, stream: &mut UnixStream) -> Result<(), String> {
-        let msg = Commander::read_string(stream)?;
-        let commander_data: CommanderData = CommanderData::deserialize(&msg)?;
-        let command_name = &commander_data.command_name;
-        let command = self
-            .config
-            .commands
-            .get(command_name)
-            .ok_or(format!("Unknown command name: {command_name}"))?;
+        let msg = Commander::read(stream)?;
+        let cmdr_data: CommanderData = CommanderData::deserialize(msg);
+        let cmd_hash = &cmdr_data.cmd_hash;
+        let command =
+            self.commands.get(cmd_hash).ok_or(format!("Unknown command name: {cmd_hash}"))?;
 
-        self.run_command(command, commander_data.ip);
+        self.run_command(command, cmdr_data.ip);
         Ok(())
     }
 
@@ -118,10 +116,10 @@ impl Commander {
         };
     }
 
-    fn read_string(stream: &mut UnixStream) -> Result<String, String> {
-        let mut buffer = String::new();
+    fn read(stream: &mut UnixStream) -> Result<[u8; CMDR_DATA_SIZE], String> {
+        let mut buffer = [0u8; CMDR_DATA_SIZE];
         stream
-            .read_to_string(&mut buffer)
+            .read(&mut buffer)
             .map_err(|e| format!("Could not read command from Unix Stream to string: {e}"))?;
         Ok(buffer)
     }
@@ -192,14 +190,14 @@ mod tests {
 
         assert_eq!(
             Commander::create_from_path(&path),
-            Ok(Commander::create(ConfigServer {
+            Commander::create(ConfigServer {
                 ips: vec!["127.0.0.1".parse().unwrap()],
                 ntp: "system".to_string(),
                 config_dir: PathBuf::from("tests/conf_dir"),
                 socket_user: "ruroco".to_string(),
                 socket_group: "ruroco".to_string(),
                 commands,
-            }))
+            })
         );
     }
 
@@ -217,6 +215,7 @@ mod tests {
                 config_dir: PathBuf::from("/tmp/ruroco"),
                 ..Default::default()
             })
+            .unwrap()
             .run()
             .expect("commander terminated")
         });

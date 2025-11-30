@@ -1,6 +1,7 @@
 pub mod client_data;
 pub mod crypto_handler;
 pub mod data_parser;
+pub mod serialization_util;
 pub mod time_util;
 
 use crate::common::time_util::TimeUtil;
