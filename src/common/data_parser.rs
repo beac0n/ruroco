@@ -24,7 +24,7 @@ impl DataParser {
     pub fn decode(
         data: &[u8; MSG_SIZE],
     ) -> Result<(&[u8; KEY_ID_SIZE], &[u8; CIPHERTEXT_SIZE]), String> {
-        let data_decoded = <&[u8; CIPHERTEXT_SIZE]>::try_from(&data[KEY_ID_SIZE..CIPHERTEXT_SIZE])
+        let data_decoded = <&[u8; CIPHERTEXT_SIZE]>::try_from(&data[KEY_ID_SIZE..])
             .map_err(|e| format!("Could not get decoded data for ciphertext: {e}"))?;
         let key_id = <&[u8; KEY_ID_SIZE]>::try_from(&data[0..KEY_ID_SIZE])
             .map_err(|e| format!("Could not get decoded data for key id: {e}"))?;
@@ -59,7 +59,7 @@ mod tests {
     fn decode_data_accepts_valid_ciphertext() {
         let parser = parser();
 
-        let mut payload = [0u8; 57];
+        let mut payload = [0u8; PLAINTEXT_SIZE];
         rand_bytes(&mut payload).unwrap();
 
         let encoded = parser.encode(&payload).expect("encode failed");
