@@ -25,9 +25,9 @@ impl DataParser {
         data: &[u8; MSG_SIZE],
     ) -> Result<(&[u8; KEY_ID_SIZE], &[u8; CIPHERTEXT_SIZE]), String> {
         let data_decoded = <&[u8; CIPHERTEXT_SIZE]>::try_from(&data[KEY_ID_SIZE..CIPHERTEXT_SIZE])
-            .map_err(|e| format!("Could not convert decoded data to fixed size array: {e}"))?;
+            .map_err(|e| format!("Could not get decoded data for ciphertext: {e}"))?;
         let key_id = <&[u8; KEY_ID_SIZE]>::try_from(&data[0..KEY_ID_SIZE])
-            .map_err(|e| format!("Could not convert decoded data to fixed size array: {e}"))?;
+            .map_err(|e| format!("Could not get decoded data for key id: {e}"))?;
         Ok((key_id, data_decoded))
     }
 }
