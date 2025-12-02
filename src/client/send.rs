@@ -58,10 +58,6 @@ impl Sender {
             destination_ips.iter().filter(|a| a.is_ipv6()).collect();
 
         let use_ip_undef = self.cmd.ipv4 == self.cmd.ipv6;
-
-        let cnfa = "Could not find any";
-        let afa = format!("address for {address}");
-
         Ok(match (destination_ipv4s.first(), destination_ipv6s.first()) {
             // ipv4 or ipv6 where not defined or where both defined
             (Some(ipv4), Some(ipv6)) if use_ip_undef => vec![ipv4.ip(), ipv6.ip()],
@@ -70,10 +66,14 @@ impl Sender {
             // ipv4 xor ipv6 where defined
             (_, Some(ipv6)) if self.cmd.ipv6 => vec![ipv6.ip()],
             (Some(ipv4), _) if self.cmd.ipv4 => vec![ipv4.ip()],
-            (_, None) if self.cmd.ipv6 => return Err(format!("{cnfa} IPv6 {afa}")),
-            (None, _) if self.cmd.ipv4 => return Err(format!("{cnfa} IPv4 {afa}")),
+            (_, None) if self.cmd.ipv6 => {
+                return Err(format!("Could not find any IPv6 address for {address}"))
+            }
+            (None, _) if self.cmd.ipv4 => {
+                return Err(format!("Could not find any IPv4 address for {address}"))
+            }
             // could not find any address
-            _ => return Err(format!("{cnfa} IPv4 or IPv6 {afa}")),
+            _ => return Err(format!("Could not find any IPv4 or IPv6 address for {address}")),
         })
     }
 
