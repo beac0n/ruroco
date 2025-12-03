@@ -7,22 +7,20 @@ use crate::client::update::Updater;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::time_util::NTP_SYSTEM;
 use crate::common::{error, info};
+use crate::ui::rust_slint_bridge_ctx::RustSlintBridgeCtx;
 use crate::ui::saved_command_list::CommandsList;
+use crate::ui::util::{create_command_tuple, GRAY, GREEN, RED};
 use clap::Parser;
-use slint::{Color, Model, ModelRc, SharedString, VecModel, Weak};
+use slint::{Color, Model, ModelRc, SharedString, VecModel};
 use std::error::Error;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
 slint::include_modules!();
 
-const GREEN: Color = Color::from_rgb_u8(56, 142, 60);
-const RED: Color = Color::from_rgb_u8(211, 47, 47);
-const GRAY: Color = Color::from_rgb_u8(204, 204, 204);
-
-pub struct RustSlintBridge {
-    app: App,
-    commands_list: Arc<Mutex<CommandsList>>,
+pub(crate) struct RustSlintBridge {
+    pub(crate) app: App,
+    pub(crate) commands_list: Arc<Mutex<CommandsList>>,
 }
 
 impl RustSlintBridge {
@@ -38,10 +36,29 @@ impl RustSlintBridge {
         command_logic.set_deadline(DEFAULT_DEADLINE.to_string().into());
         command_logic.set_ntp(NTP_SYSTEM.to_string().into());
 
-        Ok(RustSlintBridge {
+        let bridge = RustSlintBridge {
             app,
             commands_list: Arc::new(Mutex::new(commands_list)),
-        })
+        };
+
+        bridge.add_on_reset_commands_config();
+        bridge.add_on_set_commands_config();
+        bridge.add_on_update_application();
+        bridge.add_on_add_command();
+        bridge.add_on_del_command();
+        bridge.add_on_exec_command();
+        bridge.add_on_generate_key();
+
+        Ok(bridge)
+    }
+
+    fn err_log_wrap<F>(f: F)
+    where
+        F: FnOnce() -> Result<(), String>,
+    {
+        if let Err(e) = f() {
+            error(&format!("Slint callback failed: {e}"));
+        }
     }
 
     pub fn run(&self) -> Result<(), slint::PlatformError> {
@@ -49,109 +66,96 @@ impl RustSlintBridge {
     }
 
     pub fn add_on_reset_commands_config(&self) {
-        let (app_weak, cmds_list_mutex) = self.app_and_cmds();
-
+        let ctx = RustSlintBridgeCtx::from_bridge(self);
         self.app.global::<SlintRustBridge>().on_reset_commands_config(move || {
-            info("Resetting commands");
-
-            Self::with_file_commands_list(&cmds_list_mutex, |cl| {
-                Self::reload_commands_config(&app_weak, cl);
+            Self::err_log_wrap(|| {
+                info("Resetting commands");
+                Self::set_commands_config(ctx.get_cmds_list()?.to_string().into(), &ctx)
             });
         });
     }
 
+    fn set_commands_config(cmds: SharedString, ctx: &RustSlintBridgeCtx) -> Result<(), String> {
+        info(&format!("Setting commands:\n{cmds}"));
+        ctx.set_cmds(cmds.to_string().lines().map(str::to_string).collect())
+    }
+
     pub fn add_on_set_commands_config(&self) {
-        let (app_weak, cmds_list_mutex) = self.app_and_cmds();
-
+        let ctx = RustSlintBridgeCtx::from_bridge(self);
         self.app.global::<SlintRustBridge>().on_set_commands_config(move |cmds| {
-            info(&format!("Setting commands:\n{cmds}"));
-
-            let cmds: Vec<String> = cmds.to_string().lines().map(str::to_string).collect();
-
-            Self::with_app_commands_list(&app_weak, |cl| {
-                let cmds: Vec<CommandData> =
-                    cmds.iter().map(|c| Self::create_command_tuple(c)).collect();
-                cl.set_vec(cmds);
-            });
-
-            Self::with_file_commands_list(&cmds_list_mutex, |cl| {
-                cl.set(cmds);
-            });
+            Self::err_log_wrap(|| Self::set_commands_config(cmds, &ctx));
         });
     }
 
     pub fn add_on_del_command(&self) {
-        let (app_weak, cmds_list_mutex) = self.app_and_cmds();
-
+        let ctx = RustSlintBridgeCtx::from_bridge(self);
         self.app.global::<SlintRustBridge>().on_del_command(move |cmd, index| {
-            info(&format!("Removing command: {cmd}"));
-
-            Self::with_app_commands_list(&app_weak, |cl| {
-                cl.remove(index as usize);
-            });
-
-            Self::with_file_commands_list(&cmds_list_mutex, |cl| {
-                cl.remove(cmd.to_string());
-                Self::reload_commands_config(&app_weak, cl);
+            Self::err_log_wrap(|| {
+                info(&format!("Removing command: {cmd}"));
+                ctx.remove_cmd(cmd, index)
             });
         });
     }
 
     pub fn add_on_exec_command(&self) {
-        let app_weak = self.app.as_weak();
-
+        let ctx = RustSlintBridgeCtx::from_bridge(self);
         self.app.global::<SlintRustBridge>().on_exec_command(move |cmd, idx, key| {
-            let cmd = cmd.to_string();
-            let key = key.to_string();
-            let key = key.trim();
-            //TODO: Replace naive split_whitespace with proper shell/Clap parsing so quoted
-            // arguments survive.
-            let mut cmd_vec: Vec<&str> = cmd.split_whitespace().collect();
-            cmd_vec.insert(0, "ruroco");
+            Self::err_log_wrap(|| {
+                let cmd = cmd.to_string();
+                let key = key.to_string();
+                let key = key.trim();
+                //TODO: Replace naive split_whitespace with proper shell/Clap parsing so quoted
+                // arguments survive.
+                let mut cmd_vec: Vec<&str> = cmd.split_whitespace().collect();
+                cmd_vec.insert(0, "ruroco");
 
-            if !cmd.contains("--key") && !key.is_empty() {
-                cmd_vec.extend(["--key", key]);
-            }
+                if !cmd.contains("--key") && !key.is_empty() {
+                    cmd_vec.extend(["--key", key]);
+                }
 
-            info(&format!("Executing command: {}", cmd_vec.join(" ")));
+                info(&format!("Executing command: {}", cmd_vec.join(" ")));
 
-            Self::with_app_commands_list(&app_weak, |cl| {
+                let cl = ctx.get_app_cmds_list()?;
+                let cl = cl
+                    .as_any()
+                    .downcast_ref::<VecModel<CommandData>>()
+                    .ok_or("Failed to downcast ModelRc to VecModel<CommandData>".to_string())?;
+                let cl = cl
+                    .as_any()
+                    .downcast_ref::<VecModel<CommandData>>()
+                    .ok_or("Failed to downcast ModelRc to VecModel<CommandData>".to_string())?;
                 match CliClient::try_parse_from(cmd_vec) {
                     Ok(cli_client) => run_client(cli_client)
-                        .map(|_| Self::set_command_data_color(idx, cl, GREEN))
-                        .unwrap_or_else(|_| Self::set_command_data_color(idx, cl, RED)),
-                    Err(_) => Self::set_command_data_color(idx, cl, RED),
+                        .map(|_| Self::set_command_data_color(idx, &cl, GREEN))
+                        .unwrap_or_else(|_| Self::set_command_data_color(idx, &cl, RED)),
+                    Err(_) => Self::set_command_data_color(idx, &cl, RED),
                 };
+
+                Ok(())
             });
         })
     }
 
     pub fn add_on_add_command(&self) {
-        let (app_weak, cmds_list_mutex) = self.app_and_cmds();
-
+        let ctx = RustSlintBridgeCtx::from_bridge(self);
         self.app.global::<SlintRustBridge>().on_add_command(move |cmd| {
-            info(&format!("Adding new command: {cmd}"));
-
-            Self::with_app_commands_list(&app_weak, |cl| {
-                cl.push(Self::create_command_tuple(cmd.as_ref()));
-            });
-
-            Self::with_file_commands_list(&cmds_list_mutex, |cl| {
-                cl.add(cmd.to_string());
+            Self::err_log_wrap(|| {
+                info(&format!("Adding new command: {cmd}"));
+                ctx.add_cmd(cmd)
             });
         });
     }
 
     pub fn add_on_update_application(&self) {
         self.app.global::<SlintRustBridge>().on_update_application(move || {
-            #[cfg(target_os = "linux")]
-            let update_result = Self::update_linux();
-            #[cfg(target_os = "android")]
-            let update_result = Self::update_android();
+            Self::err_log_wrap(|| {
+                #[cfg(target_os = "linux")]
+                let update_result = Self::update_linux();
+                #[cfg(target_os = "android")]
+                let update_result = Self::update_android();
 
-            if let Err(err) = update_result {
-                error(&format!("Error when updating application: {err}"));
-            }
+                update_result
+            });
         });
     }
 
@@ -166,53 +170,9 @@ impl RustSlintBridge {
             .on_generate_key(|| SharedString::from(CryptoHandler::gen_key().unwrap_or_else(|e| e)));
     }
 
-    fn reload_commands_config(app_weak: &Weak<App>, cl: &mut MutexGuard<CommandsList>) {
-        let app = app_weak.unwrap();
-        let command_logic = app.global::<SlintRustBridge>();
-        command_logic.set_commands_config(cl.to_string().into());
-    }
-
-    fn with_file_commands_list<F>(cmds_list_mutex: &Arc<Mutex<CommandsList>>, f: F)
-    where
-        F: FnOnce(&mut MutexGuard<CommandsList>),
-    {
-        let mut commands_list = match cmds_list_mutex.lock() {
-            Ok(m) => m,
-            Err(e) => return error(&format!("Failed to acquire mutex lock: {e}")),
-        };
-
-        f(&mut commands_list);
-    }
-
-    fn with_app_commands_list<F>(app_weak: &Weak<App>, f: F)
-    where
-        F: FnOnce(&VecModel<CommandData>),
-    {
-        let upgraded_app = match app_weak.upgrade() {
-            Some(a) => a,
-            None => {
-                return error("Failed to upgrade weak reference to App");
-            }
-        };
-
-        let commands_list_rc: ModelRc<CommandData> =
-            upgraded_app.global::<SlintRustBridge>().get_commands_list();
-        let commands_list: Option<&VecModel<CommandData>> =
-            commands_list_rc.as_any().downcast_ref();
-
-        match commands_list {
-            Some(cl) => f(cl),
-            None => error("Failed to downcast ModelRc to VecModel<CommandData>"),
-        }
-    }
-
-    fn app_and_cmds(&self) -> (Weak<App>, Arc<Mutex<CommandsList>>) {
-        (self.app.as_weak(), Arc::clone(&self.commands_list))
-    }
-
     fn get_commands_list_data(commands_list: &CommandsList) -> ModelRc<CommandData> {
         let commands_list_data: Vec<CommandData> =
-            commands_list.get().iter().map(|cmd| Self::create_command_tuple(cmd)).collect();
+            commands_list.get().iter().map(|cmd| create_command_tuple(cmd)).collect();
         ModelRc::from(Rc::new(VecModel::from(commands_list_data)))
     }
 
@@ -248,13 +208,5 @@ impl RustSlintBridge {
             .collect();
 
         commands_list.set_vec(command_data_vec);
-    }
-
-    fn create_command_tuple(command: &str) -> CommandData {
-        CommandData {
-            command: SharedString::from(command),
-            name: SharedString::from(CommandsList::command_to_name(command)),
-            color: Color::from_rgb_u8(204, 204, 204),
-        }
     }
 }
