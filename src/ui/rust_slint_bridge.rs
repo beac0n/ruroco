@@ -7,11 +7,10 @@ use crate::client::update::Updater;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::time_util::NTP_SYSTEM;
 use crate::common::{error, info};
+use crate::ui::colors::{change_color, GRAY, GREEN, RED};
+use crate::ui::command_data::{add_command_name, command_to_data, data_to_command};
 use crate::ui::rust_slint_bridge_ctx::RustSlintBridgeCtx;
 use crate::ui::saved_command_list::CommandsList;
-use crate::ui::util::{
-    add_command_name, change_color, command_to_data, data_to_command, GRAY, GREEN, RED,
-};
 use clap::Parser;
 use slint::{Color, Model, ModelRc, SharedString, VecModel};
 use std::error::Error;

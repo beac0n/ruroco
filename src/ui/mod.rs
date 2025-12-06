@@ -7,10 +7,11 @@ mod android_util;
 /// used to import everything that is slint related
 mod rust_slint_bridge;
 
+mod colors;
+mod command_data;
 mod rust_slint_bridge_ctx;
 /// saves commands configured in ui
 mod saved_command_list;
-mod util;
 
 use crate::ui::rust_slint_bridge::RustSlintBridge;
 

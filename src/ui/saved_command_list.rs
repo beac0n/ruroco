@@ -1,6 +1,6 @@
 use crate::common::{error, resolve_path};
+use crate::ui::command_data::{command_to_data, data_to_command};
 use crate::ui::rust_slint_bridge::CommandData;
-use crate::ui::util::{command_to_data, data_to_command};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
