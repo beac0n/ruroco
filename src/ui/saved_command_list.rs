@@ -1,9 +1,11 @@
 use crate::common::{error, resolve_path};
+use crate::ui::rust_slint_bridge::CommandData;
+use crate::ui::util::{command_to_data, data_to_command};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct CommandsList {
     list: Vec<String>,
     path: PathBuf,
@@ -25,55 +27,24 @@ impl CommandsList {
         })
     }
 
-    pub fn set(&mut self, commands_list: Vec<String>) {
-        self.list = commands_list;
+    pub fn set(&mut self, commands_list: Vec<CommandData>) {
+        self.list = commands_list.into_iter().map(|c| data_to_command(&c, None)).collect();
         self.save()
     }
 
-    pub fn get(&self) -> Vec<String> {
-        self.list.clone()
+    pub fn get(&self) -> Vec<CommandData> {
+        self.list.clone().into_iter().map(|c| command_to_data(&c)).collect()
     }
 
-    pub fn add(&mut self, command: String) {
-        self.list.push(command);
+    pub fn add(&mut self, command: CommandData) {
+        self.list.push(data_to_command(&command, None));
         self.save()
     }
 
-    pub fn remove(&mut self, command: String) {
-        self.list.retain(|value| value != &command);
+    pub fn remove(&mut self, command: CommandData) {
+        let cmd_str = data_to_command(&command, None);
+        self.list.retain(|value| value.clone() != cmd_str.clone());
         self.save()
-    }
-
-    pub fn command_to_name(command: &str) -> String {
-        let arguments: Vec<&str> = command.split_whitespace().filter(|&x| x != "send").collect();
-        let mut parts: Vec<String> = arguments
-            .iter()
-            .enumerate()
-            .map(|(idx, val)| match (val, arguments.get(idx + 1)) {
-                (val, None) if val.starts_with("--") => {
-                    format!("[{}]", val.replace("--", ""))
-                }
-                (val, Some(next_val)) if val.starts_with("--") && next_val.starts_with("--") => {
-                    format!("[{}]", val.replace("--", ""))
-                }
-                (val, Some(_)) if val.starts_with("--") => {
-                    format!(
-                        "[{}:",
-                        val.replace("--", "").replace("command", "cmd").replace("address", "addr")
-                    )
-                }
-                (_, _) => {
-                    format!("{val}]")
-                }
-            })
-            .collect();
-
-        if let Some(i) = parts.iter().position(|x| x.contains("key-path")) {
-            parts.remove(i); // remove --key-path
-            parts.remove(i); // remove the key path
-        };
-
-        parts.join("")
     }
 
     fn read_raw_from_path(path: &Path) -> String {

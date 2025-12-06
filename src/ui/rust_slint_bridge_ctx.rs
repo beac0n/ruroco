@@ -1,7 +1,6 @@
 use crate::ui::rust_slint_bridge::{App, CommandData, RustSlintBridge, SlintRustBridge};
 use crate::ui::saved_command_list::CommandsList;
-use crate::ui::util::create_command_tuple;
-use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
+use slint::{ComponentHandle, Model, ModelRc, VecModel, Weak};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 pub struct RustSlintBridgeCtx {
@@ -9,29 +8,30 @@ pub struct RustSlintBridgeCtx {
     commands_list: Arc<Mutex<CommandsList>>,
 }
 
-impl RustSlintBridgeCtx {
-    pub fn from_bridge(bridge: &RustSlintBridge) -> Self {
-        RustSlintBridgeCtx {
+impl From<&RustSlintBridge> for RustSlintBridgeCtx {
+    fn from(bridge: &RustSlintBridge) -> Self {
+        Self {
             app: bridge.app.as_weak(),
             commands_list: Arc::clone(&bridge.commands_list),
         }
     }
+}
 
-    pub fn set_cmds(&self, cmds: Vec<String>) -> Result<(), String> {
+impl RustSlintBridgeCtx {
+    pub fn set_cmds(&self, cmds: Vec<CommandData>) -> Result<(), String> {
         let cl = self.get_app_cmds_list()?;
         let cl = cl
             .as_any()
             .downcast_ref::<VecModel<CommandData>>()
             .ok_or("Failed to downcast ModelRc to VecModel<CommandData>".to_string())?;
-        let vec_data: Vec<CommandData> = cmds.iter().map(|c| create_command_tuple(c)).collect();
-        cl.set_vec(vec_data);
+        cl.set_vec(cmds.clone());
 
         let mut cl = self.get_cmds_list()?;
         cl.set(cmds);
         Ok(())
     }
 
-    pub fn remove_cmd(&self, cmd: SharedString, index: i32) -> Result<(), String> {
+    pub fn remove_cmd(&self, cmd: CommandData, index: i32) -> Result<(), String> {
         let cl = self.get_app_cmds_list()?;
         let cl = cl
             .as_any()
@@ -40,20 +40,20 @@ impl RustSlintBridgeCtx {
         cl.remove(index as usize);
 
         let mut cl = self.get_cmds_list()?;
-        cl.remove(cmd.to_string());
+        cl.remove(cmd);
         Ok(())
     }
 
-    pub fn add_cmd(&self, cmd: SharedString) -> Result<(), String> {
+    pub fn add_cmd(&self, cmd: CommandData) -> Result<(), String> {
         let cl = self.get_app_cmds_list()?;
         let cl = cl
             .as_any()
             .downcast_ref::<VecModel<CommandData>>()
             .ok_or("Failed to downcast ModelRc to VecModel<CommandData>".to_string())?;
-        cl.push(create_command_tuple(cmd.as_ref()));
+        cl.push(cmd.clone());
 
         let mut cl = self.get_cmds_list()?;
-        cl.add(cmd.to_string());
+        cl.add(cmd);
         Ok(())
     }
 
@@ -66,11 +66,8 @@ impl RustSlintBridgeCtx {
             Some(a) => a,
             None => return Err("Failed to upgrade weak reference to App".to_string()),
         };
-
         let commands_list_rc: ModelRc<CommandData> =
             upgraded_app.global::<SlintRustBridge>().get_commands_list();
-
-        // commands_list_rc.as_any().downcast_ref::<&VecModel<CommandData>>()
         Ok(commands_list_rc)
     }
 }

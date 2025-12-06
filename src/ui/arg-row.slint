@@ -1,13 +1,13 @@
 import { LineEdit, Switch } from "std-widgets.slint";
 
 export component ArgRowTextWoWidth inherits Text {
-    overflow: TextOverflow.clip;
+    overflow: TextOverflow.elide;
     horizontal-alignment: TextHorizontalAlignment.left;
     vertical-alignment: TextVerticalAlignment.center;
 }
 
 export component ArgRowText inherits ArgRowTextWoWidth {
-    width: 30%;
+    width: 50%;
 }
 
 export component ArgRowTextInput inherits LineEdit {

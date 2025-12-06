@@ -27,7 +27,8 @@ export component Dashboard inherits VerticalLayout {
 
             Button {
                 height: 50px;
-                text: "Rst";
+                width: 25%;
+                text: "Reset";
                 clicked => {
                     SlintRustBridge.reset_commands_config();
                 }
@@ -35,6 +36,7 @@ export component Dashboard inherits VerticalLayout {
 
             Button {
                 height: 50px;
+                width: 25%;
                 text: "💾";
                 clicked => {
                     SlintRustBridge.set_commands_config(SlintRustBridge.commands_config);
@@ -43,6 +45,7 @@ export component Dashboard inherits VerticalLayout {
 
             Button {
                 height: 50px;
+                width: 25%;
                 text: "📋";
                 clicked => {
                     commands_config_box.select-all();
@@ -53,6 +56,7 @@ export component Dashboard inherits VerticalLayout {
 
             Button {
                 height: 50px;
+                width: 25%;
                 text: "📥";
                 clicked => {
                     commands_config_box.text = "";
@@ -108,7 +112,8 @@ export component Dashboard inherits VerticalLayout {
 
             Button {
                 height: 50px;
-                text: "Gen";
+                width: 25%;
+                text: "Generate";
                 clicked => {
                     key_box.text = SlintRustBridge.generate_key();
                 }
@@ -116,6 +121,7 @@ export component Dashboard inherits VerticalLayout {
 
             Button {
                 height: 50px;
+                width: 25%;
                 text: root.show_key ? "🔒" : "🔓";
                 clicked => {
                     root.show_key = !root.show_key;
@@ -124,6 +130,7 @@ export component Dashboard inherits VerticalLayout {
 
             Button {
                 height: 50px;
+                width: 25%;
                 text: "📋";
                 clicked => {
                     key_box.select-all();
@@ -134,6 +141,7 @@ export component Dashboard inherits VerticalLayout {
 
             Button {
                 height: 50px;
+                width: 25%;
                 text: "📥";
                 clicked => {
                     key_box.text = "";

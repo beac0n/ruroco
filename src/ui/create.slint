@@ -1,5 +1,10 @@
 import { Button } from "std-widgets.slint";
-import { ArgRowText, ArgRowTextWoWidth, ArgRowTextInput, ArgRowBoolInput } from "./arg-row.slint";
+import {
+    ArgRowText,
+    ArgRowTextWoWidth,
+    ArgRowTextInput,
+    ArgRowBoolInput,
+} from "./arg-row.slint";
 import { SlintRustBridge } from "slint-rust-bridge.slint";
 
 export component Create inherits VerticalLayout {
@@ -18,7 +23,7 @@ export component Create inherits VerticalLayout {
             HorizontalLayout {
                 padding-bottom: 10px;
                 ArgRowText {
-                    text: "address";
+                    text: "server";
                 }
 
                 ArgRowTextInput {
@@ -51,7 +56,7 @@ export component Create inherits VerticalLayout {
             HorizontalLayout {
                 padding-bottom: 10px;
                 ArgRowText {
-                    text: "ip";
+                    text: "ip sent to server";
                 }
 
                 ArgRowTextInput {
@@ -72,41 +77,34 @@ export component Create inherits VerticalLayout {
 
             HorizontalLayout {
                 padding-bottom: 10px;
-                padding-top: 10px;
-                padding-right: 20px;
-                alignment: space-between;
-
-                VerticalLayout {
-                    height: 50px;
-                    ArgRowTextWoWidth {
-                        text: "permissive";
-                    }
-
-                    ArgRowBoolInput {
-                        input <=> root.permissive;
-                    }
+                ArgRowText {
+                    text: "source IP doesn't have\nto match provided IP";
                 }
 
-                VerticalLayout {
-                    height: 50px;
-                    ArgRowTextWoWidth {
-                        text: "ipv4";
-                    }
+                ArgRowBoolInput {
+                    input <=> root.permissive;
+                }
+            }
 
-                    ArgRowBoolInput {
-                        input <=> root.ipv4;
-                    }
+            HorizontalLayout {
+                height: 50px;
+                ArgRowText {
+                    text: "use ipv4 only";
                 }
 
-                VerticalLayout {
-                    height: 50px;
-                    ArgRowTextWoWidth {
-                        text: "ipv6";
-                    }
+                ArgRowBoolInput {
+                    input <=> root.ipv4;
+                }
+            }
 
-                    ArgRowBoolInput {
-                        input <=> root.ipv6;
-                    }
+            HorizontalLayout {
+                height: 50px;
+                ArgRowText {
+                    text: "use ipv6 only";
+                }
+
+                ArgRowBoolInput {
+                    input <=> root.ipv6;
                 }
             }
 
@@ -119,17 +117,18 @@ export component Create inherits VerticalLayout {
                     height: 50px;
                     text: "Add Command";
                     clicked => {
-                        SlintRustBridge.add_command(
-                            "send"//
-                            + (root.address == "" ? "" : " --address " + root.address)//
-                            + (SlintRustBridge.command == "" ? "" : " --command " + SlintRustBridge.command)//
-                            + " --deadline " + SlintRustBridge.deadline//
-                            + (root.permissive ? "--permissive" : "")//
-                            + (root.ip == "" ? "" : " --ip " + root.ip)//
-                            + (SlintRustBridge.ntp == "" ? "" : " --ntp " + SlintRustBridge.ntp)//
-                            + (root.ipv4 ? " --ipv4" : "")//
-                            + (root.ipv6 ? " --ipv6" : "")//
-                        )
+                        SlintRustBridge.add_command({
+                            address: root.address,
+                            command: SlintRustBridge.command,
+                            deadline: SlintRustBridge.deadline,
+                            permissive: root.permissive,
+                            ip: root.ip,
+                            ntp: SlintRustBridge.ntp,
+                            ipv4: root.ipv4,
+                            ipv6: root.ipv6,
+                            name: "",
+                            color: #CCCCCC,
+                        });
                     }
                 }
             }

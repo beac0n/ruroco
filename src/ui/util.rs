@@ -1,15 +1,121 @@
 use crate::ui::rust_slint_bridge::CommandData;
-use crate::ui::saved_command_list::CommandsList;
-use slint::{Color, SharedString};
+use slint::Color;
 
 pub const GREEN: Color = Color::from_rgb_u8(56, 142, 60);
 pub const RED: Color = Color::from_rgb_u8(211, 47, 47);
 pub const GRAY: Color = Color::from_rgb_u8(204, 204, 204);
 
-pub fn create_command_tuple(command: &str) -> CommandData {
-    CommandData {
-        command: SharedString::from(command),
-        name: SharedString::from(CommandsList::command_to_name(command)),
-        color: Color::from_rgb_u8(204, 204, 204),
+pub fn change_color(mut data: CommandData, color: Color) -> CommandData {
+    data.color = color;
+    data
+}
+
+pub fn data_to_command(data: &CommandData, key: Option<String>) -> String {
+    let mut command = String::new();
+
+    command.push_str("send ");
+    if !data.address.trim().is_empty() {
+        command.push_str(&format!("--address {} ", data.address));
     }
+    if !data.command.trim().is_empty() {
+        command.push_str(&format!("--command {} ", data.command));
+    }
+
+    if !data.deadline.trim().is_empty() {
+        command.push_str(&format!("--deadline {} ", data.deadline));
+    }
+    if !data.ntp.trim().is_empty() {
+        command.push_str(&format!("--ntp {} ", data.ntp));
+    }
+
+    if !data.ip.trim().is_empty() {
+        command.push_str(&format!("--ip {} ", data.ip));
+    }
+
+    if data.ipv4 {
+        command.push_str("--ipv4 ");
+    }
+    if data.ipv6 {
+        command.push_str("--ipv6 ");
+    }
+    if data.permissive {
+        command.push_str("--permissive ");
+    }
+
+    if let Some(k) = key {
+        command.push_str("--key ");
+        command.push_str(&k);
+    }
+
+    command.trim_end().to_string()
+}
+
+pub fn command_to_data(input: &str) -> CommandData {
+    let mut address = "";
+    let mut command = "";
+    let mut deadline = "";
+    let mut ntp = "";
+    let mut ip = "";
+    let mut ipv4 = false;
+    let mut ipv6 = false;
+    let mut permissive = false;
+
+    let parts: Vec<&str> = input.split_whitespace().collect();
+    let parts_len = parts.len();
+    let mut i = 0;
+    while i < parts_len {
+        match parts[i] {
+            "--address" if i + 1 < parts_len => {
+                i += 1;
+                address = parts[i];
+            }
+            "--command" if i + 1 < parts_len => {
+                i += 1;
+                command = parts[i];
+            }
+            "--deadline" if i + 1 < parts_len => {
+                i += 1;
+                deadline = parts[i];
+            }
+            "--ntp" if i + 1 < parts_len => {
+                i += 1;
+                ntp = parts[i];
+            }
+            "--ip" if i + 1 < parts_len => {
+                i += 1;
+                ip = parts[i];
+            }
+            "--ipv4" => ipv4 = true,
+            "--ipv6" => ipv6 = true,
+            "--permissive" => permissive = true,
+            _ => {}
+        }
+        i += 1;
+    }
+
+    add_command_name(CommandData {
+        address: address.into(),
+        command: command.into(),
+        deadline: deadline.into(),
+        permissive,
+        ip: ip.into(),
+        ntp: ntp.into(),
+        ipv4,
+        ipv6,
+        name: "".into(),
+        color: GRAY,
+    })
+}
+
+pub fn add_command_name(mut data: CommandData) -> CommandData {
+    let name = format!(
+        "{}@{}{}{}{}",
+        data.command,
+        data.address,
+        if data.permissive { " permissive" } else { "" },
+        if data.ipv4 { " ipv4" } else { "" },
+        if data.ipv6 { " ipv6" } else { "" }
+    );
+    data.name = name.into();
+    data
 }
