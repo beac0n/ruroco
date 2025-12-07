@@ -30,6 +30,6 @@ export global SlintRustBridge {
     in-out property <string> key: "";
     in-out property <[CommandData]> commands_list: [];
 
-    callback exec_command(CommandData, int, string);
-    callback del_command(CommandData, int);
+    callback exec_command(CommandData, string);
+    callback del_command(CommandData);
 }

@@ -4,7 +4,7 @@ import { SlintRustBridge } from "slint-rust-bridge.slint";
 export component Execute inherits VerticalLayout {
     ListView {
 
-        for data[i] in SlintRustBridge.commands_list: HorizontalLayout {
+        for data in SlintRustBridge.commands_list: HorizontalLayout {
             padding-top: 10px;
             padding-bottom: 10px;
 
@@ -19,7 +19,7 @@ export component Execute inherits VerticalLayout {
                     width: 48px;
                     text: "▶";
                     clicked => {
-                        SlintRustBridge.exec_command(data, i, SlintRustBridge.key);
+                        SlintRustBridge.exec_command(data, SlintRustBridge.key);
                     }
                 }
             }
@@ -52,7 +52,7 @@ export component Execute inherits VerticalLayout {
                     width: 48px;
                     text: "🗑";
                     clicked => {
-                        SlintRustBridge.del_command(data, i)
+                        SlintRustBridge.del_command(data)
                     }
                 }
             }
