@@ -11,7 +11,6 @@ pub const CIPHERTEXT_SIZE: usize = 85;
 pub const KEY_ID_SIZE: usize = 8;
 pub const IV_SIZE: usize = 12;
 pub const TAG_SIZE: usize = 16;
-pub const BLOCK_SIZE: usize = 16;
 const KEY_SIZE: usize = 32;
 const SALT_SIZE: usize = 16;
 const KEY_DERIVATION_ITERATIONS: usize = 100_000;

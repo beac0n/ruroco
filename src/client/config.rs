@@ -13,10 +13,8 @@ use std::path::PathBuf;
 use crate::common::time_util::NTP_SYSTEM;
 use clap::{Parser, Subcommand};
 
-pub const DEFAULT_KEY_SIZE: u16 = 8192;
 pub const DEFAULT_COMMAND: &str = "default";
 pub const DEFAULT_DEADLINE: u16 = 5;
-pub const MIN_KEY_SIZE: u16 = 4096;
 
 #[derive(Parser, Debug)]
 pub struct GenCommand {}
