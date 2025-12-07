@@ -105,12 +105,14 @@ impl Commander {
             .output()
         {
             Ok(result) => {
-                //TODO: Check result.status.success() and surface failures instead of always logging success.
-                info(&format!(
-                    "Successfully executed {command}\nstdout: {}\nstderr: {}",
-                    Commander::vec_to_str(&result.stdout),
-                    Commander::vec_to_str(&result.stderr)
-                ))
+                let stdout = Commander::vec_to_str(&result.stdout);
+                let stderr = Commander::vec_to_str(&result.stderr);
+                let msg = format!("{command}\nstdout: {stdout}\nstderr: {stderr}");
+                if result.status.success() {
+                    info(&format!("Execution was successful: {msg}"))
+                } else {
+                    error(&format!("Execution was not successful: {msg}"))
+                }
             }
             Err(e) => error(&format!("Error executing {command}: {e}")),
         };
