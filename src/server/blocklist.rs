@@ -94,7 +94,7 @@ mod tests {
         let key_id = [0u8; 8];
         let number: u128 = 42;
 
-        blocklist.add(key_id.clone(), number);
+        blocklist.add(key_id, number);
         assert_eq!(blocklist.get().len(), 1);
 
         assert_eq!(blocklist.get().get(&Blocklist::key_id_to_u64(key_id)).unwrap().clone(), number);
