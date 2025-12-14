@@ -7,7 +7,7 @@ use std::net::IpAddr;
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ClientData {
     pub cmd_hash: u64,          // hashed command name
-    pub deadline: u128,         // deadline in ns
+    pub counter: u128,          // request counter
     pub strict: bool,           // strict
     pub src_ip: Option<IpAddr>, // source ip address
     pub dst_ip: IpAddr,         // host/destination ip address
@@ -16,15 +16,14 @@ pub struct ClientData {
 impl ClientData {
     pub fn create(
         command: &str,
-        deadline: u16,
         strict: bool,
         src_ip: Option<IpAddr>,
         dst_ip: IpAddr,
-        now_ns: u128,
+        counter: u128,
     ) -> Result<ClientData, String> {
         Ok(ClientData {
             cmd_hash: blake2b_u64(command)?,
-            deadline: now_ns + (u128::from(deadline) * 1_000_000_000),
+            counter,
             strict,
             src_ip,
             dst_ip,
@@ -35,7 +34,7 @@ impl ClientData {
         let mut out = [0u8; PLAINTEXT_SIZE];
 
         out[0..8].copy_from_slice(&self.cmd_hash.to_be_bytes());
-        out[8..24].copy_from_slice(&self.deadline.to_be_bytes());
+        out[8..24].copy_from_slice(&self.counter.to_be_bytes());
         out[24] = self.strict as u8;
         out[25..41].copy_from_slice(&self.src_ip.map(|i| serialize_ip(&i)).unwrap_or([0u8; 16]));
         out[41..].copy_from_slice(&serialize_ip(&self.dst_ip));
@@ -47,8 +46,8 @@ impl ClientData {
         let mut command_hash_bytes = [0u8; 8];
         command_hash_bytes.copy_from_slice(&data[0..8]);
 
-        let mut deadline_bytes = [0u8; 16];
-        deadline_bytes.copy_from_slice(&data[8..24]);
+        let mut counter_bytes = [0u8; 16];
+        counter_bytes.copy_from_slice(&data[8..24]);
 
         let mut source_ip_bytes = [0u8; 16];
         source_ip_bytes.copy_from_slice(&data[25..41]);
@@ -58,7 +57,7 @@ impl ClientData {
 
         Ok(Self {
             cmd_hash: u64::from_be_bytes(command_hash_bytes),
-            deadline: u128::from_be_bytes(deadline_bytes),
+            counter: u128::from_be_bytes(counter_bytes),
             strict: data[24] != 0,
             src_ip: (source_ip_bytes != [0u8; 16]).then(|| deserialize_ip(source_ip_bytes)),
             dst_ip: deserialize_ip(host_ip_bytes),
@@ -81,7 +80,7 @@ mod tests {
     fn test_max_size() {
         let server_data = ClientData {
             cmd_hash: u64::MAX,
-            deadline: u128::MAX,
+            counter: u128::MAX,
             strict: true,
             src_ip: Some(IpAddr::V6(Ipv6Addr::UNSPECIFIED)),
             dst_ip: IpAddr::V6(Ipv6Addr::UNSPECIFIED),
@@ -96,7 +95,7 @@ mod tests {
     fn test_min_size() {
         let server_data = ClientData {
             cmd_hash: 0,
-            deadline: 0,
+            counter: 0,
             strict: false,
             src_ip: Some(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
             dst_ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
@@ -111,7 +110,6 @@ mod tests {
     fn test_get_minified_server_data() {
         let server_data = ClientData::create(
             "some_kind_of_long_but_not_really_that_long_command",
-            5,
             false,
             Some("192.168.178.123".parse().unwrap()),
             "192.168.178.124".parse().unwrap(),
@@ -128,7 +126,7 @@ mod tests {
             ClientData {
                 cmd_hash: blake2b_u64("some_kind_of_long_but_not_really_that_long_command")
                     .unwrap(),
-                deadline: 1725821515000000000u128,
+                counter: 1725821510 * 1_000_000_000,
                 strict: false,
                 src_ip: Some(IpAddr::from(Ipv4Addr::new(192, 168, 178, 123))),
                 dst_ip: IpAddr::from(Ipv4Addr::new(192, 168, 178, 124)),

@@ -11,7 +11,6 @@ use std::fs::ReadDir;
 use std::net::{IpAddr, UdpSocket};
 
 use crate::common::crypto_handler::{CryptoHandler, KEY_ID_SIZE};
-use crate::common::time_util::NTP_SYSTEM;
 use crate::server::util::get_commander_unix_socket_path;
 use openssl::version::version;
 use std::os::fd::{FromRawFd, RawFd};
@@ -30,8 +29,6 @@ pub struct ConfigServer {
     pub commands: HashMap<String, String>,
     #[serde(deserialize_with = "deserialize_ips")]
     pub ips: Vec<IpAddr>,
-    #[serde(default = "default_ntp")]
-    pub ntp: String,
     #[serde(default = "default_config_path")]
     pub config_dir: PathBuf,
     #[serde(default = "default_socket_user")]
@@ -157,7 +154,7 @@ impl ConfigServer {
         }
     }
 
-    fn resolve_config_dir(&self) -> PathBuf {
+    pub fn resolve_config_dir(&self) -> PathBuf {
         resolve_path(&self.config_dir)
     }
 }
@@ -167,7 +164,6 @@ impl Default for ConfigServer {
         ConfigServer {
             commands: HashMap::new(),
             ips: vec!["127.0.0.1".parse().unwrap()],
-            ntp: default_ntp(),
             socket_user: "".to_string(),
             socket_group: "".to_string(),
             config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
@@ -183,10 +179,6 @@ fn default_socket_group() -> String {
     "ruroco".to_string()
 }
 
-fn default_ntp() -> String {
-    NTP_SYSTEM.to_string()
-}
-
 fn default_config_path() -> PathBuf {
     PathBuf::from("/etc/ruroco")
 }
@@ -194,7 +186,7 @@ fn default_config_path() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use crate::server::config::{
-        default_config_path, default_ntp, default_socket_group, default_socket_user, ConfigServer,
+        default_config_path, default_socket_group, default_socket_user, ConfigServer,
     };
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -219,7 +211,6 @@ mod tests {
             ConfigServer {
                 commands: HashMap::new(),
                 ips: vec!["127.0.0.1".parse().unwrap()],
-                ntp: default_ntp(),
                 config_dir: default_config_path(),
                 socket_user: default_socket_user(),
                 socket_group: default_socket_group(),

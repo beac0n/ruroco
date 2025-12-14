@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use ruroco::client::config::SendCommand;
+    use ruroco::client::counter::Counter;
     use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
-    use ruroco::common::time_util::TimeUtil;
     use ruroco::common::{get_random_range, get_random_string};
     use ruroco::server::blocklist::Blocklist;
     use ruroco::server::commander::Commander;
@@ -27,8 +27,6 @@ mod tests {
         config_dir: PathBuf,
         test_file_exists: bool,
         block_list_exists: bool,
-        deadline: u16,
-        now: Option<u128>,
         client_sent_ip: Option<String>,
         strict: bool,
     }
@@ -47,8 +45,6 @@ mod tests {
                 server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
                 block_list_exists: false,
-                deadline: 1,
-                now: None,
                 client_sent_ip: None,
                 strict: true,
             }
@@ -72,26 +68,21 @@ mod tests {
             fs::write(&self.key_path, key).expect("failed to write key")
         }
 
-        fn get_blocked_list(&self) -> Vec<u128> {
+        fn get_blocked_list(&self) -> HashMap<u64, u128> {
             let blocklist = Blocklist::create(&self.config_dir);
             blocklist.get().clone()
         }
 
         fn run_client_send(&self) {
-            let sender = Sender::create(
-                SendCommand {
-                    address: self.server_address.to_string(),
-                    key: fs::read_to_string(&self.key_path).expect("failed to read key"),
-                    command: "default".to_string(),
-                    deadline: self.deadline,
-                    permissive: !self.strict,
-                    ip: self.client_sent_ip.clone(),
-                    ntp: "system".to_string(),
-                    ipv4: false,
-                    ipv6: false,
-                },
-                self.now.unwrap_or_else(|| TimeUtil::time().expect("could not get time")),
-            )
+            let sender = Sender::create(SendCommand {
+                address: self.server_address.to_string(),
+                key: fs::read_to_string(&self.key_path).expect("failed to read key"),
+                command: "default".to_string(),
+                permissive: !self.strict,
+                ip: self.client_sent_ip.clone(),
+                ipv4: false,
+                ipv6: false,
+            })
             .expect("could not create sender");
 
             sender.send().expect("could not send command");
@@ -152,16 +143,6 @@ mod tests {
             self
         }
 
-        fn with_deadline(&mut self, deadline: u16) -> &mut TestData {
-            self.deadline = deadline;
-            self
-        }
-
-        fn with_now(&mut self, now: u128) -> &mut TestData {
-            self.now = Some(now);
-            self
-        }
-
         fn with_ip(&mut self, ip: &str) -> &mut TestData {
             self.client_sent_ip = Some(ip.to_string());
             self
@@ -198,19 +179,6 @@ mod tests {
     }
 
     #[test]
-    fn test_too_late() {
-        let mut test_data: TestData = TestData::create();
-
-        test_data.run_client_gen();
-        test_data.run_commander();
-        test_data.run_server();
-
-        test_data.with_deadline(0).run_client_send();
-
-        test_data.assert_file_paths();
-    }
-
-    #[test]
     fn test_is_blocked() {
         let mut test_data: TestData = TestData::create();
 
@@ -218,11 +186,13 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        let now = TimeUtil::time().expect("could not get time");
-        test_data.with_deadline(5).with_now(now).run_client_send();
+        test_data.run_client_send();
         let _ = fs::remove_file(&test_data.test_file_path);
+        let mut counter = Counter::create(Sender::get_counter_path().unwrap(), 0).unwrap();
+        counter.count -= 1;
+        counter.write().unwrap();
 
-        test_data.with_deadline(5).with_now(now).run_client_send();
+        test_data.run_client_send();
         test_data.with_block_list_exists().assert_file_paths();
     }
 
@@ -321,13 +291,13 @@ mod tests {
         test_data.run_client_send();
         let blocked_list_0 = test_data.get_blocked_list();
 
-        test_data.with_deadline(5).run_client_send();
+        test_data.run_client_send();
         let blocked_list_1 = test_data.get_blocked_list();
 
         test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
 
         assert_eq!(blocked_list_0.len(), 1);
         assert_eq!(blocked_list_1.len(), 1);
-        assert_ne!(blocked_list_0.first(), blocked_list_1.first());
+        assert_ne!(blocked_list_0.values().last(), blocked_list_1.values().last());
     }
 }

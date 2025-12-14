@@ -45,33 +45,11 @@ export component Create inherits VerticalLayout {
             HorizontalLayout {
                 padding-bottom: 10px;
                 ArgRowText {
-                    text: "deadline";
-                }
-
-                ArgRowTextInput {
-                    input <=> SlintRustBridge.deadline;
-                }
-            }
-
-            HorizontalLayout {
-                padding-bottom: 10px;
-                ArgRowText {
                     text: "ip sent to server";
                 }
 
                 ArgRowTextInput {
                     input <=> root.ip;
-                }
-            }
-
-            HorizontalLayout {
-                padding-bottom: 10px;
-                ArgRowText {
-                    text: "ntp";
-                }
-
-                ArgRowTextInput {
-                    input <=> SlintRustBridge.ntp;
                 }
             }
 
@@ -120,10 +98,8 @@ export component Create inherits VerticalLayout {
                         SlintRustBridge.add_command({
                             address: root.address,
                             command: SlintRustBridge.command,
-                            deadline: SlintRustBridge.deadline,
                             permissive: root.permissive,
                             ip: root.ip,
-                            ntp: SlintRustBridge.ntp,
                             ipv4: root.ipv4,
                             ipv6: root.ipv6,
                             name: "",

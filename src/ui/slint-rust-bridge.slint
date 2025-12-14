@@ -1,10 +1,8 @@
 struct CommandData {
     address: string,
     command: string,
-    deadline: string,
     permissive: bool,
     ip: string,
-    ntp: string,
     ipv4: bool,
     ipv6: bool,
     name: string,
@@ -21,8 +19,6 @@ export global SlintRustBridge {
 
     // used in "Create" tab to create a new command for later execution
     in-out property <string> command: "";
-    in-out property <string> deadline: "";
-    in-out property <string> ntp: "";
 
     callback add_command(CommandData);
 

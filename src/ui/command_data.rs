@@ -12,13 +12,6 @@ pub fn data_to_command(data: &CommandData, key: Option<String>) -> String {
         command.push_str(&format!("--command {} ", data.command));
     }
 
-    if !data.deadline.trim().is_empty() {
-        command.push_str(&format!("--deadline {} ", data.deadline));
-    }
-    if !data.ntp.trim().is_empty() {
-        command.push_str(&format!("--ntp {} ", data.ntp));
-    }
-
     if !data.ip.trim().is_empty() {
         command.push_str(&format!("--ip {} ", data.ip));
     }
@@ -44,8 +37,6 @@ pub fn data_to_command(data: &CommandData, key: Option<String>) -> String {
 pub fn command_to_data(input: &str) -> CommandData {
     let mut address = "";
     let mut command = "";
-    let mut deadline = "";
-    let mut ntp = "";
     let mut ip = "";
     let mut ipv4 = false;
     let mut ipv6 = false;
@@ -64,14 +55,6 @@ pub fn command_to_data(input: &str) -> CommandData {
                 i += 1;
                 command = parts[i];
             }
-            "--deadline" if i + 1 < parts_len => {
-                i += 1;
-                deadline = parts[i];
-            }
-            "--ntp" if i + 1 < parts_len => {
-                i += 1;
-                ntp = parts[i];
-            }
             "--ip" if i + 1 < parts_len => {
                 i += 1;
                 ip = parts[i];
@@ -87,10 +70,8 @@ pub fn command_to_data(input: &str) -> CommandData {
     add_command_name(CommandData {
         address: address.into(),
         command: command.into(),
-        deadline: deadline.into(),
         permissive,
         ip: ip.into(),
-        ntp: ntp.into(),
         ipv4,
         ipv6,
         name: "".into(),

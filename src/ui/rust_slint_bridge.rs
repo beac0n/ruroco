@@ -3,10 +3,9 @@ use crate::client::update::Updater;
 #[cfg(target_os = "android")]
 use crate::ui::android_update::update_android;
 
-use crate::client::config::{get_conf_dir, CliClient, DEFAULT_COMMAND, DEFAULT_DEADLINE};
+use crate::client::config::{get_conf_dir, CliClient, DEFAULT_COMMAND};
 use crate::client::run_client;
 use crate::common::crypto_handler::CryptoHandler;
-use crate::common::time_util::NTP_SYSTEM;
 use crate::common::{error, info};
 use crate::ui::colors::{GREEN, RED};
 use crate::ui::command_data::{add_command_name, command_to_data, data_to_command};
@@ -45,8 +44,6 @@ impl RustSlintBridge {
     fn set_default_values(&self) {
         let bridge = self.app.global::<SlintRustBridge>();
         bridge.set_command(DEFAULT_COMMAND.to_string().into());
-        bridge.set_deadline(DEFAULT_DEADLINE.to_string().into());
-        bridge.set_ntp(NTP_SYSTEM.to_string().into());
     }
 
     fn err_log_wrap<F>(msg: String, f: F)

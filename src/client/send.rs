@@ -1,30 +1,36 @@
-use crate::client::config::SendCommand;
+use crate::client::config::{get_conf_dir, SendCommand};
+use crate::client::counter::Counter;
 use crate::common::client_data::ClientData;
 use crate::common::crypto_handler::PLAINTEXT_SIZE;
 use crate::common::data_parser::DataParser;
-use crate::common::info;
+use crate::common::time_util::TimeUtil;
+use crate::common::{info, resolve_path};
 use openssl::version::version;
 use std::fmt::{Debug, Display};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Sender {
     cmd: SendCommand,
-    now: u128,
     data_parser: DataParser,
+    counter: u128,
 }
 
 impl Sender {
     /// Create a new Sender instance
     ///
     /// * `send_command` - data holding information how to send the command - see SendCommand
-    /// * `now` - current timestamp in ns
-    pub fn create(cmd: SendCommand, now: u128) -> Result<Self, String> {
+    pub fn create(cmd: SendCommand) -> Result<Self, String> {
         Ok(Self {
             data_parser: DataParser::create(&cmd.key)?,
             cmd,
-            now,
+            counter: Counter::create(Self::get_counter_path()?, TimeUtil::time()?)?.count,
         })
+    }
+
+    pub fn get_counter_path() -> Result<PathBuf, String> {
+        Ok(resolve_path(&get_conf_dir()?).join("counter"))
     }
 
     /// Send data to the server to execute a predefined command
@@ -101,11 +107,10 @@ impl Sender {
     fn get_data_to_encrypt(&self, destination_ip: IpAddr) -> Result<[u8; PLAINTEXT_SIZE], String> {
         ClientData::create(
             &self.cmd.command,
-            self.cmd.deadline,
             !self.cmd.permissive,
             self.cmd.ip.clone().and_then(|d| d.parse().ok()),
             destination_ip,
-            self.now,
+            self.counter,
         )?
         .serialize()
     }
@@ -120,7 +125,6 @@ mod tests {
     use crate::client::gen::Generator;
     use crate::client::send::Sender;
     use crate::common::get_random_string;
-    use crate::common::time_util::TimeUtil;
     use std::fs;
     use std::fs::File;
     use std::net::IpAddr;
@@ -153,14 +157,11 @@ mod tests {
         let key_file_name = gen_file_name(".key");
         File::create(&key_file_name).unwrap();
 
-        let result = Sender::create(
-            SendCommand {
-                key: "DEADBEEF".to_string(),
-                ip: Some(IP.to_string()),
-                ..Default::default()
-            },
-            TimeUtil::time().unwrap(),
-        );
+        let result = Sender::create(SendCommand {
+            key: "DEADBEEF".to_string(),
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        });
 
         let _ = fs::remove_file(&key_file_name);
 
@@ -171,15 +172,12 @@ mod tests {
     fn test_send_invalid_port_value() {
         let key = Generator::create().unwrap().gen().unwrap();
         let address = "127.0.0.1:asd".to_string();
-        let sender = Sender::create(
-            SendCommand {
-                address: address.clone(),
-                key,
-                ip: Some(IP.to_string()),
-                ..Default::default()
-            },
-            TimeUtil::time().unwrap(),
-        )
+        let sender = Sender::create(SendCommand {
+            address: address.clone(),
+            key,
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        })
         .unwrap();
 
         let result = sender.send();
@@ -193,15 +191,12 @@ mod tests {
     #[test]
     fn test_send_unknown_service() {
         let address = "999.999.999.999:9999".to_string();
-        let sender = Sender::create(
-            SendCommand {
-                address: address.clone(),
-                key: Generator::create().unwrap().gen().unwrap(),
-                ip: Some(IP.to_string()),
-                ..Default::default()
-            },
-            TimeUtil::time().unwrap(),
-        )
+        let sender = Sender::create(SendCommand {
+            address: address.clone(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        })
         .unwrap();
 
         let result = sender.send();
@@ -216,16 +211,13 @@ mod tests {
 
     #[test]
     fn test_send_huge_command() {
-        let sender = Sender::create(
-            SendCommand {
-                address: "[::ffff:127.0.0.1]:1234".to_string(),
-                key: Generator::create().unwrap().gen().unwrap(),
-                command: "#".repeat(6000),
-                ip: Some("::ffff:192.168.178.123".to_string()),
-                ..Default::default()
-            },
-            TimeUtil::time().unwrap(),
-        )
+        let sender = Sender::create(SendCommand {
+            address: "[::ffff:127.0.0.1]:1234".to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            command: "#".repeat(6000),
+            ip: Some("::ffff:192.168.178.123".to_string()),
+            ..Default::default()
+        })
         .unwrap();
 
         let result = sender.send();
@@ -243,15 +235,12 @@ mod tests {
     }
 
     fn send_test(address: &str) -> Result<(), String> {
-        let sender = Sender::create(
-            SendCommand {
-                address: address.to_string(),
-                key: Generator::create()?.gen()?,
-                ip: Some(IP.to_string()),
-                ..Default::default()
-            },
-            TimeUtil::time()?,
-        );
+        let sender = Sender::create(SendCommand {
+            address: address.to_string(),
+            key: Generator::create()?.gen()?,
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        });
         sender?.send()
     }
 
@@ -261,15 +250,12 @@ mod tests {
     }
 
     fn get_ip_addresses(host: &str) -> Vec<IpAddr> {
-        let sender = Sender::create(
-            SendCommand {
-                address: host.to_string(),
-                key: Generator::create().unwrap().gen().unwrap(),
-                ip: Some(IP.to_string()),
-                ..Default::default()
-            },
-            TimeUtil::time().unwrap(),
-        );
+        let sender = Sender::create(SendCommand {
+            address: host.to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        });
 
         let ip_addrs = sender.unwrap().get_destination_ips().unwrap();
         dbg!(&ip_addrs);

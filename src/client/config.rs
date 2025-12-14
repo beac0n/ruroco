@@ -2,19 +2,16 @@
 //! The data that these structs and enums represent are used for invoking the client binary with CLI
 //! (default) arguments.
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(test), target_os = "linux"))]
 use std::env;
 
-#[cfg(target_os = "android")]
+#[cfg(all(not(test), target_os = "android"))]
 use crate::ui::android_util::{AndroidUtil, J_FILE, J_STRING};
 
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use crate::common::time_util::NTP_SYSTEM;
-use clap::{Parser, Subcommand};
-
 pub const DEFAULT_COMMAND: &str = "default";
-pub const DEFAULT_DEADLINE: u16 = 5;
 
 #[derive(Parser, Debug)]
 pub struct GenCommand {}
@@ -30,9 +27,6 @@ pub struct SendCommand {
     /// Command to send
     #[arg(short, long, default_value = DEFAULT_COMMAND)]
     pub command: String,
-    /// Deadline from now in seconds
-    #[arg(short, long, default_value_t = DEFAULT_DEADLINE)]
-    pub deadline: u16,
     #[arg(short = 'e', long)]
     /// Allow permissive IP validation - source IP does not have to match provided IP.
     pub permissive: bool,
@@ -41,9 +35,6 @@ pub struct SendCommand {
     /// To do this automatically, use -6ei $(curl -s6 https://api64.ipify.org | awk -F: '{print $1":"$2":"$3":"$4"::/64"}')
     #[arg(short, long)]
     pub ip: Option<String>,
-    /// NTP server (defaults to using the system time).
-    #[arg(short, long, default_value = NTP_SYSTEM)]
-    pub ntp: String,
     /// Connect via IPv4
     #[arg(short = '4', long)]
     pub ipv4: bool,
@@ -81,10 +72,8 @@ impl Default for SendCommand {
             key: "FFFFFFFFFFFFFFFFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF"
                 .to_string(),
             command: DEFAULT_COMMAND.to_string(),
-            deadline: 5,
             permissive: false,
             ip: None,
-            ntp: NTP_SYSTEM.to_string(),
             ipv4: false,
             ipv6: false,
         }
@@ -109,14 +98,22 @@ pub enum CommandsClient {
     /// Run the wizard to set up the server side.
     Wizard(WizardCommand),
 }
+
 pub fn get_conf_dir() -> Result<PathBuf, String> {
-    #[cfg(target_os = "linux")]
+    #[cfg(test)]
+    return crate::client::test_util::get_conf_dir();
+
+    #[cfg(all(not(test), target_os = "linux"))]
     return get_conf_dir_linux();
-    #[cfg(target_os = "android")]
+
+    #[cfg(all(not(test), target_os = "android"))]
     return get_conf_dir_android();
+
+    #[cfg(all(not(test), not(any(target_os = "linux", target_os = "android"))))]
+    Err("unsupported platform".to_string())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(not(test), target_os = "linux"))]
 fn get_conf_dir_linux() -> Result<PathBuf, String> {
     let current_dir = PathBuf::from("../..");
     Ok(match (env::var("HOME"), env::current_dir()) {
@@ -126,7 +123,7 @@ fn get_conf_dir_linux() -> Result<PathBuf, String> {
     })
 }
 
-#[cfg(target_os = "android")]
+#[cfg(all(not(test), target_os = "android"))]
 fn get_conf_dir_android() -> Result<PathBuf, String> {
     let util = AndroidUtil::create()?;
     let files_dir_obj = util.call_ctx_method("getFilesDir", J_FILE, &[])?;

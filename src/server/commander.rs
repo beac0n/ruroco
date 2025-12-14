@@ -17,7 +17,7 @@ const ENV_PREFIX: &str = "RUROCO_";
 #[derive(Debug, PartialEq)]
 pub struct Commander {
     socket_path: PathBuf,
-    commands: HashMap<u64, String>,
+    cmds: HashMap<u64, String>,
     socket_user: String,
     socket_group: String,
 }
@@ -32,7 +32,7 @@ impl Commander {
 
     pub fn create(config: ConfigServer) -> Result<Commander, String> {
         Ok(Commander {
-            commands: config.get_hash_to_cmd()?,
+            cmds: config.get_hash_to_cmd()?,
             socket_path: get_commander_unix_socket_path(&config.config_dir),
             socket_user: config.socket_user,
             socket_group: config.socket_group,
@@ -89,15 +89,14 @@ impl Commander {
         let msg = Commander::read(stream)?;
         let cmdr_data: CommanderData = CommanderData::deserialize(msg);
         let cmd_hash = &cmdr_data.cmd_hash;
-        let command =
-            self.commands.get(cmd_hash).ok_or(format!("Unknown command name: {cmd_hash}"))?;
+        let cmd = self.cmds.get(cmd_hash).ok_or(format!("Unknown command name: {cmd_hash}"))?;
 
-        self.run_command(command, cmdr_data.ip);
+        info(&format!("Running command ({cmd_hash}) {cmd}"));
+        self.run_command(cmd, cmdr_data.ip);
         Ok(())
     }
 
     fn run_command(&self, command: &str, ip: IpAddr) {
-        info(&format!("Running command {command}"));
         match Command::new("sh")
             .arg("-c")
             .arg(command)
@@ -194,7 +193,6 @@ mod tests {
             Commander::create_from_path(&path),
             Commander::create(ConfigServer {
                 ips: vec!["127.0.0.1".parse().unwrap()],
-                ntp: "system".to_string(),
                 config_dir: PathBuf::from("tests/conf_dir"),
                 socket_user: "ruroco".to_string(),
                 socket_group: "ruroco".to_string(),

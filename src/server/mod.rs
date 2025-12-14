@@ -1,5 +1,6 @@
 /// persists the blocked list of deadlines
 pub mod blocklist;
+pub mod blocklist_serialization;
 /// responsible for executing the commands that are defined in the config file
 pub mod commander;
 pub(crate) mod commander_data;
@@ -10,7 +11,6 @@ pub mod util;
 use crate::common::client_data::ClientData;
 use crate::common::crypto_handler::{CryptoHandler, KEY_ID_SIZE, PLAINTEXT_SIZE};
 use crate::common::data_parser::{DataParser, MSG_SIZE};
-use crate::common::time_util::TimeUtil;
 use crate::common::{error, info};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
@@ -24,7 +24,6 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Server {
-    hash_to_cmd: HashMap<u64, String>,
     config: ConfigServer,
     crypto_handlers: HashMap<[u8; KEY_ID_SIZE], CryptoHandler>,
     socket: UdpSocket,
@@ -48,7 +47,6 @@ impl Server {
             client_recv_data: [0u8; MSG_SIZE],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist: config.create_blocklist(),
-            hash_to_cmd: config.get_hash_to_cmd()?,
             config,
         })
     }
@@ -68,7 +66,8 @@ impl Server {
             }
             Ok((count, src)) => {
                 info(&format!("Successfully received {count} bytes from {src}"));
-                self.decrypt().map_or_else(Some, |d| self.validate_and_send_command(d, src.ip()))
+                self.decrypt()
+                    .map_or_else(Some, |(k, d)| self.validate_and_send_command(k, d, src.ip()))
             }
             Err(e) => Some(format!("Could not receive bytes from socket: {e}")),
         };
@@ -76,16 +75,19 @@ impl Server {
         error_msg.inspect(|s| error(s))
     }
 
-    fn decrypt(&mut self) -> Result<[u8; PLAINTEXT_SIZE], String> {
+    fn decrypt(&mut self) -> Result<([u8; 8], [u8; PLAINTEXT_SIZE]), String> {
         let (key_id, encrypted_data) = DataParser::decode(&self.client_recv_data)?;
-        self.crypto_handlers
+        let plaintext = self
+            .crypto_handlers
             .get(key_id)
             .map(|crypto_handler| crypto_handler.decrypt(encrypted_data))
-            .unwrap_or_else(|| Err(format!("Could not find key for id {key_id:X?}")))
+            .unwrap_or_else(|| Err(format!("Could not find key for id {key_id:X?}")))?;
+        Ok((key_id.clone(), plaintext))
     }
 
     fn validate_and_send_command(
         &mut self,
+        key_id: [u8; 8],
         plaintext_data: [u8; PLAINTEXT_SIZE],
         src_ip: IpAddr,
     ) -> Option<String> {
@@ -94,41 +96,37 @@ impl Server {
             _ => src_ip,
         };
 
-        match self.decode(plaintext_data) {
-            Ok((now_ns, client_data)) if now_ns > client_data.deadline => {
-                let deadline = client_data.deadline;
-                Some(format!("Invalid deadline - now {now_ns} is after {deadline}"))
+        match ClientData::deserialize(plaintext_data) {
+            Ok(client_data) if self.blocklist.is_blocked(key_id, client_data.counter) => {
+                Some(format!("Invalid counter - {} is on blocklist", client_data.counter))
             }
-            Ok((_, client_data)) if !self.config.ips.contains(&client_data.dst_ip) => {
-                let destination_ip = client_data.dst_ip;
+            Ok(client_data) if !self.config.ips.contains(&client_data.dst_ip) => {
+                let destination_ip = &client_data.dst_ip;
                 let ips = &self.config.ips;
                 Some(format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
             }
-            Ok((_, client_data)) if self.blocklist.is_blocked(client_data.deadline) => {
-                Some(format!("Invalid deadline - {} is on blocklist", client_data.deadline))
-            }
-            Ok((_, client_data)) if client_data.validate_source_ip(src_ip) => {
+            Ok(client_data) if client_data.validate_source_ip(src_ip) => {
                 let client_src_ip_str =
                     client_data.src_ip.map(|i| i.to_string()).unwrap_or("none".to_string());
                 Some(format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
             }
-            Ok((now_ns, client_data)) => {
-                let cmd_hash = client_data.cmd_hash;
+            Ok(client_data) => {
+                let cmd = client_data.cmd_hash;
+                let server_counter = self.blocklist.get_counter(key_id);
+                let client_counter = client_data.counter;
                 let ip = client_data.src_ip.unwrap_or(src_ip);
-                let cmd = self.hash_to_cmd.get(&cmd_hash);
-                info(&format!("Valid data - trying {cmd:?} with {ip}"));
+                info(&format!("Valid data - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
 
-                self.send_command(CommanderData { cmd_hash, ip });
-                self.update_block_list(now_ns, client_data.deadline);
+                self.send_command(CommanderData { cmd_hash: cmd, ip });
+                self.update_block_list(key_id, client_data.counter);
                 None
             }
             Err(e) => Some(format!("Could not decode data: {e}")),
         }
     }
 
-    fn update_block_list(&mut self, now_ns: u128, deadline_ns: u128) {
-        self.blocklist.clean(now_ns);
-        self.blocklist.add(deadline_ns);
+    fn update_block_list(&mut self, key_id: [u8; 8], counter: u128) {
+        self.blocklist.add(key_id, counter);
         self.blocklist.save();
     }
 
@@ -155,13 +153,6 @@ impl Server {
             .flush()
             .map_err(|e| format!("Could not flush stream for {:?}: {e}", self.socket_path))?;
         Ok(())
-    }
-
-    fn decode(&self, data: [u8; PLAINTEXT_SIZE]) -> Result<(u128, ClientData), String> {
-        match ClientData::deserialize(data) {
-            Ok(data) => Ok((TimeUtil::time_from_ntp(&self.config.ntp)?, data)),
-            Err(e) => Err(e),
-        }
     }
 }
 
