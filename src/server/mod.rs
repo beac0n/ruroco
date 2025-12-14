@@ -82,7 +82,7 @@ impl Server {
             .get(key_id)
             .map(|crypto_handler| crypto_handler.decrypt(encrypted_data))
             .unwrap_or_else(|| Err(format!("Could not find key for id {key_id:X?}")))?;
-        Ok((key_id.clone(), plaintext))
+        Ok((*key_id, plaintext))
     }
 
     fn validate_and_send_command(
