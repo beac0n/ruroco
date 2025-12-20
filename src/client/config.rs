@@ -2,12 +2,6 @@
 //! The data that these structs and enums represent are used for invoking the client binary with CLI
 //! (default) arguments.
 
-#[cfg(all(not(test), target_os = "linux"))]
-use std::env;
-
-#[cfg(all(not(test), target_os = "android"))]
-use crate::ui::android_util::{AndroidUtil, J_FILE, J_STRING};
-
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -100,31 +94,37 @@ pub enum CommandsClient {
 }
 
 pub fn get_conf_dir() -> Result<PathBuf, String> {
-    #[cfg(test)]
-    return crate::client::test_util::get_conf_dir();
-
-    #[cfg(all(not(test), target_os = "linux"))]
+    #[cfg(target_os = "linux")]
     return get_conf_dir_linux();
 
-    #[cfg(all(not(test), target_os = "android"))]
+    #[cfg(target_os = "android")]
     return get_conf_dir_android();
 
-    #[cfg(all(not(test), not(any(target_os = "linux", target_os = "android"))))]
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
     Err("unsupported platform".to_string())
 }
 
-#[cfg(all(not(test), target_os = "linux"))]
+#[cfg(target_os = "linux")]
 fn get_conf_dir_linux() -> Result<PathBuf, String> {
-    let current_dir = PathBuf::from("../..");
-    Ok(match (env::var("HOME"), env::current_dir()) {
-        (Ok(home_dir), _) => PathBuf::from(home_dir).join(".config").join("ruroco"),
-        (_, Ok(current_dir)) => current_dir,
-        (_, _) => current_dir,
-    })
+    use std::env;
+    use std::fs;
+
+    let path = if let Ok(p) = env::var("RUROCO_CONF_DIR") {
+        PathBuf::from(p)
+    } else if let Ok(home_dir) = env::var("HOME") {
+        PathBuf::from(home_dir).join(".config").join("ruroco")
+    } else {
+        env::current_dir().map_err(|e| format!("Could not determine config dir: {e}"))?
+    };
+
+    fs::create_dir_all(&path).map_err(|e| format!("Could not create config dir: {e}"))?;
+    Ok(path)
 }
 
-#[cfg(all(not(test), target_os = "android"))]
+#[cfg(target_os = "android")]
 fn get_conf_dir_android() -> Result<PathBuf, String> {
+    use crate::ui::android_util::{AndroidUtil, J_FILE, J_STRING};
+
     let util = AndroidUtil::create()?;
     let files_dir_obj = util.call_ctx_method("getFilesDir", J_FILE, &[])?;
     let abs_path_ref = util.call_method(files_dir_obj, "getAbsolutePath", J_STRING, &[])?;

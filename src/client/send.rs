@@ -22,10 +22,14 @@ impl Sender {
     ///
     /// * `send_command` - data holding information how to send the command - see SendCommand
     pub fn create(cmd: SendCommand) -> Result<Self, String> {
+        let counter_path = Self::get_counter_path()?;
+        info(&format!("Loading counter from {counter_path:?} ..."));
+        let mut counter = Counter::create(counter_path, TimeUtil::time()?)?;
+        counter.inc()?;
         Ok(Self {
             data_parser: DataParser::create(&cmd.key)?,
             cmd,
-            counter: Counter::create(Self::get_counter_path()?, TimeUtil::time()?)?.count,
+            counter: counter.count(),
         })
     }
 

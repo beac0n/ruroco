@@ -4,21 +4,36 @@ use std::path::PathBuf;
 
 pub struct Counter {
     path: PathBuf,
-    pub count: u128,
+    count: u128,
 }
 
 impl Counter {
     pub fn create(path: PathBuf, initial: u128) -> Result<Self, String> {
         let mut counter = Self { path, count: 0 };
-        match counter.read() {
-            Ok(_) => counter.count += 1,
-            Err(_) => counter.count = initial,
-        };
-        counter.write()?;
+        if counter.read().is_err() {
+            counter.count = initial;
+            counter.write()?;
+        }
         Ok(counter)
     }
 
-    pub fn write(&self) -> Result<(), String> {
+    pub fn count(&self) -> u128 {
+        self.count
+    }
+
+    pub fn dec(&mut self) -> Result<(), String> {
+        self.count = self.count.saturating_sub(1);
+        self.write()?;
+        Ok(())
+    }
+
+    pub fn inc(&mut self) -> Result<(), String> {
+        self.count = self.count.saturating_add(1);
+        self.write()?;
+        Ok(())
+    }
+
+    fn write(&self) -> Result<(), String> {
         File::create(&self.path)
             .map_err(|e| format!("Could not create counter file {:?}: {e}", self.path))?
             .write_all(&self.count.to_be_bytes())

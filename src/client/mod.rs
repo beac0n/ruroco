@@ -11,7 +11,6 @@ pub mod config;
 pub mod counter;
 pub mod gen;
 pub mod send;
-mod test_util;
 pub mod update;
 pub mod util;
 mod wizard;

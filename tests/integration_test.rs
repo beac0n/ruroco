@@ -189,8 +189,7 @@ mod tests {
         test_data.run_client_send();
         let _ = fs::remove_file(&test_data.test_file_path);
         let mut counter = Counter::create(Sender::get_counter_path().unwrap(), 0).unwrap();
-        counter.count -= 1;
-        counter.write().unwrap();
+        counter.dec().unwrap();
 
         test_data.run_client_send();
         test_data.with_block_list_exists().assert_file_paths();
