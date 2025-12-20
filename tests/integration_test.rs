@@ -13,7 +13,7 @@ mod tests {
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::time::Duration;
-    use std::{fs, thread};
+    use std::{env, fs, thread};
 
     const TEST_IP_V4: &str = "192.168.178.123";
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
@@ -33,8 +33,8 @@ mod tests {
 
     impl TestData {
         fn create() -> TestData {
-            let test_folder_path = PathBuf::from("/tmp").join(TestData::gen_file_name(""));
-            let _ = fs::create_dir_all(&test_folder_path);
+            let test_folder_path = tempfile::tempdir().unwrap().keep();
+            env::set_var("RUROCO_CONF_DIR", &test_folder_path);
 
             TestData {
                 config_dir: test_folder_path.clone(),
