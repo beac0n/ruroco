@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::common::{error, resolve_path};
+use crate::common::resolve_path;
 use crate::server::blocklist_serialization::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
 
