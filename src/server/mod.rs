@@ -105,7 +105,7 @@ impl Server {
                 let ips = &self.config.ips;
                 Some(format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
             }
-            Ok(client_data) if client_data.validate_source_ip(src_ip) => {
+            Ok(client_data) if client_data.is_source_ip_invalid(src_ip) => {
                 let client_src_ip_str =
                     client_data.src_ip.map(|i| i.to_string()).unwrap_or("none".to_string());
                 Some(format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))

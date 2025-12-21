@@ -64,7 +64,7 @@ impl ClientData {
         })
     }
 
-    pub(crate) fn validate_source_ip(&self, source_ip: IpAddr) -> bool {
+    pub(crate) fn is_source_ip_invalid(&self, source_ip: IpAddr) -> bool {
         self.strict && self.src_ip.is_some_and(|ip_sent| ip_sent != source_ip)
     }
 }
