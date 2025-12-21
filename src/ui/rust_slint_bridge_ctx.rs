@@ -19,11 +19,7 @@ impl From<&RustSlintBridge> for RustSlintBridgeCtx {
 }
 
 impl RustSlintBridgeCtx {
-    pub(crate) fn set_cmd_data_color(
-        &self,
-        cmd: &CommandData,
-        color: Color,
-    ) -> Result<(), String> {
+    pub(crate) fn set_cmd_data_color(&self, cmd: &CommandData, color: Color) -> Result<(), String> {
         let app = self.get_upgraded_app()?;
         let cl = app.global::<SlintRustBridge>().get_commands_list();
         let cl = cl
