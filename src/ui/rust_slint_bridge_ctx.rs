@@ -4,7 +4,7 @@ use crate::ui::saved_command_list::CommandsList;
 use slint::{Color, ComponentHandle, Model, VecModel, Weak};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-pub struct RustSlintBridgeCtx {
+pub(crate) struct RustSlintBridgeCtx {
     app: Weak<App>,
     commands_list: Arc<Mutex<CommandsList>>,
 }
@@ -19,7 +19,11 @@ impl From<&RustSlintBridge> for RustSlintBridgeCtx {
 }
 
 impl RustSlintBridgeCtx {
-    pub fn set_cmd_data_color(&self, cmd: &CommandData, color: Color) -> Result<(), String> {
+    pub(crate) fn set_cmd_data_color(
+        &self,
+        cmd: &CommandData,
+        color: Color,
+    ) -> Result<(), String> {
         let app = self.get_upgraded_app()?;
         let cl = app.global::<SlintRustBridge>().get_commands_list();
         let cl = cl
@@ -39,7 +43,7 @@ impl RustSlintBridgeCtx {
         Ok(())
     }
 
-    pub fn set_cmds_list(&self) -> Result<(), String> {
+    pub(crate) fn set_cmds_list(&self) -> Result<(), String> {
         let cmds_list = self.get_cmds_list()?;
         let app = self.get_upgraded_app()?;
         app.global::<SlintRustBridge>().set_commands_config((&*cmds_list).into());
@@ -47,22 +51,22 @@ impl RustSlintBridgeCtx {
         Ok(())
     }
 
-    pub fn reset_cmds(&self) -> Result<(), String> {
+    pub(crate) fn reset_cmds(&self) -> Result<(), String> {
         self.set_cmds(self.get_cmds_list()?.get())
     }
-    pub fn set_cmds(&self, cmds: Vec<CommandData>) -> Result<(), String> {
+    pub(crate) fn set_cmds(&self, cmds: Vec<CommandData>) -> Result<(), String> {
         let mut cl = self.get_cmds_list()?;
         cl.set(cmds);
         self.set_cmds_list()
     }
 
-    pub fn remove_cmd(&self, cmd: CommandData) -> Result<(), String> {
+    pub(crate) fn remove_cmd(&self, cmd: CommandData) -> Result<(), String> {
         let mut cl = self.get_cmds_list()?;
         cl.remove(cmd);
         self.set_cmds_list()
     }
 
-    pub fn add_cmd(&self, cmd: CommandData) -> Result<(), String> {
+    pub(crate) fn add_cmd(&self, cmd: CommandData) -> Result<(), String> {
         let mut cl = self.get_cmds_list()?;
         cl.add(cmd);
         self.set_cmds_list()

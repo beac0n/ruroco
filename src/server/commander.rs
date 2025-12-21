@@ -23,7 +23,7 @@ pub struct Commander {
 }
 
 impl Commander {
-    pub fn create_from_path(path: &Path) -> Result<Commander, String> {
+    fn create_from_path(path: &Path) -> Result<Commander, String> {
         match fs::read_to_string(path) {
             Ok(config) => Commander::create(ConfigServer::deserialize(&config)?),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),

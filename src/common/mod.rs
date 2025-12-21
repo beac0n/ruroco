@@ -1,8 +1,8 @@
-pub mod client_data;
-pub mod crypto_handler;
-pub mod data_parser;
-pub mod serialization_util;
-pub mod time_util;
+pub(crate) mod client_data;
+pub(crate) mod crypto_handler;
+pub(crate) mod data_parser;
+pub(crate) mod serialization_util;
+pub(crate) mod time_util;
 
 use crate::common::time_util::TimeUtil;
 use blake2::digest::{Update, VariableOutput};
@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 
-pub fn blake2b_u64(s: &str) -> Result<u64, String> {
+pub(crate) fn blake2b_u64(s: &str) -> Result<u64, String> {
     let mut hasher = Blake2bVar::new(8)
         .map_err(|e| format!("Could not create Blake2b hasher for string {s}: {e}"))?;
     hasher.update(s.as_bytes());
@@ -40,7 +40,7 @@ pub fn get_random_range(from: u16, to: u16) -> Result<u16, String> {
     Ok(from + v)
 }
 
-pub fn resolve_path(path: &Path) -> PathBuf {
+pub(crate) fn resolve_path(path: &Path) -> PathBuf {
     if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -62,17 +62,21 @@ pub fn resolve_path(path: &Path) -> PathBuf {
     }
 }
 
-pub fn info(msg: &str) {
+pub(crate) fn info(msg: &str) {
     let date_time = TimeUtil::get_date_time();
     println!("[{date_time} \x1b[32mINFO\x1b[0m ] {msg}")
 }
 
-pub fn error(msg: &str) {
+pub(crate) fn error(msg: &str) {
     let date_time = TimeUtil::get_date_time();
     println!("[{date_time} \x1b[31mERROR\x1b[0m ] {msg}")
 }
 
-pub fn change_file_ownership(path: &Path, user_name: &str, group_name: &str) -> Result<(), String> {
+pub(crate) fn change_file_ownership(
+    path: &Path,
+    user_name: &str,
+    group_name: &str,
+) -> Result<(), String> {
     let user_id = match get_id_by_name_and_flag(user_name, "-u") {
         Some(id) => Some(id),
         None if user_name.is_empty() => None,

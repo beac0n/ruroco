@@ -40,11 +40,11 @@ impl Blocklist {
         }
     }
 
-    pub fn get_counter(&self, key_id: [u8; 8]) -> Option<&u128> {
+    pub(crate) fn get_counter(&self, key_id: [u8; 8]) -> Option<&u128> {
         self.map.get(&Self::key_id_to_u64(key_id))
     }
 
-    pub fn key_id_to_u64(key_id: [u8; 8]) -> u64 {
+    fn key_id_to_u64(key_id: [u8; 8]) -> u64 {
         u64::from_be_bytes(key_id)
     }
 
@@ -59,7 +59,7 @@ impl Blocklist {
     }
 
     /// saves the current content of the blocklist to the defined path
-    pub fn save(&self) {
+    pub(crate) fn save(&self) {
         let toml_string = match toml::to_string(&self) {
             Ok(s) => s,
             Err(e) => return error(&format!("Error serializing blacklist: {e}")),

@@ -2,7 +2,7 @@
 
 use crate::client::update::Updater;
 use crate::common::info;
-pub fn update_android() -> Result<(), String> {
+pub(crate) fn update_android() -> Result<(), String> {
     let data = Updater::get_github_api_data(None)?;
     let asset = data
         .assets

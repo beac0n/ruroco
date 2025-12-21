@@ -11,8 +11,8 @@ pub mod config;
 pub mod counter;
 pub mod gen;
 pub mod send;
-pub mod update;
-pub mod util;
+pub(crate) mod update;
+pub(crate) mod util;
 mod wizard;
 
 pub fn run_client(client: CliClient) -> Result<(), String> {

@@ -17,7 +17,7 @@ impl Counter {
         Ok(counter)
     }
 
-    pub fn count(&self) -> u128 {
+    pub(crate) fn count(&self) -> u128 {
         self.count
     }
 
@@ -27,7 +27,7 @@ impl Counter {
         Ok(())
     }
 
-    pub fn inc(&mut self) -> Result<(), String> {
+    pub(crate) fn inc(&mut self) -> Result<(), String> {
         self.count = self.count.saturating_add(1);
         self.write()?;
         Ok(())

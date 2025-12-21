@@ -1,9 +1,9 @@
 /// persists the blocked list of deadlines
 pub mod blocklist;
-pub mod blocklist_serialization;
+mod blocklist_serialization;
 /// responsible for executing the commands that are defined in the config file
 pub mod commander;
-pub(crate) mod commander_data;
+mod commander_data;
 /// data structures for loading configuration files and using CLI arguments for server services
 pub mod config;
 pub mod util;
@@ -33,7 +33,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn create_from_path(path: &Path) -> Result<Server, String> {
+    fn create_from_path(path: &Path) -> Result<Server, String> {
         match fs::read_to_string(path) {
             Ok(config) => Server::create(ConfigServer::deserialize(&config)?, None),
             Err(e) => Err(format!("Could not read {path:?}: {e}")),

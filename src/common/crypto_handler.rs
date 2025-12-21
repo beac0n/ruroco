@@ -6,28 +6,28 @@ use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs;
 use std::path::Path;
 
-pub const PLAINTEXT_SIZE: usize = 57;
-pub const CIPHERTEXT_SIZE: usize = 85;
-pub const KEY_ID_SIZE: usize = 8;
-pub const IV_SIZE: usize = 12;
-pub const TAG_SIZE: usize = 16;
+pub(crate) const PLAINTEXT_SIZE: usize = 57;
+pub(crate) const CIPHERTEXT_SIZE: usize = 85;
+pub(crate) const KEY_ID_SIZE: usize = 8;
+pub(crate) const IV_SIZE: usize = 12;
+pub(crate) const TAG_SIZE: usize = 16;
 const KEY_SIZE: usize = 32;
 const SALT_SIZE: usize = 16;
 const KEY_DERIVATION_ITERATIONS: usize = 100_000;
 
 #[derive(Debug)]
-pub struct CryptoHandler {
-    pub key: [u8; KEY_SIZE],
-    pub id: [u8; KEY_ID_SIZE],
+pub(crate) struct CryptoHandler {
+    pub(crate) key: [u8; KEY_SIZE],
+    pub(crate) id: [u8; KEY_ID_SIZE],
 }
 
 impl CryptoHandler {
-    pub fn from_key_path(key_path: &Path) -> Result<Self, String> {
+    pub(crate) fn from_key_path(key_path: &Path) -> Result<Self, String> {
         let key = fs::read_to_string(key_path).map_err(|e| format!("Could not read key: {e}"))?;
         Self::create(&key)
     }
 
-    pub fn create(key_string: &str) -> Result<Self, String> {
+    pub(crate) fn create(key_string: &str) -> Result<Self, String> {
         let key_string = key_string.trim();
         let bytes = general_purpose::STANDARD
             .decode(key_string)
@@ -45,7 +45,7 @@ impl CryptoHandler {
         })
     }
 
-    pub fn gen_key() -> Result<String, String> {
+    pub(crate) fn gen_key() -> Result<String, String> {
         let mut secret = [0u8; KEY_SIZE];
         rand_bytes(&mut secret).map_err(|e| format!("Could not generate secret: {e}"))?;
 
@@ -62,7 +62,7 @@ impl CryptoHandler {
         Ok(general_purpose::STANDARD.encode([id.as_slice(), key.as_slice()].concat()))
     }
 
-    pub fn encrypt(
+    pub(crate) fn encrypt(
         &self,
         plaintext: &[u8; PLAINTEXT_SIZE],
     ) -> Result<[u8; CIPHERTEXT_SIZE], String> {
@@ -97,7 +97,7 @@ impl CryptoHandler {
         Ok(out)
     }
 
-    pub fn decrypt(
+    pub(crate) fn decrypt(
         &self,
         iv_tag_ciphertext: &[u8; CIPHERTEXT_SIZE],
     ) -> Result<[u8; PLAINTEXT_SIZE], String> {

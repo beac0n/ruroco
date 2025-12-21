@@ -1,27 +1,27 @@
 use crate::common::crypto_handler::{CryptoHandler, CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
 
-pub const MSG_SIZE: usize = KEY_ID_SIZE + CIPHERTEXT_SIZE;
+pub(crate) const MSG_SIZE: usize = KEY_ID_SIZE + CIPHERTEXT_SIZE;
 
 #[derive(Debug)]
-pub struct DataParser {
+pub(crate) struct DataParser {
     crypto_handler: CryptoHandler,
 }
 
 impl DataParser {
-    pub fn create(key_string: &str) -> Result<Self, String> {
+    pub(crate) fn create(key_string: &str) -> Result<Self, String> {
         Ok(DataParser {
             crypto_handler: CryptoHandler::create(key_string)?,
         })
     }
 
-    pub fn encode(&self, data: &[u8; PLAINTEXT_SIZE]) -> Result<[u8; MSG_SIZE], String> {
+    pub(crate) fn encode(&self, data: &[u8; PLAINTEXT_SIZE]) -> Result<[u8; MSG_SIZE], String> {
         let ciphertext = self.crypto_handler.encrypt(data)?;
         let mut data_encoded = [0u8; MSG_SIZE];
         data_encoded[0..KEY_ID_SIZE].copy_from_slice(&self.crypto_handler.id);
         data_encoded[KEY_ID_SIZE..].copy_from_slice(&ciphertext);
         Ok(data_encoded)
     }
-    pub fn decode(
+    pub(crate) fn decode(
         data: &[u8; MSG_SIZE],
     ) -> Result<(&[u8; KEY_ID_SIZE], &[u8; CIPHERTEXT_SIZE]), String> {
         let data_decoded = <&[u8; CIPHERTEXT_SIZE]>::try_from(&data[KEY_ID_SIZE..])

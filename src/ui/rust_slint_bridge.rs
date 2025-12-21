@@ -24,7 +24,7 @@ pub(crate) struct RustSlintBridge {
 }
 
 impl RustSlintBridge {
-    pub fn create() -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn create() -> Result<Self, Box<dyn Error>> {
         let bridge = RustSlintBridge {
             app: App::new()?,
             commands_list: Arc::new(Mutex::new(CommandsList::create(&get_conf_dir()?))),
@@ -56,18 +56,18 @@ impl RustSlintBridge {
         }
     }
 
-    pub fn run(&self) -> Result<(), slint::PlatformError> {
+    pub(crate) fn run(&self) -> Result<(), slint::PlatformError> {
         self.app.run()
     }
 
-    pub fn add_on_reset_commands_config(&self) {
+    fn add_on_reset_commands_config(&self) {
         let ctx: RustSlintBridgeCtx = self.into();
         self.app.global::<SlintRustBridge>().on_reset_commands_config(move || {
             Self::err_log_wrap("Resetting commands".to_string(), || ctx.reset_cmds());
         });
     }
 
-    pub fn add_on_set_commands_config(&self) -> Result<(), String> {
+    fn add_on_set_commands_config(&self) -> Result<(), String> {
         let ctx: RustSlintBridgeCtx = self.into();
         ctx.set_cmds_list()?;
         self.app.global::<SlintRustBridge>().on_set_commands_config(move |cmds| {
@@ -78,14 +78,14 @@ impl RustSlintBridge {
         Ok(())
     }
 
-    pub fn add_on_del_command(&self) {
+    fn add_on_del_command(&self) {
         let ctx: RustSlintBridgeCtx = self.into();
         self.app.global::<SlintRustBridge>().on_del_command(move |cmd| {
             Self::err_log_wrap(format!("Removing command: {cmd:?}"), || ctx.remove_cmd(cmd));
         });
     }
 
-    pub fn add_on_exec_command(&self) {
+    fn add_on_exec_command(&self) {
         let ctx: RustSlintBridgeCtx = self.into();
         self.app.global::<SlintRustBridge>().on_exec_command(move |cmd, key| {
             Self::err_log_wrap(format!("Executing command: {}", cmd.name), || {
@@ -108,7 +108,7 @@ impl RustSlintBridge {
         })
     }
 
-    pub fn add_on_add_command(&self) {
+    fn add_on_add_command(&self) {
         let ctx: RustSlintBridgeCtx = self.into();
         self.app.global::<SlintRustBridge>().on_add_command(move |cmd| {
             Self::err_log_wrap(format!("Adding new command: {cmd:?}"), || {
@@ -117,7 +117,7 @@ impl RustSlintBridge {
         });
     }
 
-    pub fn add_on_update_application(&self) {
+    fn add_on_update_application(&self) {
         self.app.global::<SlintRustBridge>().on_update_application(move || {
             Self::err_log_wrap("Updating application".to_string(), || {
                 #[cfg(target_os = "linux")]
@@ -130,7 +130,7 @@ impl RustSlintBridge {
         });
     }
 
-    pub fn add_on_generate_key(&self) {
+    fn add_on_generate_key(&self) {
         self.app
             .global::<SlintRustBridge>()
             .on_generate_key(|| SharedString::from(CryptoHandler::gen_key().unwrap_or_else(|e| e)));

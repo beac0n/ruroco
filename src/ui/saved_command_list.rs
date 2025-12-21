@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::{fmt, fs};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub struct CommandsList {
+pub(crate) struct CommandsList {
     list: Vec<String>,
     path: PathBuf,
 }
@@ -32,7 +32,7 @@ impl From<&CommandsList> for ModelRc<CommandData> {
 }
 
 impl CommandsList {
-    pub fn create(cfg_dir: &Path) -> CommandsList {
+    pub(crate) fn create(cfg_dir: &Path) -> CommandsList {
         let path = resolve_path(cfg_dir).join("commands_list.toml");
         let mut cmd_list = toml::from_str(&CommandsList::read_raw_from_path(&path))
             .unwrap_or_else(|_| CommandsList { list: vec![], path });
@@ -40,23 +40,23 @@ impl CommandsList {
         cmd_list
     }
 
-    pub fn set(&mut self, cmd_list: Vec<CommandData>) {
+    pub(crate) fn set(&mut self, cmd_list: Vec<CommandData>) {
         self.list = cmd_list.into_iter().map(|c| data_to_command(&c, None)).collect();
         self.list.sort();
         self.save()
     }
 
-    pub fn get(&self) -> Vec<CommandData> {
+    pub(crate) fn get(&self) -> Vec<CommandData> {
         self.list.clone().into_iter().map(|c| command_to_data(&c)).collect()
     }
 
-    pub fn add(&mut self, cmd: CommandData) {
+    pub(crate) fn add(&mut self, cmd: CommandData) {
         self.list.push(data_to_command(&cmd, None));
         self.list.sort();
         self.save()
     }
 
-    pub fn remove(&mut self, cmd: CommandData) {
+    pub(crate) fn remove(&mut self, cmd: CommandData) {
         let cmd_str = data_to_command(&cmd, None);
         self.list.retain(|value| value.clone() != cmd_str.clone());
         self.save()

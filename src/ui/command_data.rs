@@ -1,7 +1,7 @@
 use crate::ui::colors::GRAY;
 use crate::ui::rust_slint_bridge::CommandData;
 
-pub fn data_to_command(data: &CommandData, key: Option<String>) -> String {
+pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String {
     let mut command = String::new();
 
     command.push_str("send ");
@@ -34,7 +34,7 @@ pub fn data_to_command(data: &CommandData, key: Option<String>) -> String {
     command.trim_end().to_string()
 }
 
-pub fn command_to_data(input: &str) -> CommandData {
+pub(crate) fn command_to_data(input: &str) -> CommandData {
     let mut address = "";
     let mut command = "";
     let mut ip = "";
@@ -79,7 +79,7 @@ pub fn command_to_data(input: &str) -> CommandData {
     })
 }
 
-pub fn add_command_name(mut data: CommandData) -> CommandData {
+pub(crate) fn add_command_name(mut data: CommandData) -> CommandData {
     let name = format!(
         "{}@{}{}{}{}",
         data.command,

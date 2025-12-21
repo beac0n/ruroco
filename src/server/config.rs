@@ -21,7 +21,7 @@ use std::{env, fs};
 #[command(version, about, long_about = None)]
 pub struct CliServer {
     #[arg(short, long, default_value = PathBuf::from("/etc/ruroco/config.toml").into_os_string())]
-    pub config: PathBuf,
+    pub(crate) config: PathBuf,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -46,7 +46,7 @@ where
 }
 
 impl ConfigServer {
-    pub fn get_hash_to_cmd(&self) -> Result<HashMap<u64, String>, String> {
+    pub(crate) fn get_hash_to_cmd(&self) -> Result<HashMap<u64, String>, String> {
         self.commands
             .iter()
             .map(|(k, v)| {
@@ -55,12 +55,15 @@ impl ConfigServer {
             })
             .collect()
     }
-    pub fn deserialize(data: &str) -> Result<ConfigServer, String> {
+    pub(crate) fn deserialize(data: &str) -> Result<ConfigServer, String> {
         toml::from_str::<ConfigServer>(data)
             .map_err(|e| format!("Could not create ConfigServer from {data}: {e}"))
     }
 
-    pub fn create_server_udp_socket(&self, address: Option<String>) -> Result<UdpSocket, String> {
+    pub(crate) fn create_server_udp_socket(
+        &self,
+        address: Option<String>,
+    ) -> Result<UdpSocket, String> {
         match (
             env::var("LISTEN_PID").ok(),
             env::var("LISTEN_FDS").ok(),
@@ -104,11 +107,11 @@ impl ConfigServer {
         }
     }
 
-    pub fn create_blocklist(&self) -> Blocklist {
+    pub(crate) fn create_blocklist(&self) -> Blocklist {
         Blocklist::create(&self.resolve_config_dir())
     }
 
-    pub fn create_crypto_handlers(
+    pub(crate) fn create_crypto_handlers(
         &self,
     ) -> Result<HashMap<[u8; KEY_ID_SIZE], CryptoHandler>, String> {
         let key_paths = self.get_key_paths()?;
@@ -130,7 +133,7 @@ impl ConfigServer {
         Ok(hashmap_data.into_iter().collect())
     }
 
-    pub fn get_commander_unix_socket_path(&self) -> PathBuf {
+    pub(crate) fn get_commander_unix_socket_path(&self) -> PathBuf {
         get_commander_unix_socket_path(&self.resolve_config_dir())
     }
 
@@ -154,7 +157,7 @@ impl ConfigServer {
         }
     }
 
-    pub fn resolve_config_dir(&self) -> PathBuf {
+    pub(crate) fn resolve_config_dir(&self) -> PathBuf {
         resolve_path(&self.config_dir)
     }
 }

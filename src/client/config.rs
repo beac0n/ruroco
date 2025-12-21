@@ -5,10 +5,10 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub const DEFAULT_COMMAND: &str = "default";
+pub(crate) const DEFAULT_COMMAND: &str = "default";
 
 #[derive(Parser, Debug)]
-pub struct GenCommand {}
+pub(crate) struct GenCommand {}
 
 #[derive(Parser, Debug)]
 pub struct SendCommand {
@@ -38,25 +38,25 @@ pub struct SendCommand {
 }
 
 #[derive(Parser, Debug)]
-pub struct UpdateCommand {
+pub(crate) struct UpdateCommand {
     /// Force update
     #[arg(short, long)]
-    pub force: bool,
+    pub(crate) force: bool,
     /// Version
     #[arg(short, long)]
-    pub version: Option<String>,
+    pub(crate) version: Option<String>,
     /// Path where binaries are saved
     #[arg(short, long)]
-    pub bin_path: Option<PathBuf>,
+    pub(crate) bin_path: Option<PathBuf>,
     /// Update for server side
     #[arg(short, long)]
-    pub server: bool,
+    pub(crate) server: bool,
 }
 
 #[derive(Parser, Debug)]
-pub struct WizardCommand {
+pub(crate) struct WizardCommand {
     #[arg(short, long)]
-    pub force: bool,
+    pub(crate) force: bool,
 }
 
 impl Default for SendCommand {
@@ -78,11 +78,11 @@ impl Default for SendCommand {
 #[command(version, about, long_about = None)]
 pub struct CliClient {
     #[command(subcommand)]
-    pub command: CommandsClient,
+    pub(crate) command: CommandsClient,
 }
 
 #[derive(Debug, Subcommand)]
-pub enum CommandsClient {
+pub(crate) enum CommandsClient {
     /// Generate a shared AES key (base64 with embedded key id).
     Gen(GenCommand),
     /// Send a command to a specific address.
@@ -93,7 +93,7 @@ pub enum CommandsClient {
     Wizard(WizardCommand),
 }
 
-pub fn get_conf_dir() -> Result<PathBuf, String> {
+pub(crate) fn get_conf_dir() -> Result<PathBuf, String> {
     #[cfg(target_os = "linux")]
     return get_conf_dir_linux();
 

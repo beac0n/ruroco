@@ -7,26 +7,26 @@ use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GithubApiAsset {
-    pub name: String,
-    pub browser_download_url: String,
+pub(crate) struct GithubApiAsset {
+    pub(crate) name: String,
+    pub(crate) browser_download_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GithubApiData {
-    pub tag_name: String,
-    pub assets: Vec<GithubApiAsset>,
+pub(crate) struct GithubApiData {
+    pub(crate) tag_name: String,
+    pub(crate) assets: Vec<GithubApiAsset>,
 }
 
 const GH_RELEASES_URL: &str = "https://api.github.com/repos/beac0n/ruroco/releases";
-pub const SERVER_BIN_DIR: &str = "/usr/local/bin";
-pub const COMMANDER_BIN_NAME: &str = "ruroco-commander";
-pub const SERVER_BIN_NAME: &str = "ruroco-server";
-pub const CLIENT_BIN_NAME: &str = "ruroco-client";
-pub const CLIENT_UI_BIN_NAME: &str = "ruroco-client-ui";
+const SERVER_BIN_DIR: &str = "/usr/local/bin";
+const COMMANDER_BIN_NAME: &str = "ruroco-commander";
+const SERVER_BIN_NAME: &str = "ruroco-server";
+const CLIENT_BIN_NAME: &str = "ruroco-client";
+const CLIENT_UI_BIN_NAME: &str = "ruroco-client-ui";
 
 #[derive(Debug)]
-pub struct Updater {
+pub(crate) struct Updater {
     force: bool,
     version: Option<String>,
     bin_path: PathBuf,
@@ -40,7 +40,7 @@ impl Updater {
     /// * `version` - the version to update to, if not specified, the latest version will be used
     /// * `bin_path` - the path to the directory where the binary will be saved
     /// * `server` - if true, the server binaries will be downloaded instead of the client binaries
-    pub fn create(
+    pub(crate) fn create(
         force: bool,
         version: Option<String>,
         bin_path: Option<PathBuf>,
@@ -70,7 +70,7 @@ impl Updater {
         })
     }
 
-    pub fn update(&self) -> Result<(), String> {
+    pub(crate) fn update(&self) -> Result<(), String> {
         let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
 
         if !self.force && Some(current_version.clone()) == self.version {
@@ -124,7 +124,7 @@ impl Updater {
         Ok(())
     }
 
-    pub fn get_github_api_data(
+    pub(crate) fn get_github_api_data(
         version_to_download: Option<&String>,
     ) -> Result<GithubApiData, String> {
         let response = Client::builder()

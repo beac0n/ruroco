@@ -17,14 +17,14 @@ const COMMANDER_SERVICE_FILE_DATA: &[u8] = include_bytes!("../../systemd/ruroco-
 const SOCKET_FILE_DATA: &[u8] = include_bytes!("../../systemd/ruroco.socket");
 
 #[derive(Debug)]
-pub struct Wizard {}
+pub(crate) struct Wizard {}
 
 impl Wizard {
-    pub fn create() -> Self {
+    pub(crate) fn create() -> Self {
         Self {}
     }
 
-    pub fn run(&self) -> Result<(), String> {
+    pub(crate) fn run(&self) -> Result<(), String> {
         Self::create_ruroco_user()?;
         Self::update()?;
 

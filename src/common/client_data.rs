@@ -5,16 +5,16 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub struct ClientData {
-    pub cmd_hash: u64,          // hashed command name
-    pub counter: u128,          // request counter
-    pub strict: bool,           // strict
-    pub src_ip: Option<IpAddr>, // source ip address
-    pub dst_ip: IpAddr,         // host/destination ip address
+pub(crate) struct ClientData {
+    pub(crate) cmd_hash: u64,          // hashed command name
+    pub(crate) counter: u128,          // request counter
+    pub(crate) strict: bool,           // strict
+    pub(crate) src_ip: Option<IpAddr>, // source ip address
+    pub(crate) dst_ip: IpAddr,         // host/destination ip address
 }
 
 impl ClientData {
-    pub fn create(
+    pub(crate) fn create(
         command: &str,
         strict: bool,
         src_ip: Option<IpAddr>,
@@ -30,7 +30,7 @@ impl ClientData {
         })
     }
 
-    pub fn serialize(&self) -> Result<[u8; PLAINTEXT_SIZE], String> {
+    pub(crate) fn serialize(&self) -> Result<[u8; PLAINTEXT_SIZE], String> {
         let mut out = [0u8; PLAINTEXT_SIZE];
 
         out[0..8].copy_from_slice(&self.cmd_hash.to_be_bytes());
@@ -42,7 +42,7 @@ impl ClientData {
         Ok(out)
     }
 
-    pub fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> Result<Self, String> {
+    pub(crate) fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> Result<Self, String> {
         let mut command_hash_bytes = [0u8; 8];
         command_hash_bytes.copy_from_slice(&data[0..8]);
 
@@ -64,7 +64,7 @@ impl ClientData {
         })
     }
 
-    pub fn validate_source_ip(&self, source_ip: IpAddr) -> bool {
+    pub(crate) fn validate_source_ip(&self, source_ip: IpAddr) -> bool {
         self.strict && self.src_ip.is_some_and(|ip_sent| ip_sent != source_ip)
     }
 }

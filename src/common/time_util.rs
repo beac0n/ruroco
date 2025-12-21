@@ -6,16 +6,16 @@ const SECONDS_PER_DAY: u64 = 86400;
 
 const MONTHS: [u64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-pub struct TimeUtil {}
+pub(crate) struct TimeUtil {}
 
 impl TimeUtil {
-    pub fn time() -> Result<u128, String> {
+    pub(crate) fn time() -> Result<u128, String> {
         let duration = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .map_err(|e| format!("Could not get duration since: {e}"))?;
         Ok(duration.as_nanos())
     }
-    pub fn get_date_time() -> String {
+    pub(crate) fn get_date_time() -> String {
         let total_seconds = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or(Duration::from_secs(0))
