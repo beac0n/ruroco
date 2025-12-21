@@ -19,13 +19,25 @@ pub struct Blocklist {
 impl Blocklist {
     /// create an empty blocklist. Every entry will be saved to config_dir/blocklist.toml.
     /// If the blocklist.toml file already exists, its content will be loaded if possible.
-    pub fn create(config_dir: &Path) -> Blocklist {
+    pub fn create(config_dir: &Path) -> Result<Blocklist, String> {
         let blocklist_path = Self::get_blocklist_path(config_dir);
-        let blocklist_str = fs::read_to_string(&blocklist_path).unwrap_or_else(|_| "".to_string());
-        toml::from_str(&blocklist_str).unwrap_or_else(|_| Blocklist {
-            map: HashMap::new(),
-            path: blocklist_path,
-        })
+        let blocklist = if blocklist_path.exists() {
+            let blocklist_str = fs::read_to_string(&blocklist_path).map_err(|e| {
+                format!("Could not read blocklist from path {blocklist_path:?}: {e}")
+            })?;
+
+            toml::from_str(&blocklist_str).map_err(|e| {
+                format!("Could not create blocklist from string {blocklist_str}: {e}")
+            })?
+        } else {
+            Blocklist {
+                map: HashMap::new(),
+                path: blocklist_path,
+            }
+        };
+
+        blocklist.save()?;
+        Ok(blocklist)
     }
 
     pub fn get_blocklist_path(config_dir: &Path) -> PathBuf {
@@ -59,16 +71,14 @@ impl Blocklist {
     }
 
     /// saves the current content of the blocklist to the defined path
-    pub(crate) fn save(&self) {
-        let toml_string = match toml::to_string(&self) {
-            Ok(s) => s,
-            Err(e) => return error(&format!("Error serializing blacklist: {e}")),
-        };
+    pub(crate) fn save(&self) -> Result<(), String> {
+        let toml_string =
+            toml::to_string(&self).map_err(|e| format!("Error serializing blacklist: {e}"))?;
 
-        match fs::write(&self.path, toml_string) {
-            Ok(_) => (),
-            Err(e) => error(&format!("Error persisting blacklist: {e}")),
-        };
+        fs::write(&self.path, toml_string)
+            .map_err(|e| format!("Error persisting blacklist: {e}"))?;
+
+        Ok(())
     }
 }
 
@@ -80,7 +90,7 @@ mod tests {
 
     fn create_blocklist() -> Blocklist {
         remove_blocklist();
-        Blocklist::create(&env::current_dir().unwrap())
+        Blocklist::create(&env::current_dir().unwrap()).unwrap()
     }
 
     fn remove_blocklist() {
@@ -108,9 +118,9 @@ mod tests {
 
         let key_id = [0u8; 8];
         blocklist.add(key_id, 42);
-        blocklist.save();
+        blocklist.save().unwrap();
 
-        let other_blocklist = Blocklist::create(&env::current_dir().unwrap());
+        let other_blocklist = Blocklist::create(&env::current_dir().unwrap()).unwrap();
         assert_eq!(other_blocklist.get().len(), 1);
         assert_eq!(blocklist.get().get(&Blocklist::key_id_to_u64(key_id)).unwrap().clone(), 42);
 

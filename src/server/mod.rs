@@ -46,7 +46,7 @@ impl Server {
             socket: config.create_server_udp_socket(address)?,
             client_recv_data: [0u8; MSG_SIZE],
             socket_path: config.get_commander_unix_socket_path(),
-            blocklist: config.create_blocklist(),
+            blocklist: config.create_blocklist()?,
             config,
         })
     }
@@ -127,7 +127,9 @@ impl Server {
 
     fn update_block_list(&mut self, key_id: [u8; 8], counter: u128) {
         self.blocklist.add(key_id, counter);
-        self.blocklist.save();
+        if let Err(e) = self.blocklist.save() {
+            error(&format!("Could not update block list: {e}"))
+        }
     }
 
     fn send_command(&self, data: CommanderData) {

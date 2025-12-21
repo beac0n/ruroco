@@ -69,7 +69,7 @@ mod tests {
         }
 
         fn get_blocked_list(&self) -> HashMap<u64, u128> {
-            let blocklist = Blocklist::create(&self.config_dir);
+            let blocklist = Blocklist::create(&self.config_dir).unwrap();
             blocklist.get().clone()
         }
 

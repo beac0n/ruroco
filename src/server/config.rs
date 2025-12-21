@@ -107,7 +107,7 @@ impl ConfigServer {
         }
     }
 
-    pub(crate) fn create_blocklist(&self) -> Blocklist {
+    pub(crate) fn create_blocklist(&self) -> Result<Blocklist, String> {
         Blocklist::create(&self.resolve_config_dir())
     }
 
