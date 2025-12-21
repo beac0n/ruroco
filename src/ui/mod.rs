@@ -17,9 +17,13 @@ mod saved_command_list;
 
 use crate::ui::rust_slint_bridge::RustSlintBridge;
 
+use crate::client::config;
+use crate::client::lock::ClientLock;
 use std::error::Error;
 
 pub fn run_ui() -> Result<(), Box<dyn Error>> {
-    RustSlintBridge::create()?.run()?;
+    let conf_dir = config::get_conf_dir()?;
+    let _lock = ClientLock::acquire(conf_dir.join("client.lock"))?;
+    RustSlintBridge::create(&conf_dir)?.run()?;
     Ok(())
 }

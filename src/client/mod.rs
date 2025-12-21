@@ -2,6 +2,7 @@
 
 use crate::client::config::{CliClient, CommandsClient};
 use crate::client::gen::Generator;
+use crate::client::lock::ClientLock;
 use crate::client::send::Sender;
 use crate::client::update::Updater;
 use crate::client::wizard::Wizard;
@@ -10,12 +11,16 @@ use crate::client::wizard::Wizard;
 pub mod config;
 pub mod counter;
 pub mod gen;
+pub(crate) mod lock;
 pub mod send;
 pub(crate) mod update;
 pub(crate) mod util;
 mod wizard;
 
 pub fn run_client(client: CliClient) -> Result<(), String> {
+    let conf_dir = config::get_conf_dir()?;
+    let _lock = ClientLock::acquire(conf_dir.join("client.lock"))?;
+
     match client.command {
         CommandsClient::Gen(_) => {
             Generator::create()?.gen()?;

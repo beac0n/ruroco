@@ -3,7 +3,7 @@ use crate::client::update::Updater;
 #[cfg(target_os = "android")]
 use crate::ui::android_update::update_android;
 
-use crate::client::config::{get_conf_dir, CliClient, DEFAULT_COMMAND};
+use crate::client::config::{CliClient, DEFAULT_COMMAND};
 use crate::client::run_client;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::{error, info};
@@ -14,6 +14,7 @@ use crate::ui::saved_command_list::CommandsList;
 use clap::Parser;
 use slint::SharedString;
 use std::error::Error;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 slint::include_modules!();
@@ -24,10 +25,10 @@ pub(crate) struct RustSlintBridge {
 }
 
 impl RustSlintBridge {
-    pub(crate) fn create() -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn create(conf_dir: &Path) -> Result<Self, Box<dyn Error>> {
         let bridge = RustSlintBridge {
             app: App::new()?,
-            commands_list: Arc::new(Mutex::new(CommandsList::create(&get_conf_dir()?))),
+            commands_list: Arc::new(Mutex::new(CommandsList::create(conf_dir))),
         };
         bridge.set_default_values();
         bridge.add_on_reset_commands_config();
