@@ -4353,6 +4353,7 @@ version = "0.10.8"
 dependencies = [
  "base64",
  "blake2",
+ "chrono",
  "clap",
  "jni",
  "ndk-context",
