@@ -40,5 +40,3 @@ debug = true          # debug information
 lto = true            # Enable Link Time Optimization
 codegen-units = 1     # Optimize for single codegen unit (better performance)
 panic = 'abort'       # Abort on panic (smaller binary size)
-
-
