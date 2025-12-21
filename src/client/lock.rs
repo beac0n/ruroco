@@ -13,12 +13,9 @@ impl ClientLock {
         let mut file = match Self::open(&path) {
             Ok(file) => file,
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                let pid = std::fs::read_to_string(&path)
-                    .ok()
-                    .and_then(|s| s.lines().next().map(str::trim).filter(|s| !s.is_empty()))
-                    .and_then(|s| s.parse::<u32>().ok());
-
-                if let Some(pid) = pid {
+                if let Some(pid) =
+                    std::fs::read_to_string(&path).ok().and_then(|s| s.trim().parse::<u32>().ok())
+                {
                     if Self::is_pid_running(pid) {
                         return Err(format!("Client already running (lock at {path:?})"));
                     }
