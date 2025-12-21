@@ -123,12 +123,8 @@ fn get_conf_dir_linux() -> Result<PathBuf, String> {
 
 #[cfg(target_os = "android")]
 fn get_conf_dir_android() -> Result<PathBuf, String> {
-    use crate::ui::android_util::{AndroidUtil, J_FILE, J_STRING};
-
-    let util = AndroidUtil::create()?;
-    let files_dir_obj = util.call_ctx_method("getFilesDir", J_FILE, &[])?;
-    let abs_path_ref = util.call_method(files_dir_obj, "getAbsolutePath", J_STRING, &[])?;
-    Ok(PathBuf::from(util.global_ref_to_string(abs_path_ref)?))
+    use crate::common::android_util::AndroidUtil;
+    AndroidUtil::create()?.get_conf_dir()
 }
 
 #[cfg(test)]

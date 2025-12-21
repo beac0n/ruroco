@@ -3,6 +3,7 @@
 use jni::objects::{GlobalRef, JObject, JString, JValue, JValueOwned};
 use jni::{AttachGuard, JavaVM};
 use std::ops::Deref;
+use std::path::PathBuf;
 
 pub(crate) const J_STRING: &str = "()Ljava/lang/String;";
 pub(crate) const J_FILE: &str = "()Ljava/io/File;";
@@ -19,6 +20,12 @@ impl AndroidUtil {
         let vm = (unsafe { JavaVM::from_raw(ctx.vm().cast()) })
             .map_err(|e| format!("Could not get JavaVM from raw: {e}"))?;
         Ok(AndroidUtil { ctx: obj, vm })
+    }
+
+    pub(crate) fn get_conf_dir(&self) -> Result<PathBuf, String> {
+        let files_dir_obj = self.call_ctx_method("getFilesDir", J_FILE, &[])?;
+        let abs_path_ref = self.call_method(files_dir_obj, "getAbsolutePath", J_STRING, &[])?;
+        Ok(PathBuf::from(self.global_ref_to_string(abs_path_ref)?))
     }
 
     /// see https://developer.android.com/reference/android/content/Context#startActivity(android.content.Intent)

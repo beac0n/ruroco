@@ -1,3 +1,5 @@
+#[cfg(target_os = "android")]
+pub mod android_util;
 pub(crate) mod client_data;
 pub(crate) mod crypto_handler;
 pub(crate) mod data_parser;

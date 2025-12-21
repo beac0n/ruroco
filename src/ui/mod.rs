@@ -3,8 +3,6 @@
 mod android;
 #[cfg(target_os = "android")]
 mod android_update;
-#[cfg(target_os = "android")]
-mod android_util;
 
 /// used to import everything that is slint related
 mod rust_slint_bridge;

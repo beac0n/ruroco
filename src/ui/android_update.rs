@@ -10,7 +10,7 @@ pub(crate) fn update_android() -> Result<(), String> {
         .find(|a| a.name.ends_with(".apk"))
         .ok_or(Err("No APK asset found in latest release"))?;
 
-    let util = crate::ui::android_util::AndroidUtil::create()?;
+    let util = crate::common::android_util::AndroidUtil::create()?;
     let uri = util.uri_parse(asset.browser_download_url)?;
     let intent = util.new_view_intent(&uri)?;
     let result = util.start_activity(&intent);
