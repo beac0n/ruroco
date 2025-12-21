@@ -2,11 +2,10 @@ pub(crate) mod client_data;
 pub(crate) mod crypto_handler;
 pub(crate) mod data_parser;
 pub(crate) mod serialization_util;
-pub(crate) mod time_util;
 
-use crate::common::time_util::TimeUtil;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
+use chrono::Utc;
 use openssl::rand::rand_bytes;
 use std::os::unix::fs::chown;
 use std::path::{Path, PathBuf};
@@ -63,12 +62,12 @@ pub(crate) fn resolve_path(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn info(msg: &str) {
-    let date_time = TimeUtil::get_date_time();
+    let date_time = get_date_time();
     println!("[{date_time} \x1b[32mINFO\x1b[0m ] {msg}")
 }
 
 pub(crate) fn error(msg: &str) {
-    let date_time = TimeUtil::get_date_time();
+    let date_time = get_date_time();
     println!("[{date_time} \x1b[31mERROR\x1b[0m ] {msg}")
 }
 
@@ -93,6 +92,10 @@ pub(crate) fn change_file_ownership(
         format!("Could not change ownership of {path:?} to {user_id:?}:{group_id:?}: {e}")
     })?;
     Ok(())
+}
+
+fn get_date_time() -> String {
+    Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
 fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
