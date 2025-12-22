@@ -1,7 +1,6 @@
-use crate::common::crypto_handler::{CryptoHandler, CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
+use crate::common::crypto::{CryptoHandler, CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
+pub(crate) use crate::common::protocol::MSG_SIZE;
 use anyhow::Context;
-
-pub(crate) const MSG_SIZE: usize = KEY_ID_SIZE + CIPHERTEXT_SIZE;
 
 #[derive(Debug)]
 pub(crate) struct DataParser {
