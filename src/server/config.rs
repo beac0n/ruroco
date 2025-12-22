@@ -4,7 +4,7 @@
 
 use crate::common::{blake2b_u64, info, resolve_path};
 use crate::server::blocklist::Blocklist;
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use clap::Parser;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -144,7 +144,7 @@ impl ConfigServer {
 
         let entries: ReadDir = match fs::read_dir(&config_dir) {
             Ok(entries) => entries,
-            Err(e) => return Err(anyhow!("Error reading directory {config_dir:?}: {e}")),
+            Err(e) => bail!("Error reading directory {config_dir:?}: {e}"),
         };
 
         let key_files: Vec<PathBuf> = entries

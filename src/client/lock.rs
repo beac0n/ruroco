@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::{bail, Context};
 use std::fs::{remove_file, File, OpenOptions};
 use std::io;
 use std::io::Write;
@@ -18,7 +18,7 @@ impl ClientLock {
                     std::fs::read_to_string(&path).ok().and_then(|s| s.trim().parse::<u32>().ok())
                 {
                     if Self::is_pid_running(pid) {
-                        return Err(anyhow!("Client already running (lock at {path:?})"));
+                        bail!("Client already running (lock at {path:?})");
                     }
                 }
 
@@ -27,7 +27,7 @@ impl ClientLock {
                     .with_context(|| format!("Client lock unavailable at {path:?} after cleanup"))?
             }
             Err(e) => {
-                return Err(anyhow!("Client lock unavailable at {path:?}: {e}"));
+                bail!("Client lock unavailable at {path:?}: {e}");
             }
         };
 

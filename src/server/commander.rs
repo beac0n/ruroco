@@ -2,7 +2,7 @@ use crate::common::{change_file_ownership, error, info};
 use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::util::get_commander_unix_socket_path;
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
@@ -59,7 +59,7 @@ impl Commander {
     fn create_listener(&self) -> anyhow::Result<UnixListener> {
         let socket_dir = match self.socket_path.parent() {
             Some(socket_dir) => socket_dir,
-            None => return Err(anyhow!("Could not get parent dir for {:?}", &self.socket_path)),
+            None => bail!("Could not get parent dir for {:?}", &self.socket_path),
         };
         fs::create_dir_all(socket_dir)
             .with_context(|| format!("Could not create parents for {socket_dir:?}"))?;

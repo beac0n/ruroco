@@ -1,5 +1,5 @@
 use crate::common::logging::error;
-use anyhow::{anyhow, Context};
+use anyhow::{bail, Context};
 use std::os::unix::fs::chown;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -35,13 +35,13 @@ pub(crate) fn change_file_ownership(
     let user_id = match get_id_by_name_and_flag(user_name, "-u") {
         Some(id) => Some(id),
         None if user_name.is_empty() => None,
-        None => return Err(anyhow!("Could not find user {user_name}")),
+        None => bail!("Could not find user {user_name}"),
     };
 
     let group_id = match get_id_by_name_and_flag(group_name, "-g") {
         Some(id) => Some(id),
         None if group_name.is_empty() => None,
-        None => return Err(anyhow!("Could not find group {group_name}")),
+        None => bail!("Could not find group {group_name}"),
     };
 
     chown(path, user_id, group_id).with_context(|| {

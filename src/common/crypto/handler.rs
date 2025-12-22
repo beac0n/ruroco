@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use base64::{engine::general_purpose, Engine};
 use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
@@ -37,7 +37,7 @@ impl CryptoHandler {
             bytes.split_at_checked(KEY_ID_SIZE).ok_or_else(|| anyhow!("Key too short"))?;
 
         if key.len() != KEY_SIZE {
-            return Err(anyhow!("Key length must be {KEY_SIZE} bytes"));
+            bail!("Key length must be {KEY_SIZE} bytes");
         }
 
         Ok(CryptoHandler {
@@ -80,11 +80,11 @@ impl CryptoHandler {
             .with_context(|| "Could not update crypter")?;
 
         if count != PLAINTEXT_SIZE {
-            return Err(anyhow!("ciphertext length mismatch"));
+            bail!("ciphertext length mismatch");
         }
 
         if crypter.finalize(&mut []).with_context(|| "Could not finalize crypter")? != 0 {
-            return Err(anyhow!("GCM finalize returned unexpected bytes"));
+            bail!("GCM finalize returned unexpected bytes");
         }
 
         let mut tag = [0u8; TAG_SIZE];
@@ -116,13 +116,13 @@ impl CryptoHandler {
             .with_context(|| "Could not update decrypter")?;
 
         if written != PLAINTEXT_SIZE {
-            return Err(anyhow!("Plaintext length mismatch"));
+            bail!("Plaintext length mismatch");
         }
 
         decrypter.set_tag(tag).with_context(|| "Could not set tag")?;
 
         if decrypter.finalize(&mut []).with_context(|| "Could not finalize decrypter")? != 0 {
-            return Err(anyhow!("GCM finalize returned unexpected bytes"));
+            bail!("GCM finalize returned unexpected bytes");
         }
 
         Ok(plaintext)

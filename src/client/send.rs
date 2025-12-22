@@ -4,7 +4,7 @@ use crate::common::client_data::ClientData;
 use crate::common::data_parser::DataParser;
 use crate::common::protocol::PLAINTEXT_SIZE;
 use crate::common::{info, resolve_path};
-use anyhow::{anyhow, Context};
+use anyhow::{bail, Context};
 use openssl::version::version;
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
@@ -50,7 +50,7 @@ impl Sender {
         match destination_ips_validated.as_slice() {
             [destination_ip] => self.send_data(*destination_ip)?,
             [_, ipv6_destination_ip] => self.send_data(*ipv6_destination_ip)?,
-            _ => return Err(anyhow!("Found too many IPs: {destination_ips_validated:?}")),
+            _ => bail!("Found too many IPs: {destination_ips_validated:?}"),
         }
 
         Ok(())
@@ -82,13 +82,13 @@ impl Sender {
             (_, Some(ipv6)) if self.cmd.ipv6 => vec![ipv6.ip()],
             (Some(ipv4), _) if self.cmd.ipv4 => vec![ipv4.ip()],
             (_, None) if self.cmd.ipv6 => {
-                return Err(anyhow!("Could not find any IPv6 address for {address}"))
+                bail!("Could not find any IPv6 address for {address}")
             }
             (None, _) if self.cmd.ipv4 => {
-                return Err(anyhow!("Could not find any IPv4 address for {address}"))
+                bail!("Could not find any IPv4 address for {address}")
             }
             // could not find any address
-            _ => return Err(anyhow!("Could not find any IPv4 or IPv6 address for {address}")),
+            _ => bail!("Could not find any IPv4 or IPv6 address for {address}"),
         })
     }
 

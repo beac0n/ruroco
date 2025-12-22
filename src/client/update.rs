@@ -1,6 +1,6 @@
 use crate::client::util::set_permissions;
 use crate::common::{change_file_ownership, get_random_string, info};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use reqwest::blocking::{get, Client};
 use serde::{Deserialize, Serialize};
 use std::env::consts::{ARCH, OS};
@@ -49,10 +49,10 @@ impl Updater {
     ) -> anyhow::Result<Self> {
         let bin_path = match bin_path.clone() {
             Some(p) if !p.exists() || !p.is_dir() => {
-                return Err(anyhow!("{p:?} does not exist or is not a directory"))
+                bail!("{p:?} does not exist or is not a directory");
             }
             Some(p) if !Self::check_if_writeable(&p)? => {
-                return Err(anyhow!("can't write to {p:?}"));
+                bail!("can't write to {p:?}");
             }
             Some(p) => p,
             None if server => Self::validate_dir_path(PathBuf::from(SERVER_BIN_DIR))?,
@@ -139,7 +139,7 @@ impl Updater {
         if !status_code.is_success() {
             let response_text =
                 response.text().with_context(|| "Could not get text from response")?;
-            return Err(anyhow!("Request failed: {status_code} - {response_text}"));
+            bail!("Request failed: {status_code} - {response_text}");
         }
 
         let response_data: Vec<GithubApiData> =
@@ -231,7 +231,7 @@ impl Updater {
                 fs::rename(format!("{target_bin_path_str}.old"), target_bin_path_str)
                     .with_context(|| "Could not recover old binary")?;
 
-                return Err(anyhow!("Could not write new binary to {target_bin_path_str}"));
+                bail!("Could not write new binary to {target_bin_path_str}");
             }
         }
 
