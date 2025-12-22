@@ -284,7 +284,6 @@ mod tests {
             ..Default::default()
         });
 
-        let ip_addrs = sender.unwrap().get_destination_ips().unwrap();
-        ip_addrs
+        sender.unwrap().get_destination_ips().unwrap()
     }
 }
