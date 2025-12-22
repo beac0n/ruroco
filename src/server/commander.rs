@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Context};
 use crate::common::{change_file_ownership, error, info};
 use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::util::get_commander_unix_socket_path;
+use anyhow::{anyhow, Context};
 use std::collections::HashMap;
 use std::fs::Permissions;
 use std::io::Read;
@@ -59,12 +59,7 @@ impl Commander {
     fn create_listener(&self) -> anyhow::Result<UnixListener> {
         let socket_dir = match self.socket_path.parent() {
             Some(socket_dir) => socket_dir,
-            None => {
-                return Err(anyhow!(
-                    "Could not get parent dir for {:?}",
-                    &self.socket_path
-                ))
-            }
+            None => return Err(anyhow!("Could not get parent dir for {:?}", &self.socket_path)),
         };
         fs::create_dir_all(socket_dir)
             .with_context(|| format!("Could not create parents for {socket_dir:?}"))?;
@@ -79,9 +74,9 @@ impl Commander {
         let listener = UnixListener::bind(&self.socket_path)
             .with_context(|| format!("Could not bind to socket {:?}", self.socket_path))?;
 
-        fs::set_permissions(&self.socket_path, Permissions::from_mode(mode)).with_context(|| {
-            format!("Could not set permissions {mode:o} for {:?}", self.socket_path)
-        })?;
+        fs::set_permissions(&self.socket_path, Permissions::from_mode(mode)).with_context(
+            || format!("Could not set permissions {mode:o} for {:?}", self.socket_path),
+        )?;
         self.change_socket_ownership()?;
 
         Ok(listener)
@@ -95,10 +90,8 @@ impl Commander {
         let msg = Commander::read(stream)?;
         let cmdr_data: CommanderData = CommanderData::deserialize(msg);
         let cmd_hash = &cmdr_data.cmd_hash;
-        let cmd = self
-            .cmds
-            .get(cmd_hash)
-            .ok_or_else(|| anyhow!("Unknown command name: {cmd_hash}"))?;
+        let cmd =
+            self.cmds.get(cmd_hash).ok_or_else(|| anyhow!("Unknown command name: {cmd_hash}"))?;
 
         info(&format!("Running command ({cmd_hash}) {cmd}"));
         self.run_command(cmd, cmdr_data.ip);

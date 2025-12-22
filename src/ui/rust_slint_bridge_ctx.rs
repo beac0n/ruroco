@@ -26,9 +26,7 @@ impl RustSlintBridgeCtx {
         let cl = cl
             .as_any()
             .downcast_ref::<VecModel<CommandData>>()
-            .ok_or_else(|| {
-                anyhow!("Failed to downcast ModelRc to VecModel<CommandData>")
-            })?;
+            .ok_or_else(|| anyhow!("Failed to downcast ModelRc to VecModel<CommandData>"))?;
 
         let cmd_data_vec: Vec<CommandData> = cl
             .iter()
@@ -72,14 +70,10 @@ impl RustSlintBridgeCtx {
     }
 
     fn get_cmds_list(&'_ self) -> anyhow::Result<MutexGuard<'_, CommandsList>> {
-        self.commands_list
-            .lock()
-            .map_err(|e| anyhow!("Failed to acquire mutex lock: {e}"))
+        self.commands_list.lock().map_err(|e| anyhow!("Failed to acquire mutex lock: {e}"))
     }
 
     fn get_upgraded_app(&self) -> anyhow::Result<App> {
-        self.app
-            .upgrade()
-            .ok_or_else(|| anyhow!("Failed to upgrade weak reference to App"))
+        self.app.upgrade().ok_or_else(|| anyhow!("Failed to upgrade weak reference to App"))
     }
 }

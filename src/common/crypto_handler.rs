@@ -84,18 +84,12 @@ impl CryptoHandler {
             return Err(anyhow!("ciphertext length mismatch"));
         }
 
-        if crypter
-            .finalize(&mut [])
-            .with_context(|| "Could not finalize crypter")?
-            != 0
-        {
+        if crypter.finalize(&mut []).with_context(|| "Could not finalize crypter")? != 0 {
             return Err(anyhow!("GCM finalize returned unexpected bytes"));
         }
 
         let mut tag = [0u8; TAG_SIZE];
-        crypter
-            .get_tag(&mut tag)
-            .with_context(|| "Could not get tag from crypter")?;
+        crypter.get_tag(&mut tag).with_context(|| "Could not get tag from crypter")?;
 
         let mut out = [0u8; CIPHERTEXT_SIZE];
         out[0..IV_SIZE].copy_from_slice(&iv);
@@ -128,11 +122,7 @@ impl CryptoHandler {
 
         decrypter.set_tag(tag).with_context(|| "Could not set tag")?;
 
-        if decrypter
-            .finalize(&mut [])
-            .with_context(|| "Could not finalize decrypter")?
-            != 0
-        {
+        if decrypter.finalize(&mut []).with_context(|| "Could not finalize decrypter")? != 0 {
             return Err(anyhow!("GCM finalize returned unexpected bytes"));
         }
 

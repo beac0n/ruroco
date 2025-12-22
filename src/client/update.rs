@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Context};
 use crate::client::util::set_permissions;
 use crate::common::{change_file_ownership, get_random_string, info};
+use anyhow::{anyhow, Context};
 use reqwest::blocking::{get, Client};
 use serde::{Deserialize, Serialize};
 use std::env::consts::{ARCH, OS};
@@ -137,9 +137,8 @@ impl Updater {
 
         let status_code = response.status();
         if !status_code.is_success() {
-            let response_text = response
-                .text()
-                .with_context(|| "Could not get text from response")?;
+            let response_text =
+                response.text().with_context(|| "Could not get text from response")?;
             return Err(anyhow!("Request failed: {status_code} - {response_text}"));
         }
 
@@ -152,9 +151,7 @@ impl Updater {
         };
 
         match data {
-            None => Err(anyhow!(
-                "Could not find version {version_to_download:?}"
-            )),
+            None => Err(anyhow!("Could not find version {version_to_download:?}")),
             Some(d) => Ok(d),
         }
     }
@@ -163,8 +160,9 @@ impl Updater {
         let tmp_path = path.join(get_random_string(16)?);
         match fs::write(&tmp_path, b"test") {
             Ok(_) => {
-                fs::remove_file(&tmp_path)
-                    .with_context(|| format!("Could not remove temporary test file {tmp_path:?}"))?;
+                fs::remove_file(&tmp_path).with_context(|| {
+                    format!("Could not remove temporary test file {tmp_path:?}")
+                })?;
                 Ok(true)
             }
             Err(_) => Ok(false),
@@ -233,9 +231,7 @@ impl Updater {
                 fs::rename(format!("{target_bin_path_str}.old"), target_bin_path_str)
                     .with_context(|| "Could not recover old binary")?;
 
-                return Err(anyhow!(
-                    "Could not write new binary to {target_bin_path_str}"
-                ));
+                return Err(anyhow!("Could not write new binary to {target_bin_path_str}"));
             }
         }
 

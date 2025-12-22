@@ -2,9 +2,9 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
-use anyhow::{anyhow, Context};
 use crate::common::{blake2b_u64, info, resolve_path};
 use crate::server::blocklist::Blocklist;
+use anyhow::{anyhow, Context};
 use clap::Parser;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -51,8 +51,7 @@ impl ConfigServer {
         self.commands
             .iter()
             .map(|(k, v)| {
-                let hash =
-                    blake2b_u64(k).with_context(|| format!("Could not hash {k}"))?;
+                let hash = blake2b_u64(k).with_context(|| format!("Could not hash {k}"))?;
                 Ok((hash, v.clone()))
             })
             .collect()
@@ -91,14 +90,10 @@ impl ConfigServer {
                 Ok(sock)
             }
             (Some(_), Some(listen_fds), _, _) if listen_fds != "1" => {
-                Err(anyhow!(
-                    "LISTEN_FDS was set to {listen_fds}, expected 1"
-                ))
+                Err(anyhow!("LISTEN_FDS was set to {listen_fds}, expected 1"))
             }
             (Some(listen_pid), Some(_), _, _) if listen_pid != std::process::id().to_string() => {
-                Err(anyhow!(
-                    "LISTEN_PID ({listen_pid}) does not match current PID"
-                ))
+                Err(anyhow!("LISTEN_PID ({listen_pid}) does not match current PID"))
             }
             _ => {
                 // port is calculated by using the alphabet indexes of the word ruroco:

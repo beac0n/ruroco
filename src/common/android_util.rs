@@ -18,8 +18,8 @@ impl AndroidUtil {
     pub(crate) fn create() -> anyhow::Result<AndroidUtil> {
         let ctx = ndk_context::android_context();
         let obj = unsafe { JObject::from_raw(ctx.context().cast()) };
-        let vm =
-            (unsafe { JavaVM::from_raw(ctx.vm().cast()) }).with_context(|| "Could not get JavaVM from raw")?;
+        let vm = (unsafe { JavaVM::from_raw(ctx.vm().cast()) })
+            .with_context(|| "Could not get JavaVM from raw")?;
         Ok(AndroidUtil { ctx: obj, vm })
     }
 
@@ -39,10 +39,7 @@ impl AndroidUtil {
     }
 
     /// see https://developer.android.com/reference/android/content/Intent
-    pub(crate) fn new_view_intent<'a>(
-        &'a self,
-        uri: &'a GlobalRef,
-    ) -> anyhow::Result<JObject<'a>> {
+    pub(crate) fn new_view_intent<'a>(&'a self, uri: &'a GlobalRef) -> anyhow::Result<JObject<'a>> {
         self.new_object(
             "android/content/Intent",
             "(Ljava/lang/String;Landroid/net/Uri;)V",
@@ -101,35 +98,26 @@ impl AndroidUtil {
 
     fn new_string(&self, string: &str) -> anyhow::Result<JString> {
         let env = self.get_env()?;
-        env.new_string(string)
-            .with_context(|| "Failed to create new string")
+        env.new_string(string).with_context(|| "Failed to create new string")
     }
 
     fn new_object(&self, class: &str, sig: &str, args: &[JValue]) -> anyhow::Result<JObject> {
         let mut env = self.get_env()?;
-        let intent = env
-            .new_object(class, sig, args)
-            .with_context(|| "Failed to create new object")?;
+        let intent =
+            env.new_object(class, sig, args).with_context(|| "Failed to create new object")?;
         Ok(intent)
     }
 
     pub(crate) fn global_ref_to_string(&self, global_ref: GlobalRef) -> anyhow::Result<String> {
         let mut env = self.get_env()?;
-        let j_str: &JString = global_ref
-            .deref()
-            .try_into()
-            .with_context(|| "Failed to deref")?;
-        let rust_str: String = env
-            .get_string(&j_str)
-            .with_context(|| "Failed to get_string")?
-            .into();
+        let j_str: &JString = global_ref.deref().try_into().with_context(|| "Failed to deref")?;
+        let rust_str: String =
+            env.get_string(&j_str).with_context(|| "Failed to get_string")?.into();
         Ok(rust_str)
     }
 
     fn create_global_ref(env: AttachGuard, o: JObject) -> anyhow::Result<GlobalRef> {
-        Ok(env
-            .new_global_ref(o)
-            .with_context(|| "Failed to create global ref")?)
+        Ok(env.new_global_ref(o).with_context(|| "Failed to create global ref")?)
     }
 
     fn get_env(&self) -> anyhow::Result<AttachGuard> {

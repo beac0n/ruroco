@@ -1,5 +1,5 @@
-use anyhow::Context;
 use crate::common::crypto_handler::{CryptoHandler, CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
+use anyhow::Context;
 
 pub(crate) const MSG_SIZE: usize = KEY_ID_SIZE + CIPHERTEXT_SIZE;
 

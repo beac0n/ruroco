@@ -84,12 +84,8 @@ mod tests {
         let _conf_dir = set_test_conf_dir();
         let bin_dir = tempfile::tempdir().expect("failed to create temp dir");
         let bin_path = bin_dir.path().to_str().expect("temp dir not valid utf8");
-        let result = run_client(CliClient::parse_from(vec![
-            "ruroco",
-            "update",
-            "--bin-path",
-            bin_path,
-        ]));
+        let result =
+            run_client(CliClient::parse_from(vec!["ruroco", "update", "--bin-path", bin_path]));
 
         assert!(result.is_ok());
     }

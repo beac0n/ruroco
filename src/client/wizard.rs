@@ -1,7 +1,7 @@
-use anyhow::Context;
 use crate::client::update::Updater;
 use crate::client::util::set_permissions;
 use crate::common::info;
+use anyhow::Context;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -113,9 +113,9 @@ impl Wizard {
 
     fn write_data(path: &str, data: &[u8]) -> anyhow::Result<()> {
         info(&format!("Creating {path} ..."));
-        let mut file = fs::File::create(path).with_context(|| format!("Failed to create {path}"))?;
-        file.write_all(data)
-            .with_context(|| format!("Failed to write to {path}"))?;
+        let mut file =
+            fs::File::create(path).with_context(|| format!("Failed to create {path}"))?;
+        file.write_all(data).with_context(|| format!("Failed to write to {path}"))?;
         Ok(())
     }
 }

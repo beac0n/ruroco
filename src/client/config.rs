@@ -2,9 +2,9 @@
 //! The data that these structs and enums represent are used for invoking the client binary with CLI
 //! (default) arguments.
 
-use anyhow::Context;
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 use anyhow::anyhow;
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
