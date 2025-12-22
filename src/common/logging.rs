@@ -7,7 +7,7 @@ pub(crate) fn info(msg: &str) {
 
 pub(crate) fn error(msg: impl std::fmt::Display) {
     let date_time = get_date_time();
-    println!("[{date_time} \x1b[31mERROR\x1b[0m ] {msg}")
+    eprintln!("[{date_time} \x1b[31mERROR\x1b[0m ] {msg}")
 }
 
 fn get_date_time() -> String {
