@@ -1,6 +1,7 @@
 nix/.nix-cargo-*/*
 ruroco*.pem
 !tests/conf_dir/*
+tests/conf_dir/blocklist.toml
 
 # Created by https://www.toptal.com/developers/gitignore/api/rust,intellij+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=rust,intellij+all
