@@ -1,8 +1,8 @@
 use crate::client::config::{get_conf_dir, SendCommand};
 use crate::client::counter::Counter;
 use crate::common::client_data::ClientData;
-use crate::common::protocol::PLAINTEXT_SIZE;
 use crate::common::data_parser::DataParser;
+use crate::common::protocol::PLAINTEXT_SIZE;
 use crate::common::{info, resolve_path};
 use anyhow::{anyhow, Context};
 use openssl::version::version;
