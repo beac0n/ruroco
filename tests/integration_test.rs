@@ -19,7 +19,7 @@ mod tests {
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
 
     struct TestData {
-        tmp_dir: tempfile::TempDir,
+        _tmp_dir: tempfile::TempDir,
         test_file_path: PathBuf,
         socket_path: PathBuf,
         blocklist_path: PathBuf,
@@ -49,7 +49,7 @@ mod tests {
                 block_list_exists: true,
                 client_sent_ip: None,
                 strict: true,
-                tmp_dir,
+                _tmp_dir: tmp_dir,
             }
         }
 
