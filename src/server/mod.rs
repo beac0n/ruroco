@@ -6,6 +6,7 @@ pub mod commander;
 mod commander_data;
 /// data structures for loading configuration files and using CLI arguments for server services
 pub mod config;
+mod signal;
 pub mod util;
 
 use crate::common::client_data::ClientData;
@@ -14,14 +15,16 @@ use crate::common::data_parser::{DataParser, MSG_SIZE};
 use crate::common::{error, info};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
-use anyhow::{anyhow, Context};
+use crate::server::signal::{install_signal_handlers, shutdown_requested};
+use anyhow::{anyhow, bail, Context};
 use commander_data::CommanderData;
 use std::collections::HashMap;
 use std::fs;
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Server {
@@ -54,12 +57,26 @@ impl Server {
 
     pub fn run(&mut self) -> anyhow::Result<()> {
         info(&format!("Running server on {:?}", self.socket));
+        self.socket
+            .set_read_timeout(Some(Duration::from_secs(1)))
+            .with_context(|| "Could not set socket read timeout")?;
+        install_signal_handlers();
         loop {
+            if shutdown_requested() {
+                info("Shutdown requested, stopping server loop");
+                break;
+            }
             let data = self.socket.recv_from(&mut self.client_recv_data);
+            if let Err(e) = &data {
+                if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut {
+                    continue;
+                }
+            }
             if let Err(e) = self.run_loop_iteration(data) {
                 error(format!("{e}"));
             }
         }
+        Ok(())
     }
 
     fn run_loop_iteration(
@@ -75,7 +92,7 @@ impl Server {
                 let (key_id, plaintext) = self.decrypt()?;
                 self.validate_and_send_command(key_id, plaintext, src.ip())
             }
-            Err(e) => Err(anyhow!("Could not receive bytes from socket: {e}")),
+            Err(e) => bail!("Could not receive bytes from socket: {e}"),
         }
     }
 
