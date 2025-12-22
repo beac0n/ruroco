@@ -49,7 +49,7 @@ impl RustSlintBridge {
 
     fn err_log_wrap<F>(msg: String, f: F)
     where
-        F: FnOnce() -> Result<(), String>,
+        F: FnOnce() -> anyhow::Result<()>,
     {
         info(&msg);
         if let Err(e) = f() {
@@ -68,7 +68,7 @@ impl RustSlintBridge {
         });
     }
 
-    fn add_on_set_commands_config(&self) -> Result<(), String> {
+    fn add_on_set_commands_config(&self) -> anyhow::Result<()> {
         let ctx: RustSlintBridgeCtx = self.into();
         ctx.set_cmds_list()?;
         self.app.global::<SlintRustBridge>().on_set_commands_config(move |cmds| {
@@ -97,7 +97,7 @@ impl RustSlintBridge {
                 cmd_vec.insert(0, "ruroco");
 
                 if let Err(e) = CliClient::try_parse_from(cmd_vec)
-                    .map_err(|e| e.to_string())
+                    .map_err(anyhow::Error::from)
                     .and_then(run_client)
                 {
                     error(&format!("Error executing command '{}': {e}", cmd.name));
@@ -132,8 +132,8 @@ impl RustSlintBridge {
     }
 
     fn add_on_generate_key(&self) {
-        self.app
-            .global::<SlintRustBridge>()
-            .on_generate_key(|| SharedString::from(CryptoHandler::gen_key().unwrap_or_else(|e| e)));
+        self.app.global::<SlintRustBridge>().on_generate_key(|| {
+            SharedString::from(CryptoHandler::gen_key().unwrap_or_else(|e| e.to_string()))
+        });
     }
 }

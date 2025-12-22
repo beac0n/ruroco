@@ -8,33 +8,34 @@ pub(crate) mod serialization_util;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use chrono::Utc;
+use anyhow::{anyhow, Context};
 use openssl::rand::rand_bytes;
 use std::os::unix::fs::chown;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 
-pub(crate) fn blake2b_u64(s: &str) -> Result<u64, String> {
+pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     let mut hasher = Blake2bVar::new(8)
-        .map_err(|e| format!("Could not create Blake2b hasher for string {s}: {e}"))?;
+        .with_context(|| format!("Could not create Blake2b hasher for string {s}"))?;
     hasher.update(s.as_bytes());
     let mut out = [0u8; 8];
     hasher
         .finalize_variable(&mut out)
-        .map_err(|e| format!("Could not finalize Blake2b hash for string {s}: {e}"))?;
+        .with_context(|| format!("Could not finalize Blake2b hash for string {s}"))?;
     Ok(u64::from_be_bytes(out))
 }
 
-pub fn get_random_string(len: usize) -> Result<String, String> {
+pub fn get_random_string(len: usize) -> anyhow::Result<String> {
     let mut buf = vec![0u8; len];
-    rand_bytes(&mut buf).map_err(|e| format!("Could not generate random: {e}"))?;
+    rand_bytes(&mut buf).with_context(|| "Could not generate random")?;
     let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     Ok(buf.iter().map(|b| chars.as_bytes()[(*b as usize) % chars.len()] as char).collect())
 }
 
-pub fn get_random_range(from: u16, to: u16) -> Result<u16, String> {
+pub fn get_random_range(from: u16, to: u16) -> anyhow::Result<u16> {
     let mut buf = [0u8; 2];
-    rand_bytes(&mut buf).map_err(|e| format!("Could not generate number: {e}"))?;
+    rand_bytes(&mut buf).with_context(|| "Could not generate number")?;
 
     let span = to - from;
     let v = u16::from_be_bytes(buf) % span;
@@ -68,7 +69,7 @@ pub(crate) fn info(msg: &str) {
     println!("[{date_time} \x1b[32mINFO\x1b[0m ] {msg}")
 }
 
-pub(crate) fn error(msg: &str) {
+pub(crate) fn error(msg: impl std::fmt::Display) {
     let date_time = get_date_time();
     println!("[{date_time} \x1b[31mERROR\x1b[0m ] {msg}")
 }
@@ -77,21 +78,21 @@ pub(crate) fn change_file_ownership(
     path: &Path,
     user_name: &str,
     group_name: &str,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let user_id = match get_id_by_name_and_flag(user_name, "-u") {
         Some(id) => Some(id),
         None if user_name.is_empty() => None,
-        None => return Err(format!("Could not find user {user_name}")),
+        None => return Err(anyhow!("Could not find user {user_name}")),
     };
 
     let group_id = match get_id_by_name_and_flag(group_name, "-g") {
         Some(id) => Some(id),
         None if group_name.is_empty() => None,
-        None => return Err(format!("Could not find group {group_name}")),
+        None => return Err(anyhow!("Could not find group {group_name}")),
     };
 
-    chown(path, user_id, group_id).map_err(|e| {
-        format!("Could not change ownership of {path:?} to {user_id:?}:{group_id:?}: {e}")
+    chown(path, user_id, group_id).with_context(|| {
+        format!("Could not change ownership of {path:?} to {user_id:?}:{group_id:?}")
     })?;
     Ok(())
 }

@@ -1,5 +1,6 @@
 //! This module is responsible for persisting, holding and checking the blocklist for blocked items
 
+use anyhow::Context;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,16 +20,14 @@ pub struct Blocklist {
 impl Blocklist {
     /// create an empty blocklist. Every entry will be saved to config_dir/blocklist.toml.
     /// If the blocklist.toml file already exists, its content will be loaded if possible.
-    pub fn create(config_dir: &Path) -> Result<Blocklist, String> {
+    pub fn create(config_dir: &Path) -> anyhow::Result<Blocklist> {
         let blocklist_path = Self::get_blocklist_path(config_dir);
         let blocklist = if blocklist_path.exists() {
-            let blocklist_str = fs::read_to_string(&blocklist_path).map_err(|e| {
-                format!("Could not read blocklist from path {blocklist_path:?}: {e}")
-            })?;
+            let blocklist_str = fs::read_to_string(&blocklist_path)
+                .with_context(|| format!("Could not read blocklist from path {blocklist_path:?}"))?;
 
-            toml::from_str(&blocklist_str).map_err(|e| {
-                format!("Could not create blocklist from string {blocklist_str}: {e}")
-            })?
+            toml::from_str(&blocklist_str)
+                .with_context(|| format!("Could not create blocklist from string {blocklist_str}"))?
         } else {
             Blocklist {
                 map: HashMap::new(),
@@ -71,12 +70,12 @@ impl Blocklist {
     }
 
     /// saves the current content of the blocklist to the defined path
-    pub(crate) fn save(&self) -> Result<(), String> {
+    pub(crate) fn save(&self) -> anyhow::Result<()> {
         let toml_string =
-            toml::to_string(&self).map_err(|e| format!("Error serializing blacklist: {e}"))?;
+            toml::to_string(&self).with_context(|| "Error serializing blacklist")?;
 
         fs::write(&self.path, toml_string)
-            .map_err(|e| format!("Error persisting blacklist: {e}"))?;
+            .with_context(|| "Error persisting blacklist")?;
 
         Ok(())
     }

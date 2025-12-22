@@ -17,7 +17,7 @@ pub(crate) mod update;
 pub(crate) mod util;
 mod wizard;
 
-pub fn run_client(client: CliClient) -> Result<(), String> {
+pub fn run_client(client: CliClient) -> anyhow::Result<()> {
     let conf_dir = config::get_conf_dir()?;
     let _lock = ClientLock::acquire(conf_dir.join("client.lock"))?;
 
@@ -44,15 +44,24 @@ mod tests {
     use crate::client::gen::Generator;
     use crate::client::run_client;
     use clap::Parser;
+    use tempfile::TempDir;
+
+    fn set_test_conf_dir() -> TempDir {
+        let dir = tempfile::tempdir().expect("failed to create temp dir");
+        std::env::set_var("RUROCO_CONF_DIR", dir.path());
+        dir
+    }
 
     #[test]
     fn test_gen() {
+        let _conf_dir = set_test_conf_dir();
         let result = run_client(CliClient::parse_from(vec!["ruroco", "gen"]));
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_send() {
+        let _conf_dir = set_test_conf_dir();
         let key = Generator::create().unwrap().gen().unwrap();
 
         let result = run_client(CliClient::parse_from(vec![
@@ -72,7 +81,15 @@ mod tests {
     #[test_with::env(TEST_UPDATER)]
     #[test]
     fn test_update() {
-        let result = run_client(CliClient::parse_from(vec!["ruroco", "update"]));
+        let _conf_dir = set_test_conf_dir();
+        let bin_dir = tempfile::tempdir().expect("failed to create temp dir");
+        let bin_path = bin_dir.path().to_str().expect("temp dir not valid utf8");
+        let result = run_client(CliClient::parse_from(vec![
+            "ruroco",
+            "update",
+            "--bin-path",
+            bin_path,
+        ]));
 
         assert!(result.is_ok());
     }

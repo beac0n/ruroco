@@ -2,13 +2,14 @@
 
 use crate::client::update::Updater;
 use crate::common::info;
-pub(crate) fn update_android() -> Result<(), String> {
+use anyhow::anyhow;
+pub(crate) fn update_android() -> anyhow::Result<()> {
     let data = Updater::get_github_api_data(None)?;
     let asset = data
         .assets
         .into_iter()
         .find(|a| a.name.ends_with(".apk"))
-        .ok_or(Err("No APK asset found in latest release"))?;
+        .ok_or_else(|| anyhow!("No APK asset found in latest release"))?;
 
     let util = crate::common::android_util::AndroidUtil::create()?;
     let uri = util.uri_parse(asset.browser_download_url)?;

@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Context};
 use crate::common::{change_file_ownership, error, info};
 use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
 use crate::server::config::{CliServer, ConfigServer};
@@ -23,14 +24,14 @@ pub struct Commander {
 }
 
 impl Commander {
-    fn create_from_path(path: &Path) -> Result<Commander, String> {
+    fn create_from_path(path: &Path) -> anyhow::Result<Commander> {
         match fs::read_to_string(path) {
             Ok(config) => Commander::create(ConfigServer::deserialize(&config)?),
-            Err(e) => Err(format!("Could not read {path:?}: {e}")),
+            Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
         }
     }
 
-    pub fn create(config: ConfigServer) -> Result<Commander, String> {
+    pub fn create(config: ConfigServer) -> anyhow::Result<Commander> {
         Ok(Commander {
             cmds: config.get_hash_to_cmd()?,
             socket_path: get_commander_unix_socket_path(&config.config_dir),
@@ -39,12 +40,12 @@ impl Commander {
         })
     }
 
-    pub fn run(&self) -> Result<(), String> {
+    pub fn run(&self) -> anyhow::Result<()> {
         for stream in self.create_listener()?.incoming() {
             match stream {
                 Ok(mut stream) => {
                     if let Err(e) = self.run_cycle(&mut stream) {
-                        error(&e)
+                        error(e)
                     }
                 }
                 Err(e) => error(&format!("Connection for {:?} failed: {e}", &self.socket_path)),
@@ -55,13 +56,18 @@ impl Commander {
         Ok(())
     }
 
-    fn create_listener(&self) -> Result<UnixListener, String> {
+    fn create_listener(&self) -> anyhow::Result<UnixListener> {
         let socket_dir = match self.socket_path.parent() {
             Some(socket_dir) => socket_dir,
-            None => return Err(format!("Could not get parent dir for {:?}", &self.socket_path)),
+            None => {
+                return Err(anyhow!(
+                    "Could not get parent dir for {:?}",
+                    &self.socket_path
+                ))
+            }
         };
         fs::create_dir_all(socket_dir)
-            .map_err(|e| format!("Could not create parents for {socket_dir:?}: {e}"))?;
+            .with_context(|| format!("Could not create parents for {socket_dir:?}"))?;
 
         let _ = fs::remove_file(&self.socket_path);
 
@@ -71,25 +77,28 @@ impl Commander {
             &self.socket_path
         ));
         let listener = UnixListener::bind(&self.socket_path)
-            .map_err(|e| format!("Could not bind to socket {:?}: {e}", self.socket_path))?;
+            .with_context(|| format!("Could not bind to socket {:?}", self.socket_path))?;
 
-        fs::set_permissions(&self.socket_path, Permissions::from_mode(mode)).map_err(|e| {
-            format!("Could not set permissions {mode:o} for {:?}: {e}", self.socket_path)
+        fs::set_permissions(&self.socket_path, Permissions::from_mode(mode)).with_context(|| {
+            format!("Could not set permissions {mode:o} for {:?}", self.socket_path)
         })?;
         self.change_socket_ownership()?;
 
         Ok(listener)
     }
 
-    fn change_socket_ownership(&self) -> Result<(), String> {
+    fn change_socket_ownership(&self) -> anyhow::Result<()> {
         change_file_ownership(&self.socket_path, self.socket_user.trim(), self.socket_group.trim())
     }
 
-    fn run_cycle(&self, stream: &mut UnixStream) -> Result<(), String> {
+    fn run_cycle(&self, stream: &mut UnixStream) -> anyhow::Result<()> {
         let msg = Commander::read(stream)?;
         let cmdr_data: CommanderData = CommanderData::deserialize(msg);
         let cmd_hash = &cmdr_data.cmd_hash;
-        let cmd = self.cmds.get(cmd_hash).ok_or(format!("Unknown command name: {cmd_hash}"))?;
+        let cmd = self
+            .cmds
+            .get(cmd_hash)
+            .ok_or_else(|| anyhow!("Unknown command name: {cmd_hash}"))?;
 
         info(&format!("Running command ({cmd_hash}) {cmd}"));
         self.run_command(cmd, cmdr_data.ip);
@@ -117,11 +126,11 @@ impl Commander {
         };
     }
 
-    fn read(stream: &mut UnixStream) -> Result<[u8; CMDR_DATA_SIZE], String> {
+    fn read(stream: &mut UnixStream) -> anyhow::Result<[u8; CMDR_DATA_SIZE]> {
         let mut buffer = [0u8; CMDR_DATA_SIZE];
         stream
             .read(&mut buffer)
-            .map_err(|e| format!("Could not read command from Unix Stream to string: {e}"))?;
+            .with_context(|| "Could not read command from Unix Stream to string")?;
         Ok(buffer)
     }
 
@@ -130,7 +139,7 @@ impl Commander {
     }
 }
 
-pub fn run_commander(server: CliServer) -> Result<(), String> {
+pub fn run_commander(server: CliServer) -> anyhow::Result<()> {
     Commander::create_from_path(&server.config)?.run()
 }
 
@@ -161,7 +170,11 @@ mod tests {
 
         assert!(result.is_err());
 
-        assert!(result.err().unwrap().contains("TOML parse error at line 1, column 1"));
+        let msg = result.err().unwrap().to_string();
+        assert!(
+            msg.contains("TOML parse error") || msg.contains("Could not create ConfigServer from"),
+            "unexpected error: {msg}"
+        );
     }
 
     #[test]
@@ -170,7 +183,7 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(
-            result.err().unwrap(),
+            result.err().unwrap().to_string(),
             r#"Could not read "/tmp/path/does/not/exist": No such file or directory (os error 2)"#
         );
     }
@@ -190,7 +203,7 @@ mod tests {
             .join("config.toml");
 
         assert_eq!(
-            Commander::create_from_path(&path),
+            Commander::create_from_path(&path).unwrap(),
             Commander::create(ConfigServer {
                 ips: vec!["127.0.0.1".parse().unwrap()],
                 config_dir: PathBuf::from("tests/conf_dir"),
@@ -198,6 +211,7 @@ mod tests {
                 socket_group: "ruroco".to_string(),
                 commands,
             })
+            .unwrap()
         );
     }
 

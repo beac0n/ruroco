@@ -20,7 +20,7 @@ impl ClientData {
         src_ip: Option<IpAddr>,
         dst_ip: IpAddr,
         counter: u128,
-    ) -> Result<ClientData, String> {
+    ) -> anyhow::Result<ClientData> {
         Ok(ClientData {
             cmd_hash: blake2b_u64(command)?,
             counter,
@@ -30,7 +30,7 @@ impl ClientData {
         })
     }
 
-    pub(crate) fn serialize(&self) -> Result<[u8; PLAINTEXT_SIZE], String> {
+    pub(crate) fn serialize(&self) -> anyhow::Result<[u8; PLAINTEXT_SIZE]> {
         let mut out = [0u8; PLAINTEXT_SIZE];
 
         out[0..8].copy_from_slice(&self.cmd_hash.to_be_bytes());
@@ -42,7 +42,7 @@ impl ClientData {
         Ok(out)
     }
 
-    pub(crate) fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> Result<Self, String> {
+    pub(crate) fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> anyhow::Result<Self> {
         let mut command_hash_bytes = [0u8; 8];
         command_hash_bytes.copy_from_slice(&data[0..8]);
 

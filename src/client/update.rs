@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Context};
 use crate::client::util::set_permissions;
 use crate::common::{change_file_ownership, get_random_string, info};
 use reqwest::blocking::{get, Client};
@@ -45,19 +46,18 @@ impl Updater {
         version: Option<String>,
         bin_path: Option<PathBuf>,
         server: bool,
-    ) -> Result<Self, String> {
+    ) -> anyhow::Result<Self> {
         let bin_path = match bin_path.clone() {
             Some(p) if !p.exists() || !p.is_dir() => {
-                return Err(format!("{p:?} does not exist or is not a directory"))
+                return Err(anyhow!("{p:?} does not exist or is not a directory"))
             }
             Some(p) if !Self::check_if_writeable(&p)? => {
-                return Err(format!("can't write to {p:?}"));
+                return Err(anyhow!("can't write to {p:?}"));
             }
             Some(p) => p,
             None if server => Self::validate_dir_path(PathBuf::from(SERVER_BIN_DIR))?,
             None => {
-                let home_env =
-                    env::var("HOME").map_err(|e| format!("Could not get home env: {e}"))?;
+                let home_env = env::var("HOME").with_context(|| "Could not get home env")?;
                 Self::validate_dir_path(PathBuf::from(home_env).join(".local").join("bin"))?
             }
         };
@@ -70,7 +70,7 @@ impl Updater {
         })
     }
 
-    pub(crate) fn update(&self) -> Result<(), String> {
+    pub(crate) fn update(&self) -> anyhow::Result<()> {
         let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
 
         if !self.force && Some(current_version.clone()) == self.version {
@@ -126,24 +126,25 @@ impl Updater {
 
     pub(crate) fn get_github_api_data(
         version_to_download: Option<&String>,
-    ) -> Result<GithubApiData, String> {
+    ) -> anyhow::Result<GithubApiData> {
         let response = Client::builder()
             .user_agent("rust-client")
             .build()
-            .map_err(|e| format!("Could not build client: {e}"))?
+            .with_context(|| "Could not build client")?
             .get(GH_RELEASES_URL)
             .send()
-            .map_err(|e| format!("Could not get API response: {e}"))?;
+            .with_context(|| "Could not get API response")?;
 
         let status_code = response.status();
         if !status_code.is_success() {
-            let response_text =
-                response.text().map_err(|e| format!("Could not get text from response: {e}"))?;
-            return Err(format!("Request failed: {status_code} - {response_text}"));
+            let response_text = response
+                .text()
+                .with_context(|| "Could not get text from response")?;
+            return Err(anyhow!("Request failed: {status_code} - {response_text}"));
         }
 
         let response_data: Vec<GithubApiData> =
-            response.json().map_err(|e| format!("Could not parse json: {e}"))?;
+            response.json().with_context(|| "Could not parse json")?;
 
         let data = match version_to_download {
             None => response_data.first().cloned(),
@@ -151,33 +152,33 @@ impl Updater {
         };
 
         match data {
-            None => Err(format!("Could not find version {version_to_download:?}")),
+            None => Err(anyhow!(
+                "Could not find version {version_to_download:?}"
+            )),
             Some(d) => Ok(d),
         }
     }
 
-    fn check_if_writeable(path: &Path) -> Result<bool, String> {
+    fn check_if_writeable(path: &Path) -> anyhow::Result<bool> {
         let tmp_path = path.join(get_random_string(16)?);
         match fs::write(&tmp_path, b"test") {
             Ok(_) => {
-                fs::remove_file(&tmp_path).map_err(|e| {
-                    format!("Could not remove temporary test file {tmp_path:?}: {e}")
-                })?;
+                fs::remove_file(&tmp_path)
+                    .with_context(|| format!("Could not remove temporary test file {tmp_path:?}"))?;
                 Ok(true)
             }
             Err(_) => Ok(false),
         }
     }
 
-    fn validate_dir_path(dir_path: PathBuf) -> Result<PathBuf, String> {
+    fn validate_dir_path(dir_path: PathBuf) -> anyhow::Result<PathBuf> {
         match dir_path {
             p if !p.exists() => {
-                fs::create_dir_all(&p)
-                    .map_err(|e| format!("Could not create .bin directory: {e:?}"))?;
+                fs::create_dir_all(&p).with_context(|| "Could not create .bin directory")?;
                 Ok(p)
             }
-            p if !p.is_dir() => Err(format!("{p:?} exists but is not a directory")),
-            p if !Self::check_if_writeable(&p)? => Err(format!("can't write to {p:?}")),
+            p if !p.is_dir() => Err(anyhow!("{p:?} exists but is not a directory")),
+            p if !Self::check_if_writeable(&p)? => Err(anyhow!("can't write to {p:?}")),
             p => Ok(p),
         }
     }
@@ -186,7 +187,7 @@ impl Updater {
         &self,
         assets: &[GithubApiAsset],
         client_bin_name: &String,
-    ) -> Result<String, String> {
+    ) -> anyhow::Result<String> {
         assets
             .iter()
             .find_map(|a| {
@@ -196,7 +197,7 @@ impl Updater {
                     None
                 }
             })
-            .ok_or(format!("Could not find {client_bin_name}"))
+            .ok_or_else(|| anyhow!("Could not find {client_bin_name}"))
     }
 
     fn download_and_save_bin(
@@ -205,7 +206,7 @@ impl Updater {
         bin_name: &str,
         permissions_mode: u32,
         user_and_group: Option<&str>,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         //TODO: Verify release signatures or checksums before swapping binaries to prevent
         // MITM/upstream compromise.
         info(&format!("downloading from {bin_url}"));
@@ -213,26 +214,28 @@ impl Updater {
         let target_bin_path = &self.bin_path.join(bin_name);
 
         let bin_resp_bytes = get(bin_url)
-            .map_err(|e| format!("Could not get binary: {e}"))?
+            .with_context(|| "Could not get binary")?
             .bytes()
-            .map_err(|e| format!("Could not get bytes: {e}"))?;
+            .with_context(|| "Could not get bytes")?;
 
         let target_bin_path_str = target_bin_path
             .to_str()
-            .ok_or(format!("Could not convert {target_bin_path:?} to str"))?;
+            .ok_or_else(|| anyhow!("Could not convert {target_bin_path:?} to str"))?;
 
         if target_bin_path.exists() {
             fs::rename(target_bin_path_str, format!("{target_bin_path_str}.old"))
-                .map_err(|e| format!("Could not rename existing binary: {e}"))?;
+                .with_context(|| "Could not rename existing binary")?;
         }
 
         match fs::write(target_bin_path_str, bin_resp_bytes) {
             Ok(_) => {}
             Err(_) => {
                 fs::rename(format!("{target_bin_path_str}.old"), target_bin_path_str)
-                    .map_err(|e| format!("Could not recover old binary: {e}"))?;
+                    .with_context(|| "Could not recover old binary")?;
 
-                return Err(format!("Could not write new binary to {target_bin_path_str}"));
+                return Err(anyhow!(
+                    "Could not write new binary to {target_bin_path_str}"
+                ));
             }
         }
 
@@ -268,7 +271,6 @@ mod tests {
             .filter_map(|entry| entry.path().to_str().map(String::from))
             .collect();
 
-        dbg!(&result);
         assert!(result.is_ok());
         assert_eq!(entries.len(), 2);
     }

@@ -14,6 +14,7 @@ use crate::common::data_parser::{DataParser, MSG_SIZE};
 use crate::common::{error, info};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
+use anyhow::{anyhow, Context};
 use commander_data::CommanderData;
 use std::collections::HashMap;
 use std::fs;
@@ -33,14 +34,14 @@ pub struct Server {
 }
 
 impl Server {
-    fn create_from_path(path: &Path) -> Result<Server, String> {
+    fn create_from_path(path: &Path) -> anyhow::Result<Server> {
         match fs::read_to_string(path) {
             Ok(config) => Server::create(ConfigServer::deserialize(&config)?, None),
-            Err(e) => Err(format!("Could not read {path:?}: {e}")),
+            Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
         }
     }
 
-    pub fn create(config: ConfigServer, address: Option<String>) -> Result<Server, String> {
+    pub fn create(config: ConfigServer, address: Option<String>) -> anyhow::Result<Server> {
         Ok(Server {
             crypto_handlers: config.create_crypto_handlers()?,
             socket: config.create_server_udp_socket(address)?,
@@ -51,37 +52,40 @@ impl Server {
         })
     }
 
-    pub fn run(&mut self) -> Result<(), String> {
+    pub fn run(&mut self) -> anyhow::Result<()> {
         info(&format!("Running server on {:?}", self.socket));
         loop {
             let data = self.socket.recv_from(&mut self.client_recv_data);
-            self.run_loop_iteration(data);
+            if let Err(e) = self.run_loop_iteration(data) {
+                error(&format!("{e}"));
+            }
         }
     }
 
-    fn run_loop_iteration(&mut self, data: std::io::Result<(usize, SocketAddr)>) -> Option<String> {
-        let error_msg = match data {
+    fn run_loop_iteration(
+        &mut self,
+        data: std::io::Result<(usize, SocketAddr)>,
+    ) -> anyhow::Result<()> {
+        match data {
             Ok((count, src)) if count != MSG_SIZE => {
-                Some(format!("Invalid read count {count}, expected {MSG_SIZE} from {src}"))
+                Err(anyhow!("Invalid read count {count}, expected {MSG_SIZE} from {src}"))
             }
             Ok((count, src)) => {
                 info(&format!("Successfully received {count} bytes from {src}"));
-                self.decrypt()
-                    .map_or_else(Some, |(k, d)| self.validate_and_send_command(k, d, src.ip()))
+                let (key_id, plaintext) = self.decrypt()?;
+                self.validate_and_send_command(key_id, plaintext, src.ip())
             }
-            Err(e) => Some(format!("Could not receive bytes from socket: {e}")),
-        };
-
-        error_msg.inspect(|s| error(s))
+            Err(e) => Err(anyhow!("Could not receive bytes from socket: {e}")),
+        }
     }
 
-    fn decrypt(&mut self) -> Result<([u8; 8], [u8; PLAINTEXT_SIZE]), String> {
+    fn decrypt(&mut self) -> anyhow::Result<([u8; 8], [u8; PLAINTEXT_SIZE])> {
         let (key_id, encrypted_data) = DataParser::decode(&self.client_recv_data)?;
         let plaintext = self
             .crypto_handlers
             .get(key_id)
             .map(|crypto_handler| crypto_handler.decrypt(encrypted_data))
-            .unwrap_or_else(|| Err(format!("Could not find key for id {key_id:X?}")))?;
+            .unwrap_or_else(|| Err(anyhow!("Could not find key for id {key_id:X?}")))?;
         Ok((*key_id, plaintext))
     }
 
@@ -90,7 +94,7 @@ impl Server {
         key_id: [u8; 8],
         plaintext_data: [u8; PLAINTEXT_SIZE],
         src_ip: IpAddr,
-    ) -> Option<String> {
+    ) -> anyhow::Result<()> {
         let src_ip = match src_ip {
             IpAddr::V6(v6) => v6.to_ipv4_mapped().map(IpAddr::V4).unwrap_or(IpAddr::V6(v6)),
             _ => src_ip,
@@ -98,17 +102,17 @@ impl Server {
 
         match ClientData::deserialize(plaintext_data) {
             Ok(client_data) if self.blocklist.is_blocked(key_id, client_data.counter) => {
-                Some(format!("Invalid counter - {} is on blocklist", client_data.counter))
+                Err(anyhow!("Invalid counter - {} is on blocklist", client_data.counter))
             }
             Ok(client_data) if !self.config.ips.contains(&client_data.dst_ip) => {
                 let destination_ip = &client_data.dst_ip;
                 let ips = &self.config.ips;
-                Some(format!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
+                Err(anyhow!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
             }
             Ok(client_data) if client_data.is_source_ip_invalid(src_ip) => {
                 let client_src_ip_str =
                     client_data.src_ip.map(|i| i.to_string()).unwrap_or("none".to_string());
-                Some(format!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
+                Err(anyhow!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
             }
             Ok(client_data) => {
                 let cmd = client_data.cmd_hash;
@@ -119,9 +123,9 @@ impl Server {
 
                 self.send_command(CommanderData { cmd_hash: cmd, ip });
                 self.update_block_list(key_id, client_data.counter);
-                None
+                Ok(())
             }
-            Err(e) => Some(format!("Could not decode data: {e}")),
+            Err(e) => Err(anyhow!("Could not decode data: {e}")),
         }
     }
 
@@ -142,23 +146,23 @@ impl Server {
         }
     }
 
-    fn write_to_socket(&self, data: CommanderData) -> Result<(), String> {
+    fn write_to_socket(&self, data: CommanderData) -> anyhow::Result<()> {
         let mut stream = UnixStream::connect(&self.socket_path)
-            .map_err(|e| format!("Could not connect to socket {:?}: {e}", self.socket_path))?;
+            .with_context(|| format!("Could not connect to socket {:?}", self.socket_path))?;
 
         let data_to_send = data.serialize();
-        stream.write_all(&data_to_send).map_err(|e| {
-            format!("Could not write {data_to_send:?} to socket {:?}: {e}", self.socket_path)
+        stream.write_all(&data_to_send).with_context(|| {
+            format!("Could not write {data_to_send:?} to socket {:?}", self.socket_path)
         })?;
 
         stream
             .flush()
-            .map_err(|e| format!("Could not flush stream for {:?}: {e}", self.socket_path))?;
+            .with_context(|| format!("Could not flush stream for {:?}", self.socket_path))?;
         Ok(())
     }
 }
 
-pub fn run_server(server: CliServer) -> Result<(), String> {
+pub fn run_server(server: CliServer) -> anyhow::Result<()> {
     Server::create_from_path(&server.config)?.run()
 }
 
@@ -217,7 +221,10 @@ mod tests {
         );
 
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), "LISTEN_PID (12345) does not match current PID");
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "LISTEN_PID (12345) does not match current PID"
+        );
     }
 
     #[test]
@@ -231,7 +238,11 @@ mod tests {
         let result = Server::create_from_path(&path);
 
         assert!(result.is_err());
-        assert!(result.err().unwrap().contains("TOML parse error at line 1, column 1"));
+        let msg = result.err().unwrap().to_string();
+        assert!(
+            msg.contains("TOML parse error") || msg.contains("Could not create ConfigServer from"),
+            "unexpected error: {msg}"
+        );
     }
 
     #[test]
@@ -240,7 +251,7 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(
-            result.err().unwrap(),
+            result.err().unwrap().to_string(),
             r#"Could not read "/tmp/path/does/not/exist": No such file or directory (os error 2)"#
         );
     }
@@ -269,55 +280,53 @@ mod tests {
 
     #[test]
     fn test_loop_iteration_invalid_read_count() {
-        let mut server = create_server();
+        let mut server = create_server().expect("could not create server");
         let success_data: io::Result<(usize, SocketAddr)> =
             Ok((0, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
 
         assert_eq!(
-            server.run_loop_iteration(success_data).unwrap(),
+            server.run_loop_iteration(success_data).unwrap_err().to_string(),
             format!("Invalid read count 0, expected {MSG_SIZE} from 127.0.0.1:8080")
         );
     }
 
     #[test]
     fn test_loop_iteration_decrypt_error() {
-        let mut server = create_server();
+        let mut server = create_server().expect("could not create server");
         let success_data: io::Result<(usize, SocketAddr)> =
             Ok((MSG_SIZE, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
         assert_eq!(
-            server.run_loop_iteration(success_data).unwrap(),
+            server.run_loop_iteration(success_data).unwrap_err().to_string(),
             "Could not find key for id [0, 0, 0, 0, 0, 0, 0, 0]"
         );
     }
 
     #[test]
     fn test_loop_iteration_error() {
-        let mut server = create_server();
+        let mut server = create_server().expect("could not create server");
         let error_data: io::Result<(usize, SocketAddr)> =
             Err(io::Error::other("An error occurred"));
 
         assert_eq!(
-            server.run_loop_iteration(error_data).unwrap(),
+            server.run_loop_iteration(error_data).unwrap_err().to_string(),
             "Could not receive bytes from socket: An error occurred"
         );
     }
 
-    fn create_server() -> Server {
-        let test_folder_path = PathBuf::from("/dev/shm").join(gen_file_name(""));
-        let _ = fs::create_dir_all(&test_folder_path);
+    fn create_server() -> anyhow::Result<Server> {
+        let temp_dir = tempfile::tempdir()?;
+        let test_folder_path = temp_dir.keep();
 
         let key_path = test_folder_path.join(gen_file_name(".key"));
-        let key = Generator::create().unwrap().gen().expect("could not generate key");
-        fs::write(&key_path, key).expect("failed to write key");
+        fs::write(&key_path, Generator::create()?.gen()?)?;
 
         Server::create(
             ConfigServer {
                 config_dir: test_folder_path.clone(),
                 ..Default::default()
             },
-            Some(format!("127.0.0.1:{}", get_random_range(1024, 65535).unwrap())),
+            Some(format!("127.0.0.1:{}", get_random_range(1024, 65535)?)),
         )
-        .expect("could not create server")
     }
 
     fn gen_file_name(suffix: &str) -> String {

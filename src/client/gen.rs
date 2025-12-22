@@ -4,12 +4,12 @@ pub struct Generator {}
 
 impl Generator {
     /// Create a key generator
-    pub fn create() -> Result<Self, String> {
+    pub fn create() -> anyhow::Result<Self> {
         Ok(Self {})
     }
 
     /// Generate a key file with the provided arguments used in create
-    pub fn gen(&self) -> Result<String, String> {
+    pub fn gen(&self) -> anyhow::Result<String> {
         let key = CryptoHandler::gen_key()?;
         print!("{}", key);
         Ok(key)

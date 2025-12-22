@@ -1,3 +1,4 @@
+use anyhow::Context;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -8,7 +9,7 @@ pub struct Counter {
 }
 
 impl Counter {
-    pub fn create(path: PathBuf, initial: u128) -> Result<Self, String> {
+    pub fn create(path: PathBuf, initial: u128) -> anyhow::Result<Self> {
         let mut counter = Self { path, count: 0 };
         if counter.read().is_err() {
             counter.count = initial;
@@ -21,31 +22,31 @@ impl Counter {
         self.count
     }
 
-    pub fn dec(&mut self) -> Result<(), String> {
+    pub fn dec(&mut self) -> anyhow::Result<()> {
         self.count = self.count.saturating_sub(1);
         self.write()?;
         Ok(())
     }
 
-    pub(crate) fn inc(&mut self) -> Result<(), String> {
+    pub(crate) fn inc(&mut self) -> anyhow::Result<()> {
         self.count = self.count.saturating_add(1);
         self.write()?;
         Ok(())
     }
 
-    fn write(&self) -> Result<(), String> {
+    fn write(&self) -> anyhow::Result<()> {
         File::create(&self.path)
-            .map_err(|e| format!("Could not create counter file {:?}: {e}", self.path))?
+            .with_context(|| format!("Could not create counter file {:?}", self.path))?
             .write_all(&self.count.to_be_bytes())
-            .map_err(|e| format!("Could not write counter file {:?}: {e}", self.path))
+            .with_context(|| format!("Could not write counter file {:?}", self.path))
     }
 
-    fn read(&mut self) -> Result<(), String> {
+    fn read(&mut self) -> anyhow::Result<()> {
         let mut buf = [0u8; 16];
         File::open(&self.path)
-            .map_err(|e| format!("Could not open counter file {:?}: {e}", &self.path))?
+            .with_context(|| format!("Could not open counter file {:?}", &self.path))?
             .read_exact(&mut buf)
-            .map_err(|e| format!("Could not read counter file {:?}: {e}", &self.path))?;
+            .with_context(|| format!("Could not read counter file {:?}", &self.path))?;
 
         self.count = u128::from_be_bytes(buf);
         Ok(())

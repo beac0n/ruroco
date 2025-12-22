@@ -2,6 +2,7 @@
 //! The data that these structs represent are used for invoking the server binaries with CLI
 //! (default) arguments or are used to deserialize configuration files
 
+use anyhow::{anyhow, Context};
 use crate::common::{blake2b_u64, info, resolve_path};
 use crate::server::blocklist::Blocklist;
 use clap::Parser;
@@ -46,24 +47,25 @@ where
 }
 
 impl ConfigServer {
-    pub(crate) fn get_hash_to_cmd(&self) -> Result<HashMap<u64, String>, String> {
+    pub(crate) fn get_hash_to_cmd(&self) -> anyhow::Result<HashMap<u64, String>> {
         self.commands
             .iter()
             .map(|(k, v)| {
-                let hash = blake2b_u64(k).map_err(|e| format!("Could not hash {k}: {e}"))?;
+                let hash =
+                    blake2b_u64(k).with_context(|| format!("Could not hash {k}"))?;
                 Ok((hash, v.clone()))
             })
             .collect()
     }
-    pub(crate) fn deserialize(data: &str) -> Result<ConfigServer, String> {
+    pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigServer> {
         toml::from_str::<ConfigServer>(data)
-            .map_err(|e| format!("Could not create ConfigServer from {data}: {e}"))
+            .with_context(|| format!("Could not create ConfigServer from {data}"))
     }
 
     pub(crate) fn create_server_udp_socket(
         &self,
         address: Option<String>,
-    ) -> Result<UdpSocket, String> {
+    ) -> anyhow::Result<UdpSocket> {
         match (
             env::var("LISTEN_PID").ok(),
             env::var("LISTEN_FDS").ok(),
@@ -73,12 +75,12 @@ impl ConfigServer {
             (_, _, _, Some(address)) => {
                 info(&format!("UdpSocket bind to {address} - argument"));
                 UdpSocket::bind(&address)
-                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
+                    .with_context(|| format!("Could not UdpSocket bind {address:?}"))
             }
             (_, _, Some(address), _) => {
                 info(&format!("UdpSocket bind to {address} - RUROCO_LISTEN_ADDRESS"));
                 UdpSocket::bind(&address)
-                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
+                    .with_context(|| format!("Could not UdpSocket bind {address:?}"))
             }
             (Some(listen_pid), Some(listen_fds), _, _)
                 if listen_pid == std::process::id().to_string() && listen_fds == "1" =>
@@ -89,10 +91,14 @@ impl ConfigServer {
                 Ok(sock)
             }
             (Some(_), Some(listen_fds), _, _) if listen_fds != "1" => {
-                Err(format!("LISTEN_FDS was set to {listen_fds}, expected 1"))
+                Err(anyhow!(
+                    "LISTEN_FDS was set to {listen_fds}, expected 1"
+                ))
             }
             (Some(listen_pid), Some(_), _, _) if listen_pid != std::process::id().to_string() => {
-                Err(format!("LISTEN_PID ({listen_pid}) does not match current PID"))
+                Err(anyhow!(
+                    "LISTEN_PID ({listen_pid}) does not match current PID"
+                ))
             }
             _ => {
                 // port is calculated by using the alphabet indexes of the word ruroco:
@@ -102,25 +108,25 @@ impl ConfigServer {
                 let address = "[::]:34020";
                 info(&format!("UdpSocket bind to {address} - fallback"));
                 UdpSocket::bind(address)
-                    .map_err(|e| format!("Could not UdpSocket bind {address:?}: {e}"))
+                    .with_context(|| format!("Could not UdpSocket bind {address:?}"))
             }
         }
     }
 
-    pub(crate) fn create_blocklist(&self) -> Result<Blocklist, String> {
+    pub(crate) fn create_blocklist(&self) -> anyhow::Result<Blocklist> {
         Blocklist::create(&self.resolve_config_dir())
     }
 
     pub(crate) fn create_crypto_handlers(
         &self,
-    ) -> Result<HashMap<[u8; KEY_ID_SIZE], CryptoHandler>, String> {
+    ) -> anyhow::Result<HashMap<[u8; KEY_ID_SIZE], CryptoHandler>> {
         let key_paths = self.get_key_paths()?;
         info(&format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
 
         let crypto_handlers = key_paths
             .into_iter()
             .map(|p| CryptoHandler::from_key_path(&p))
-            .collect::<Result<Vec<CryptoHandler>, String>>()?;
+            .collect::<anyhow::Result<Vec<CryptoHandler>>>()?;
 
         let hashmap_data = crypto_handlers
             .into_iter()
@@ -128,7 +134,7 @@ impl ConfigServer {
                 info(&format!("loading key with id {:X?}", &h.id));
                 Ok((h.id, h))
             })
-            .collect::<Result<Vec<([u8; KEY_ID_SIZE], CryptoHandler)>, String>>()?;
+            .collect::<anyhow::Result<Vec<([u8; KEY_ID_SIZE], CryptoHandler)>>>()?;
 
         Ok(hashmap_data.into_iter().collect())
     }
@@ -137,12 +143,12 @@ impl ConfigServer {
         get_commander_unix_socket_path(&self.resolve_config_dir())
     }
 
-    fn get_key_paths(&self) -> Result<Vec<PathBuf>, String> {
+    fn get_key_paths(&self) -> anyhow::Result<Vec<PathBuf>> {
         let config_dir = self.resolve_config_dir();
 
         let entries: ReadDir = match fs::read_dir(&config_dir) {
             Ok(entries) => entries,
-            Err(e) => return Err(format!("Error reading directory {config_dir:?}: {e}")),
+            Err(e) => return Err(anyhow!("Error reading directory {config_dir:?}: {e}")),
         };
 
         let key_files: Vec<PathBuf> = entries
@@ -152,7 +158,7 @@ impl ConfigServer {
             .collect();
 
         match key_files.len() {
-            0 => Err(format!("Could not find any .key files in {config_dir:?}")),
+            0 => Err(anyhow!("Could not find any .key files in {config_dir:?}")),
             _ => Ok(key_files),
         }
     }

@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Context};
 use std::fs::{remove_file, File, OpenOptions};
 use std::io;
 use std::io::Write;
@@ -9,7 +10,7 @@ pub(crate) struct ClientLock {
 }
 
 impl ClientLock {
-    pub(crate) fn acquire(path: PathBuf) -> Result<Self, String> {
+    pub(crate) fn acquire(path: PathBuf) -> anyhow::Result<Self> {
         let mut file = match Self::open(&path) {
             Ok(file) => file,
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
@@ -17,17 +18,16 @@ impl ClientLock {
                     std::fs::read_to_string(&path).ok().and_then(|s| s.trim().parse::<u32>().ok())
                 {
                     if Self::is_pid_running(pid) {
-                        return Err(format!("Client already running (lock at {path:?})"));
+                        return Err(anyhow!("Client already running (lock at {path:?})"));
                     }
                 }
 
                 let _ = remove_file(&path);
-                Self::open(&path).map_err(|e| {
-                    format!("Client lock unavailable at {path:?} after cleanup: {e}")
-                })?
+                Self::open(&path)
+                    .with_context(|| format!("Client lock unavailable at {path:?} after cleanup"))?
             }
             Err(e) => {
-                return Err(format!("Client lock unavailable at {path:?}: {e}"));
+                return Err(anyhow!("Client lock unavailable at {path:?}: {e}"));
             }
         };
 

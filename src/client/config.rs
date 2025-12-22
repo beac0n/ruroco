@@ -2,6 +2,9 @@
 //! The data that these structs and enums represent are used for invoking the client binary with CLI
 //! (default) arguments.
 
+use anyhow::Context;
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -93,7 +96,7 @@ pub(crate) enum CommandsClient {
     Wizard(WizardCommand),
 }
 
-pub(crate) fn get_conf_dir() -> Result<PathBuf, String> {
+pub(crate) fn get_conf_dir() -> anyhow::Result<PathBuf> {
     #[cfg(target_os = "linux")]
     return get_conf_dir_linux();
 
@@ -101,11 +104,11 @@ pub(crate) fn get_conf_dir() -> Result<PathBuf, String> {
     return get_conf_dir_android();
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    Err("unsupported platform".to_string())
+    Err(anyhow!("unsupported platform"))
 }
 
 #[cfg(target_os = "linux")]
-fn get_conf_dir_linux() -> Result<PathBuf, String> {
+fn get_conf_dir_linux() -> anyhow::Result<PathBuf> {
     use std::env;
     use std::fs;
 
@@ -114,15 +117,15 @@ fn get_conf_dir_linux() -> Result<PathBuf, String> {
     } else if let Ok(home_dir) = env::var("HOME") {
         PathBuf::from(home_dir).join(".config").join("ruroco")
     } else {
-        env::current_dir().map_err(|e| format!("Could not determine config dir: {e}"))?
+        env::current_dir().with_context(|| "Could not determine config dir")?
     };
 
-    fs::create_dir_all(&path).map_err(|e| format!("Could not create config dir: {e}"))?;
+    fs::create_dir_all(&path).with_context(|| "Could not create config dir")?;
     Ok(path)
 }
 
 #[cfg(target_os = "android")]
-fn get_conf_dir_android() -> Result<PathBuf, String> {
+fn get_conf_dir_android() -> anyhow::Result<PathBuf> {
     use crate::common::android_util::AndroidUtil;
     AndroidUtil::create()?.get_conf_dir()
 }

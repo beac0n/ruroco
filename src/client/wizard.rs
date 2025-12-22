@@ -1,3 +1,4 @@
+use anyhow::Context;
 use crate::client::update::Updater;
 use crate::client::util::set_permissions;
 use crate::common::info;
@@ -24,7 +25,7 @@ impl Wizard {
         Self {}
     }
 
-    pub(crate) fn run(&self) -> Result<(), String> {
+    pub(crate) fn run(&self) -> anyhow::Result<()> {
         Self::create_ruroco_user()?;
         Self::update()?;
 
@@ -50,12 +51,12 @@ impl Wizard {
         Ok(())
     }
 
-    fn update() -> Result<(), String> {
+    fn update() -> anyhow::Result<()> {
         info("Updating/Installing ruroco server binaries");
         Updater::create(true, None, None, true)?.update()
     }
 
-    fn init_config_file() -> Result<(), String> {
+    fn init_config_file() -> anyhow::Result<()> {
         info(&format!("Initializing config file {CONFIG_TOML_PATH}"));
         if !Path::new(CONFIG_TOML_PATH).exists() {
             Self::write_data(CONFIG_TOML_PATH, CONFIG_TOML_FILE_DATA)?;
@@ -65,7 +66,7 @@ impl Wizard {
         Ok(())
     }
 
-    fn start_systemd_services() -> Result<(), String> {
+    fn start_systemd_services() -> anyhow::Result<()> {
         info("Starting systemd services ...");
         Command::new("systemctl")
             .arg("start")
@@ -73,11 +74,11 @@ impl Wizard {
             .arg("ruroco-commander.service")
             .arg("ruroco.socket")
             .status()
-            .map_err(|e| format!("Failed to start ruroco systemd services: {e}"))?;
+            .with_context(|| "Failed to start ruroco systemd services")?;
         Ok(())
     }
 
-    fn enable_systemd_services() -> Result<(), String> {
+    fn enable_systemd_services() -> anyhow::Result<()> {
         info("Enabling systemd services ...");
         Command::new("systemctl")
             .arg("enable")
@@ -85,20 +86,20 @@ impl Wizard {
             .arg("ruroco-commander.service")
             .arg("ruroco.socket")
             .status()
-            .map_err(|e| format!("Failed to enable ruroco systemd services: {e}"))?;
+            .with_context(|| "Failed to enable ruroco systemd services")?;
         Ok(())
     }
 
-    fn reload_systemd_daemon() -> Result<(), String> {
+    fn reload_systemd_daemon() -> anyhow::Result<()> {
         info("Reloading systemd daemon ...");
         Command::new("systemctl")
             .arg("daemon-reload")
             .status()
-            .map_err(|e| format!("Failed to reload systemd: {e}"))?;
+            .with_context(|| "Failed to reload systemd")?;
         Ok(())
     }
 
-    fn create_ruroco_user() -> Result<(), String> {
+    fn create_ruroco_user() -> anyhow::Result<()> {
         info("Creating user 'ruroco' ...");
         Command::new("useradd")
             .arg("--system")
@@ -106,15 +107,15 @@ impl Wizard {
             .arg("--shell")
             .arg("/bin/false")
             .status()
-            .map_err(|e| format!("Failed to create ruroco user: {e}"))?;
+            .with_context(|| "Failed to create ruroco user")?;
         Ok(())
     }
 
-    fn write_data(path: &str, data: &[u8]) -> Result<(), String> {
+    fn write_data(path: &str, data: &[u8]) -> anyhow::Result<()> {
         info(&format!("Creating {path} ..."));
-        let mut file =
-            fs::File::create(path).map_err(|e| format!("Failed to create {path}: {e}"))?;
-        file.write_all(data).map_err(|e| format!("Failed to write to {path}: {e}"))?;
+        let mut file = fs::File::create(path).with_context(|| format!("Failed to create {path}"))?;
+        file.write_all(data)
+            .with_context(|| format!("Failed to write to {path}"))?;
         Ok(())
     }
 }
