@@ -82,7 +82,7 @@ impl ClientLock {
         target_os = "windows"
     )))]
     fn is_pid_running(_pid: u32) -> bool {
-        true // ony unknown platforms, we assume that the process is running if there is a file
+        true // only unknown platforms, we assume that the process is running if there is a file
     }
 }
 
