@@ -19,6 +19,7 @@ mod tests {
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
 
     struct TestData {
+        tmp_dir: tempfile::TempDir,
         test_file_path: PathBuf,
         socket_path: PathBuf,
         blocklist_path: PathBuf,
@@ -33,20 +34,22 @@ mod tests {
 
     impl TestData {
         fn create() -> TestData {
-            let test_folder_path = tempfile::tempdir().unwrap().keep();
-            env::set_var("RUROCO_CONF_DIR", &test_folder_path);
+            let tmp_dir = tempfile::tempdir().unwrap();
+            let test_folder_path = tmp_dir.path();
+            env::set_var("RUROCO_CONF_DIR", test_folder_path);
 
             TestData {
-                config_dir: test_folder_path.clone(),
+                config_dir: test_folder_path.to_path_buf(),
                 test_file_path: test_folder_path.join(TestData::gen_file_name(".test")),
-                socket_path: get_commander_unix_socket_path(&test_folder_path),
-                blocklist_path: Blocklist::get_blocklist_path(&test_folder_path),
+                socket_path: get_commander_unix_socket_path(test_folder_path),
+                blocklist_path: Blocklist::get_blocklist_path(test_folder_path),
                 key_path: test_folder_path.join(TestData::gen_file_name(".key")),
                 server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
-                block_list_exists: false,
+                block_list_exists: true,
                 client_sent_ip: None,
                 strict: true,
+                tmp_dir,
             }
         }
 
@@ -158,11 +161,6 @@ mod tests {
             self
         }
 
-        fn with_block_list_exists(&mut self) -> &mut TestData {
-            self.block_list_exists = true;
-            self
-        }
-
         fn assert_file_paths(&self) {
             let test_file_exists = self.test_file_path.exists();
             let key_exists = self.key_path.exists();
@@ -180,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_is_blocked() {
-        let mut test_data: TestData = TestData::create();
+        let test_data: TestData = TestData::create();
 
         test_data.run_client_gen();
         test_data.run_commander();
@@ -192,7 +190,7 @@ mod tests {
         counter.dec().unwrap();
 
         test_data.run_client_send();
-        test_data.with_block_list_exists().assert_file_paths();
+        test_data.assert_file_paths();
     }
 
     #[test]
@@ -239,7 +237,7 @@ mod tests {
             fs::read_to_string(&test_data.test_file_path).expect("could not read file"),
             ip.to_string()
         );
-        test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
+        test_data.with_test_file_exists().assert_file_paths();
     }
 
     #[test]
@@ -267,7 +265,7 @@ mod tests {
             fs::read_to_string(&test_data.test_file_path).expect("could not read file"),
             ip.to_string()
         );
-        test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
+        test_data.with_test_file_exists().assert_file_paths();
     }
 
     #[test]
@@ -293,11 +291,10 @@ mod tests {
         test_data.run_client_send();
         let blocked_list_1 = test_data.get_blocked_list();
 
-        test_data.with_test_file_exists().with_block_list_exists().assert_file_paths();
+        test_data.with_test_file_exists().assert_file_paths();
 
         assert_eq!(blocked_list_0.len(), 1);
         assert_eq!(blocked_list_1.len(), 1);
         assert_ne!(blocked_list_0.values().last(), blocked_list_1.values().last());
     }
-
 }
