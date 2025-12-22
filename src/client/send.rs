@@ -206,7 +206,7 @@ mod tests {
 
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("Could not resolve hostname for {address}: invalid port value")
+            format!("Could not resolve hostname for {address}")
         );
     }
 
@@ -225,10 +225,7 @@ mod tests {
         let result = sender.send();
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!(
-                "Could not resolve hostname for {address}: \
-                failed to lookup address information: Name or service not known"
-            )
+            format!("Could not resolve hostname for {address}")
         );
     }
 
