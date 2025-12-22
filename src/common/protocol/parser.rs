@@ -1,5 +1,5 @@
-use crate::common::crypto::{CryptoHandler, CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
-pub(crate) use crate::common::protocol::MSG_SIZE;
+use crate::common::crypto::CryptoHandler;
+use crate::common::protocol::{CIPHERTEXT_SIZE, KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
 use anyhow::Context;
 
 #[derive(Debug)]

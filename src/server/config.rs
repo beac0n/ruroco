@@ -11,7 +11,8 @@ use std::collections::HashMap;
 use std::fs::ReadDir;
 use std::net::{IpAddr, UdpSocket};
 
-use crate::common::crypto_handler::{CryptoHandler, KEY_ID_SIZE};
+use crate::common::crypto_handler::CryptoHandler;
+use crate::common::protocol::KEY_ID_SIZE;
 use crate::server::util::get_commander_unix_socket_path;
 use openssl::version::version;
 use std::os::fd::{FromRawFd, RawFd};

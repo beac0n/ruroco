@@ -1,4 +1,4 @@
-use crate::common::crypto::PLAINTEXT_SIZE;
+use crate::common::protocol::PLAINTEXT_SIZE;
 use crate::common::{blake2b_u64, deserialize_ip, serialize_ip};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -72,7 +72,7 @@ impl ClientData {
 mod tests {
     use crate::common::blake2b_u64;
     use crate::common::protocol::client_data::ClientData;
-    use crate::common::crypto::PLAINTEXT_SIZE;
+    use crate::common::protocol::PLAINTEXT_SIZE;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
     #[test]

@@ -5,7 +5,7 @@ use openssl::rand::rand_bytes;
 
 pub(crate) mod handler;
 
-pub(crate) use handler::{CryptoHandler, CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
+pub(crate) use handler::CryptoHandler;
 
 pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     let mut hasher = Blake2bVar::new(8)

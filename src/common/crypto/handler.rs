@@ -7,11 +7,10 @@ use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs;
 use std::path::Path;
 
-pub(crate) const PLAINTEXT_SIZE: usize = 57;
-pub(crate) const CIPHERTEXT_SIZE: usize = 85;
-pub(crate) const KEY_ID_SIZE: usize = 8;
-pub(crate) const IV_SIZE: usize = 12;
-pub(crate) const TAG_SIZE: usize = 16;
+use crate::common::protocol::{CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
+
+const IV_SIZE: usize = 12;
+const TAG_SIZE: usize = 16;
 const KEY_SIZE: usize = 32;
 const SALT_SIZE: usize = 16;
 const KEY_DERIVATION_ITERATIONS: usize = 100_000;
@@ -132,7 +131,8 @@ impl CryptoHandler {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::crypto_handler::{CryptoHandler, PLAINTEXT_SIZE};
+    use crate::common::crypto::CryptoHandler;
+    use crate::common::protocol::PLAINTEXT_SIZE;
     use openssl::rand::rand_bytes;
 
     #[test]

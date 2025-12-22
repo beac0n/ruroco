@@ -1,7 +1,6 @@
-use crate::common::crypto::{CIPHERTEXT_SIZE, KEY_ID_SIZE};
-
 pub(crate) mod client_data;
+pub(crate) mod constants;
 pub(crate) mod parser;
 pub(crate) mod serialization;
 
-pub(crate) const MSG_SIZE: usize = KEY_ID_SIZE + CIPHERTEXT_SIZE;
+pub(crate) use constants::{CIPHERTEXT_SIZE, KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};

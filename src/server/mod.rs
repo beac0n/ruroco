@@ -10,8 +10,9 @@ mod signal;
 pub mod util;
 
 use crate::common::client_data::ClientData;
-use crate::common::crypto_handler::{CryptoHandler, KEY_ID_SIZE, PLAINTEXT_SIZE};
-use crate::common::data_parser::{DataParser, MSG_SIZE};
+use crate::common::crypto_handler::CryptoHandler;
+use crate::common::data_parser::DataParser;
+use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
 use crate::common::{error, info};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
@@ -186,7 +187,7 @@ pub fn run_server(server: CliServer) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use crate::client::gen::Generator;
-    use crate::common::data_parser::MSG_SIZE;
+    use crate::common::protocol::MSG_SIZE;
     use crate::common::{get_random_range, get_random_string};
     use crate::server::config::{CliServer, ConfigServer};
     use crate::server::Server;

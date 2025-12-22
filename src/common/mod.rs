@@ -13,6 +13,7 @@ pub(crate) use fs::change_file_ownership;
 pub(crate) use fs::resolve_path;
 pub(crate) use logging::{error, info};
 pub(crate) use protocol::client_data;
+pub(crate) use protocol::constants;
 pub(crate) use protocol::parser as data_parser;
 pub(crate) use protocol::serialization as serialization_util;
 pub(crate) use protocol::serialization::{deserialize_ip, serialize_ip};
