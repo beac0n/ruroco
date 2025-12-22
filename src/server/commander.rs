@@ -48,7 +48,7 @@ impl Commander {
                         error(e)
                     }
                 }
-                Err(e) => error(&format!("Connection for {:?} failed: {e}", &self.socket_path)),
+                Err(e) => error(format!("Connection for {:?} failed: {e}", &self.socket_path)),
             }
         }
 
@@ -112,10 +112,10 @@ impl Commander {
                 if result.status.success() {
                     info(&format!("Execution was successful: {msg}"))
                 } else {
-                    error(&format!("Execution was not successful: {msg}"))
+                    error(format!("Execution was not successful: {msg}"))
                 }
             }
-            Err(e) => error(&format!("Error executing {command}: {e}")),
+            Err(e) => error(format!("Error executing {command}: {e}")),
         };
     }
 

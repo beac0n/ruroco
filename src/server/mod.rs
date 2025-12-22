@@ -57,7 +57,7 @@ impl Server {
         loop {
             let data = self.socket.recv_from(&mut self.client_recv_data);
             if let Err(e) = self.run_loop_iteration(data) {
-                error(&format!("{e}"));
+                error(format!("{e}"));
             }
         }
     }
@@ -132,14 +132,14 @@ impl Server {
     fn update_block_list(&mut self, key_id: [u8; 8], counter: u128) {
         self.blocklist.add(key_id, counter);
         if let Err(e) = self.blocklist.save() {
-            error(&format!("Could not update block list: {e}"))
+            error(format!("Could not update block list: {e}"))
         }
     }
 
     fn send_command(&self, data: CommanderData) {
         match self.write_to_socket(data) {
             Ok(_) => info("Successfully sent data to commander"),
-            Err(e) => error(&format!(
+            Err(e) => error(format!(
                 "Could not send data to commander via socket {:?}: {e}",
                 &self.socket_path
             )),

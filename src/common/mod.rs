@@ -49,7 +49,7 @@ pub(crate) fn resolve_path(path: &Path) -> PathBuf {
         let mut full_path = match env::current_dir() {
             Ok(p) => p,
             Err(e) => {
-                error(&format!("Could not get current directory: {e}"));
+                error(format!("Could not get current directory: {e}"));
                 return path.to_path_buf();
             }
         };
@@ -57,7 +57,7 @@ pub(crate) fn resolve_path(path: &Path) -> PathBuf {
         match fs::canonicalize(&full_path) {
             Ok(p) => p,
             Err(e) => {
-                error(&format!("Could not canonicalize {:?}: {e}", &full_path));
+                error(format!("Could not canonicalize {:?}: {e}", &full_path));
                 full_path
             }
         }
@@ -110,7 +110,7 @@ fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
         Ok(output) => match String::from_utf8_lossy(&output.stdout).trim().parse::<u32>() {
             Ok(uid) => Some(uid),
             Err(e) => {
-                error(&format!(
+                error(format!(
                     "Error parsing id from id command output: {} {} {e}",
                     String::from_utf8_lossy(&output.stdout),
                     String::from_utf8_lossy(&output.stderr)
@@ -119,7 +119,7 @@ fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
             }
         },
         Err(e) => {
-            error(&format!("Error getting id via id command: {e}"));
+            error(format!("Error getting id via id command: {e}"));
             None
         }
     }

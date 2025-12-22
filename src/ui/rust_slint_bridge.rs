@@ -53,7 +53,7 @@ impl RustSlintBridge {
     {
         info(&msg);
         if let Err(e) = f() {
-            error(&format!("Slint callback failed: {e}"));
+            error(format!("Slint callback failed: {e}"));
         }
     }
 
@@ -100,7 +100,7 @@ impl RustSlintBridge {
                     .map_err(anyhow::Error::from)
                     .and_then(run_client)
                 {
-                    error(&format!("Error executing command '{}': {e}", cmd.name));
+                    error(format!("Error executing command '{}': {e}", cmd.name));
                     ctx.set_cmd_data_color(&cmd, RED)
                 } else {
                     ctx.set_cmd_data_color(&cmd, GREEN)

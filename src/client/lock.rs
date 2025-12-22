@@ -41,7 +41,7 @@ impl ClientLock {
     }
 
     fn open(path: &PathBuf) -> io::Result<File> {
-        OpenOptions::new().create_new(true).write(true).open(&path)
+        OpenOptions::new().create_new(true).write(true).open(path)
     }
 
     #[cfg(target_os = "linux")]

@@ -69,12 +69,12 @@ impl CommandsList {
     fn save(&self) {
         let toml_str = match toml::to_string(&self) {
             Ok(s) => s,
-            Err(e) => return error(&format!("Error serializing commands list: {e}")),
+            Err(e) => return error(format!("Error serializing commands list: {e}")),
         };
 
         match fs::write(&self.path, toml_str) {
             Ok(_) => (),
-            Err(e) => error(&format!("Error persisting commands list: {e}")),
+            Err(e) => error(format!("Error persisting commands list: {e}")),
         };
     }
 }
