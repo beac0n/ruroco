@@ -29,7 +29,7 @@ impl Sender {
             .duration_since(SystemTime::UNIX_EPOCH)
             .with_context(|| format!("Could not get duration since {:?}", SystemTime::UNIX_EPOCH))?
             .as_nanos();
-        let mut counter = Counter::create(counter_path, initial_counter)?;
+        let mut counter = Counter::create_and_init(counter_path, initial_counter)?;
         counter.inc()?;
         Ok(Self {
             data_parser: DataParser::create(&cmd.key)?,

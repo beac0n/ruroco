@@ -186,7 +186,7 @@ mod tests {
 
         test_data.run_client_send();
         let _ = fs::remove_file(&test_data.test_file_path);
-        let mut counter = Counter::create(Sender::get_counter_path().unwrap(), 0).unwrap();
+        let mut counter = Counter::create_and_init(Sender::get_counter_path().unwrap(), 0).unwrap();
         counter.dec().unwrap();
 
         test_data.run_client_send();

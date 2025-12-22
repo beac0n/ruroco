@@ -9,7 +9,7 @@ pub struct Counter {
 }
 
 impl Counter {
-    pub fn create(path: PathBuf, initial: u128) -> anyhow::Result<Self> {
+    pub fn create_and_init(path: PathBuf, initial: u128) -> anyhow::Result<Self> {
         let mut counter = Self { path, count: 0 };
         if counter.read().is_err() {
             counter.count = initial;
