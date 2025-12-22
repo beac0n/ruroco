@@ -16,6 +16,7 @@ reqwest = { version = "0.12", features = ["blocking", "json"] }
 base64 = "0.22"
 blake2 = "0.10.6"
 chrono = { version = "0.4", features = ["clock"] }
+anyhow = "1.0"
 
 [dev-dependencies]
 test-with = { version = "*", default-features = false, features = [] }
