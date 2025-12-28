@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2025-12-28
+
+### Added
+
+- Add configuration directory function for Linux platform
+- Add dependency graph for client, common, server, and ui modules
+- Add flow diagram for client-server communication process
+- Add diagrams section to README with flow and dependency graphs
+- Add chrono dependency for date and time handling
+- Add anyhow dependency for improved error handling
+- Add newline at the end of integration_test.rs for consistency
+
+### Changed
+
+- Update module imports to use new paths for client and server configurations
+- Update imports in integration_test.rs for consistency with new module structure
+- Update test target in Makefile to use cargo fix for improved formatting
+- Reorganize time-related functions and update imports for consistency
+- Dont use unwrap where possible
+- Update CHANGELOG for missing versions
+- Replace String with IpAddr for IP fields in data structures and use msgpack for (de)serializing client data
+- Update ClientData structure to use u64 for command hash and IpAddr for IP fields; adjust serialization methods accordingly
+- Improve error messages in data parsing for key ID and ciphertext
+- Update ClientData structure and serialization methods to use PLAINTEXT_SIZE; improve IP field handling
+- Update README.md
+- Update key description in config.rs for clarity
+- Simplify RustSlintBridge initialization and command handling
+- Update command handling and improve UI components
+- Organize color and command data handling into separate modules
+- Sort commands list on creation and modification
+- Implement Android update functionality and streamline command handling
+- Enhance command execution logging to differentiate success and failure
+- Simplify key_id handling in decryption process
+- Eliminate unnecessary cloning of key_id in blocklist addition
+- Use tempfile for test directory creation and set environment variable
+- Streamline configuration directory handling and enhance counter management
+- Change public items to crate visibility for better encapsulation
+- Simplify set_cmd_data_color method signature for improved readability
+- Bump toml from 0.9.8 to 0.9.10+spec-1.1.0
+- Bump reqwest from 0.12.25 to 0.12.26
+- Update Blocklist creation and saving methods to return Result for better error handling
+- Implement ClientLock for managing concurrent access to client resources
+- Simplify PID retrieval logic in lock handling
+- Update counter initialization to use SystemTime for accurate timestamp
+- Replace TimeUtil with chrono for date and time formatting
+- Rename validate_source_ip to is_source_ip_invalid for clarity
+- Move AndroidUtil to common module and simplify get_conf_dir method
+- Replace Result<String> with anyhow::Result<()> for improved error handling
+- Simplify error messages in send.rs for clarity
+- Enhance TestData structure by removing redundant methods and adding temporary directory management
+- Update .gitignore to include blocklist.toml in tests/conf_dir
+- Simplify error logging by removing unnecessary references in format strings
+- Implement signal handling for graceful shutdown in server
+
+### Fixed
+
+- Fix data slicing in decode function and update test payload size
+
+### Removed
+
+- Remove unused import of Str from clap
+- Remove diagrams section from README for clarity
+- Remove unused rmp and rmp-serde dependencies from Cargo files
+- Remove unused constants from configuration and crypto handler
+- Remove unused sntpc dependency and add tempfile for testing
+- Remove deadline and ntp from SendCommand and related structures
+- Remove unnecessary whitespace from Cargo.toml
+- Remove unused error import from blocklist module
+- Remove unused error import from blocklist module
+
 ## [0.10.8] - 2025-10-05
 
 ### Fixed
