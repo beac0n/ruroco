@@ -4,7 +4,7 @@ use crate::client::update::Updater;
 use crate::ui::android_update::update_android;
 
 use crate::client::config::{CliClient, DEFAULT_COMMAND};
-use crate::client::run_client;
+use crate::client::run_client_send;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::{error, info};
 use crate::ui::colors::{GREEN, RED};
@@ -98,7 +98,7 @@ impl RustSlintBridge {
 
                 if let Err(e) = CliClient::try_parse_from(cmd_vec)
                     .map_err(anyhow::Error::from)
-                    .and_then(run_client)
+                    .and_then(run_client_send)
                 {
                     error(format!("Error executing command '{}': {e}", cmd.name));
                     ctx.set_cmd_data_color(&cmd, RED)
