@@ -4,6 +4,7 @@
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 use anyhow::anyhow;
+#[cfg(target_os = "linux")]
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
