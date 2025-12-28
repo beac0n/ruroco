@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.0] - 2025-12-28
 
+**BREAKING: 0.11.0 is a breaking release. Existing configs are not compatible and must be updated.**
+
 ### Added
 
 - Crypto: AES-based encryption path and key generation option
