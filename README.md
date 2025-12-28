@@ -84,23 +84,50 @@ Send a command to a specific address
 Usage: ruroco-client send [OPTIONS] --address <ADDRESS> --key <KEY>
 
 Options:
-  -a, --address <ADDRESS>     Address to send the command to
-  -k, --key <KEY>             Base64 key with id (output of `ruroco-client gen`)
-  -c, --command <COMMAND>     Command to send [default: default]
-  -d, --deadline <DEADLINE>   Deadline from now in seconds [default: 5]
-  -e, --permissive            Allow permissive IP validation - source IP does not have to match provided IP
-  -i, --ip <IP>               Optional IP address from which the command was sent. Use -6ei "dead:beef:dead:beef::/64" to allow you whole current IPv6 network. To do this automatically, use -6ei $(curl -s6 https://api64.ipify.org | awk -F: '{print $1":"$2":"$3":"$4"::/64"}')
-  -n, --ntp <NTP>             NTP server (defaults to using the system time) [default: system]
-  -4, --ipv4                  Connect via IPv4
-  -6, --ipv6                  Connect via IPv6
-  -h, --help                  Print help
-  -V, --version               Print version
+  -a, --address <ADDRESS>  Address to send the command to
+  -k, --key <KEY>          Base64 key with id (output of `ruroco-client gen` or the UI)
+  -c, --command <COMMAND>  Command to send [default: default]
+  -e, --permissive         Allow permissive IP validation - source IP does not have to match provided IP
+  -i, --ip <IP>            Optional IP address from which the command was sent. Use -6ei "dead:beef:dead:beef::/64" to allow you whole current IPv6 network. To do this automatically, use -6ei $(curl -s6 https://api64.ipify.org | awk -F: '{print $1":"$2":"$3":"$4"::/64"}')
+  -4, --ipv4               Connect via IPv4
+  -6, --ipv6               Connect via IPv6
+  -h, --help               Print help
 ```
 
 Pass the same base64 key string that you placed on the server. Example:
 
 ```shell
 ruroco-client send -a 127.0.0.1:34020 -k "$(cat ~/.config/ruroco/command.key)" -c default
+```
+
+## server usage
+
+```shell
+ruroco-server --help
+```
+
+```text
+Usage: ruroco-server [OPTIONS]
+
+Options:
+  -c, --config <CONFIG>  [default: /etc/ruroco/config.toml]
+  -h, --help             Print help
+  -V, --version          Print version
+```
+
+## commander usage
+
+```shell
+ruroco-commander --help
+```
+
+```text
+Usage: ruroco-commander [OPTIONS]
+
+Options:
+  -c, --config <CONFIG>  [default: /etc/ruroco/config.toml]
+  -h, --help             Print help
+  -V, --version          Print version
 ```
 
 ## server config
@@ -247,13 +274,13 @@ the file browser nginx config will be enabled and nginx reloaded, effectively ma
 
 The service consists of three parts:
 
-- `client`
+- `ruroco-client`
     - binary that is executed on your local host
-- `server`
+- `ruroco-server`
     - service that runs on a remote host where you wish to execute the commands on
     - exposed to the internet
     - has minimal rights to receive and decrypt data and to communicate with the commander
-- `commander`
+- `ruroco-commander`
     - daemon service that runs on the same host as the server
     - not exposed to the internet
     - has all the rights it needs to run the commands that are passed to it
