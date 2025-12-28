@@ -23,11 +23,10 @@ NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
 NEW_VERSION_SEMVER=${NEW_VERSION#v}
 
 sed -i -E "s/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"$NEW_VERSION_SEMVER\"/" Cargo.toml
-git cliff --unreleased --tag "$NEW_VERSION_SEMVER" --prepend CHANGELOG.md
 printf "Updated version to %s\n" "$NEW_VERSION"
 cargo update
 
-git add Cargo.toml Cargo.lock CHANGELOG.md
+git add Cargo.toml Cargo.lock
 git commit -m "Bump version to ${NEW_VERSION}"
 git tag "$NEW_VERSION"
 
