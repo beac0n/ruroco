@@ -17,6 +17,13 @@ pub(crate) mod update;
 pub(crate) mod util;
 mod wizard;
 
+pub fn run_client_send(client: CliClient) -> anyhow::Result<()> {
+    match client.command {
+        CommandsClient::Send(send_command) => Sender::create(send_command)?.send(),
+        _ => Err(anyhow::anyhow!("Invalid command for run_client_send")),
+    }
+}
+
 pub fn run_client(client: CliClient) -> anyhow::Result<()> {
     let conf_dir = config::get_conf_dir()?;
     let _lock = ClientLock::acquire(conf_dir.join("client.lock"))?;
