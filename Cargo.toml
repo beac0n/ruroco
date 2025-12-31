@@ -12,7 +12,7 @@ toml = "0.9"
 slint = "1.10"
 jni = "0.21"
 ndk-context = "0.1"
-reqwest = { version = "0.12", features = ["blocking", "json"] }
+reqwest = { version = "0.13", features = ["blocking", "json"] }
 base64 = "0.22"
 blake2 = "0.10.6"
 chrono = { version = "0.4", features = ["clock"] }
