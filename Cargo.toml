@@ -8,9 +8,9 @@ repository = "https://github.com/beac0n/ruroco"
 clap = { version = "4.5", features = ["derive", "string"] }
 openssl = { version = "0.10" }
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.9"
+toml = "1.0"
 slint = "1.10"
-jni = "0.21"
+jni = "0.22"
 ndk-context = "0.1"
 reqwest = { version = "0.13", features = ["blocking", "json"] }
 base64 = "0.22"
