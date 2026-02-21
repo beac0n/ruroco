@@ -97,7 +97,7 @@ Options:
 Pass the same base64 key string that you placed on the server. Example:
 
 ```shell
-ruroco-client send -a 127.0.0.1:34020 -k "$(cat ~/.config/ruroco/command.key)" -c default
+ruroco-client send -a 127.0.0.1:34020 -k "$(secret-tool lookup token ruroco)" -c default
 ```
 
 ## server usage
@@ -136,7 +136,7 @@ Options:
 2. copy the same `.key` file to the server config dir (default `/etc/ruroco/user.key`); the server loads every `*.key`
    file there
 3. add server config to `/etc/ruroco/config.toml` -> see [config.toml](config/config.toml)
-4. call `ruroco-client send` with `-k "$(cat ~/.config/ruroco/user.key)"` so client and server share the identical key
+4. call `ruroco-client send` with `-k "$(secret-tool lookup token ruroco)"` so client and server share the identical key
 
 # setup
 
@@ -221,21 +221,21 @@ close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close 
 If you have configured ruroco on server like that and execute the following client side command
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_ssh  
+ruroco-client send --address host.domain:8080 --command open_ssh --key "$(secret-tool lookup token ruroco)"
 ```
 
 If you want to use a different IP address than the one you are sending the packet from, you can use the `--ip` argument
 together with `--permissive`:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_ssh --ip 94.111.111.111 --permissive
+ruroco-client send --address host.domain:8080 --command open_ssh --ip 94.111.111.111 --permissive --key "$(secret-tool lookup token ruroco)"
 ```
 
 If you want to make sure that an adversary does not spoof your source IP address, you can get your external IP address
 from a service - the ruroco server will make sure that the IP addresses match:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_ssh --ip $(curl -s https://api64.ipify.org) --key "$(cat ~/.config/ruroco/command.key)"
+ruroco-client send --address host.domain:8080 --command open_ssh --ip $(curl -s https://api64.ipify.org) --key "$(secret-tool lookup token ruroco)"
 ```
 
 the server will validate that the client is authorized to execute that command by using the shared AES key (id is sent
@@ -263,7 +263,7 @@ enable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf_disabled /et
 If you have configured ruroco on server like that and execute the following client side command
 
 ```shell
-ruroco-client send --address host.domain:8080 --command enable_file_browser
+ruroco-client send --address host.domain:8080 --command enable_file_browser --key "$(secret-tool lookup token ruroco)"
 ```
 
 the file browser nginx config will be enabled and nginx reloaded, effectively making the file browser accessible.
