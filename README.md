@@ -31,7 +31,9 @@ ruroco-client-ui
 ```
 
 Use the Generate Key action (or `ruroco-client gen`) to produce a base64-encoded shared key. Copy that key into the
-server’s `.key` files (see server config) and reuse the same string with `ruroco-client send`.
+server’s `.key` files (see server config) and reuse the same string with `ruroco-client send`. You can save your key
+safely in a password manager or use `secret-tool` to store it in the local keyring, e.g. with
+`secret-tool store --label="ruroco" token ruroco`
 
 ## client usage
 
