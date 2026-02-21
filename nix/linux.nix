@@ -3,6 +3,10 @@ let
   root = toString ./.;
 in
 pkgs.mkShell {
+  nativeBuildInputs = with pkgs; [
+    pkg-config
+  ];
+
   buildInputs = with pkgs; [
     cacert
     rustup
@@ -13,6 +17,7 @@ pkgs.mkShell {
     cargo-tarpaulin
     clippy
     rustfmt
+    fontconfig
   ];
 
   CARGO_HOME = "${root}/.nix-cargo-linux";
