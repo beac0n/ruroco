@@ -50,6 +50,11 @@ Defined in `src/common/protocol/constants.rs`:
 - Integration tests: `tests/integration_test.rs` — uses `tempfile::tempdir()` for isolation
 - End-to-end: `scripts/test_end_to_end.sh` (systemd services, requires sudo)
 - Fixtures: `tests/conf_dir/` (keys/config), `tests/files/` (sample TOMLs)
+- Coverage: `cargo tarpaulin` — UI modules (`src/ui/rust_slint_bridge*.rs`) and Android code (`src/common/android_util.rs`) are untestable without runtime
+- Use `tempfile::tempdir()` for all test isolation; never hardcode paths that could collide between parallel tests
+- Locale gotcha: avoid parsing `id` command output in tests — system locale affects error messages (e.g. German locale wraps names in `»«`)
+- For testing HTTP downloads, use local `TcpListener` on port 0 to avoid network dependencies
+- `ConfigServer` implements `Default` — use `ConfigServer { field: val, ..Default::default() }` in tests
 
 ## Build
 
