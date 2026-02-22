@@ -284,4 +284,81 @@ mod tests {
 
         sender.unwrap().get_destination_ips().unwrap()
     }
+
+    #[test]
+    fn test_get_destination_ips_ipv4_only_flag() {
+        let _conf_dir = set_test_conf_dir();
+        let sender = Sender::create(SendCommand {
+            address: "google.com:80".to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            ipv4: true,
+            ipv6: false,
+            ..Default::default()
+        })
+        .unwrap();
+
+        let ips = sender.get_destination_ips().unwrap();
+        assert!(ips.iter().all(|ip| ip.is_ipv4()));
+    }
+
+    #[test]
+    fn test_get_destination_ips_ipv6_only_flag() {
+        let _conf_dir = set_test_conf_dir();
+        let sender = Sender::create(SendCommand {
+            address: "google.com:80".to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            ipv4: false,
+            ipv6: true,
+            ..Default::default()
+        })
+        .unwrap();
+
+        let ips = sender.get_destination_ips().unwrap();
+        assert!(ips.iter().all(|ip| ip.is_ipv6()));
+    }
+
+    #[test]
+    fn test_get_destination_ips_ipv4_flag_no_ipv4_available() {
+        let _conf_dir = set_test_conf_dir();
+        let sender = Sender::create(SendCommand {
+            address: "ipv6.google.com:80".to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            ipv4: true,
+            ipv6: false,
+            ..Default::default()
+        })
+        .unwrap();
+
+        let result = sender.get_destination_ips();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not find any IPv4"));
+    }
+
+    #[test]
+    fn test_get_destination_ips_ipv6_flag_no_ipv6_available() {
+        let _conf_dir = set_test_conf_dir();
+        let sender = Sender::create(SendCommand {
+            address: "ipv4.google.com:80".to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            ipv4: false,
+            ipv6: true,
+            ..Default::default()
+        })
+        .unwrap();
+
+        let result = sender.get_destination_ips();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not find any IPv6"));
+    }
+
+    #[test]
+    fn test_get_counter_path() {
+        let _conf_dir = set_test_conf_dir();
+        let path = Sender::get_counter_path().unwrap();
+        assert!(path.to_str().unwrap().ends_with("counter"));
+    }
 }

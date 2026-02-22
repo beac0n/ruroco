@@ -133,7 +133,7 @@ fn get_conf_dir_android() -> anyhow::Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::config::CliClient;
+    use crate::client::config::{get_conf_dir, CliClient, SendCommand, DEFAULT_COMMAND};
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
 
@@ -141,5 +141,33 @@ mod tests {
     fn test_print_help() {
         let result = CliClient::try_parse_from(vec!["ruroco", "--help"]);
         assert_eq!(result.unwrap_err().kind(), DisplayHelp);
+    }
+
+    #[test]
+    fn test_get_conf_dir_with_env_var() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("RUROCO_CONF_DIR", dir.path());
+        let result = get_conf_dir().unwrap();
+        assert_eq!(result, dir.path());
+        std::env::remove_var("RUROCO_CONF_DIR");
+    }
+
+    #[test]
+    fn test_get_conf_dir_with_home() {
+        std::env::remove_var("RUROCO_CONF_DIR");
+        let result = get_conf_dir().unwrap();
+        // Should fall back to $HOME/.config/ruroco
+        assert!(result.to_str().unwrap().contains("ruroco"));
+    }
+
+    #[test]
+    fn test_send_command_default() {
+        let cmd = SendCommand::default();
+        assert_eq!(cmd.command, DEFAULT_COMMAND);
+        assert_eq!(cmd.address, "127.0.0.1:1234");
+        assert!(!cmd.permissive);
+        assert!(!cmd.ipv4);
+        assert!(!cmd.ipv6);
+        assert!(cmd.ip.is_none());
     }
 }

@@ -250,6 +250,8 @@ impl Updater {
 mod tests {
     use crate::client::update::Updater;
     use crate::common::get_random_string;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::PathBuf;
     use std::{env, fs};
 
     #[test_with::env(TEST_UPDATER)]
@@ -270,4 +272,147 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(entries.len(), 2);
     }
+
+    #[test]
+    fn test_create_with_nonexistent_bin_path() {
+        let result =
+            Updater::create(false, None, Some(PathBuf::from("/tmp/no_such_dir_ruroco")), false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist or is not a directory"));
+    }
+
+    #[test]
+    fn test_create_with_file_as_bin_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("not_a_dir");
+        fs::write(&file_path, "test").unwrap();
+        let result = Updater::create(false, None, Some(file_path), false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist or is not a directory"));
+    }
+
+    #[test]
+    fn test_create_with_valid_bin_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = Updater::create(false, None, Some(dir.path().to_path_buf()), false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_create_server_mode() {
+        let dir = tempfile::tempdir().unwrap();
+        let updater =
+            Updater::create(true, Some("v1.0.0".to_string()), Some(dir.path().to_path_buf()), true)
+                .unwrap();
+        assert!(updater.server);
+        assert!(updater.force);
+    }
+
+    #[test]
+    fn test_check_if_writeable() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(Updater::check_if_writeable(dir.path()).unwrap());
+    }
+
+    #[test]
+    fn test_check_if_writeable_readonly() {
+        let dir = tempfile::tempdir().unwrap();
+        let readonly_dir = dir.path().join("readonly");
+        fs::create_dir_all(&readonly_dir).unwrap();
+        fs::set_permissions(&readonly_dir, fs::Permissions::from_mode(0o444)).unwrap();
+        assert!(!Updater::check_if_writeable(&readonly_dir).unwrap());
+        // Restore permissions for cleanup
+        let _ = fs::set_permissions(&readonly_dir, fs::Permissions::from_mode(0o755));
+    }
+
+    #[test]
+    fn test_validate_dir_path_creates_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let new_dir = dir.path().join("new_sub_dir");
+        assert!(!new_dir.exists());
+        let result = Updater::validate_dir_path(new_dir.clone()).unwrap();
+        assert!(new_dir.exists());
+        assert_eq!(result, new_dir);
+    }
+
+    #[test]
+    fn test_validate_dir_path_existing_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("a_file");
+        fs::write(&file_path, "test").unwrap();
+        let result = Updater::validate_dir_path(file_path);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("exists but is not a directory"));
+    }
+
+    #[test]
+    fn test_get_download_url_found() {
+        use crate::client::update::GithubApiAsset;
+        let dir = tempfile::tempdir().unwrap();
+        let updater = Updater::create(false, None, Some(dir.path().to_path_buf()), false).unwrap();
+        let assets = vec![
+            GithubApiAsset {
+                name: "client-v1.0.0-x86_64-linux".to_string(),
+                browser_download_url: "https://example.com/client".to_string(),
+            },
+            GithubApiAsset {
+                name: "server-v1.0.0-x86_64-linux".to_string(),
+                browser_download_url: "https://example.com/server".to_string(),
+            },
+        ];
+        let result =
+            updater.get_download_url(&assets, &"client-v1.0.0-x86_64-linux".to_string()).unwrap();
+        assert_eq!(result, "https://example.com/client");
+    }
+
+    #[test]
+    fn test_get_download_url_not_found() {
+        use crate::client::update::GithubApiAsset;
+        let dir = tempfile::tempdir().unwrap();
+        let updater = Updater::create(false, None, Some(dir.path().to_path_buf()), false).unwrap();
+        let assets = vec![GithubApiAsset {
+            name: "other-binary".to_string(),
+            browser_download_url: "https://example.com/other".to_string(),
+        }];
+        let result = updater.get_download_url(&assets, &"nonexistent".to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not find nonexistent"));
+    }
+
+    #[test_with::env(TEST_UPDATER)]
+    #[test]
+    fn test_update_already_current_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        let updater =
+            Updater::create(false, Some(current_version), Some(dir.path().to_path_buf()), false)
+                .unwrap();
+        let result = updater.update();
+        assert!(result.is_ok());
+    }
+
+    #[test_with::env(TEST_UPDATER)]
+    #[test]
+    fn test_get_github_api_data_latest() {
+        let data = Updater::get_github_api_data(None).unwrap();
+        assert!(!data.tag_name.is_empty());
+        assert!(!data.assets.is_empty());
+    }
+
+    #[test_with::env(TEST_UPDATER)]
+    #[test]
+    fn test_get_github_api_data_specific_version() {
+        let data = Updater::get_github_api_data(Some(&"v0.10.0".to_string())).unwrap();
+        assert_eq!(data.tag_name, "v0.10.0");
+    }
+
+    #[test_with::env(TEST_UPDATER)]
+    #[test]
+    fn test_get_github_api_data_nonexistent_version() {
+        let result = Updater::get_github_api_data(Some(&"v99.99.99".to_string()));
+        assert!(result.is_err());
+    }
+
+    // Note: test_update_server_mode requires a "ruroco" system user to exist for
+    // change_file_ownership, so it can only run in the e2e environment.
 }

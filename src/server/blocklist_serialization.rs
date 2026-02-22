@@ -43,3 +43,22 @@ where
 {
     deserializer.deserialize_map(MapVisitor)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::server::blocklist::Blocklist;
+
+    #[test]
+    fn test_serialize_deserialize_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut blocklist = Blocklist::create(dir.path()).unwrap();
+        blocklist.add([1, 2, 3, 4, 5, 6, 7, 8], 123456789012345678901234567890);
+        blocklist.add([8, 7, 6, 5, 4, 3, 2, 1], u128::MAX);
+        blocklist.save().unwrap();
+
+        let loaded = Blocklist::create(dir.path()).unwrap();
+        assert_eq!(loaded.get().len(), 2);
+        assert!(loaded.is_blocked([1, 2, 3, 4, 5, 6, 7, 8], 123456789012345678901234567890));
+        assert!(loaded.is_blocked([8, 7, 6, 5, 4, 3, 2, 1], u128::MAX));
+    }
+}

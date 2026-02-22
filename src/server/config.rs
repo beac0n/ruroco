@@ -222,4 +222,128 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn test_deserialize_invalid_toml() {
+        let result = ConfigServer::deserialize("this is not valid toml {{{}}}");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not create ConfigServer from"));
+    }
+
+    #[test]
+    fn test_deserialize_invalid_ip() {
+        let result = ConfigServer::deserialize("ips = [\"not_an_ip\"]\n[commands]");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_hash_to_cmd() {
+        let mut commands = HashMap::new();
+        commands.insert("default".to_string(), "echo hello".to_string());
+        commands.insert("restart".to_string(), "systemctl restart foo".to_string());
+        let config = ConfigServer {
+            commands,
+            ..Default::default()
+        };
+        let hash_map = config.get_hash_to_cmd().unwrap();
+        assert_eq!(hash_map.len(), 2);
+        assert!(hash_map.values().any(|v| v == "echo hello"));
+        assert!(hash_map.values().any(|v| v == "systemctl restart foo"));
+    }
+
+    #[test]
+    fn test_get_key_paths_no_key_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ConfigServer {
+            config_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let result = config.get_key_paths();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not find any .key files"));
+    }
+
+    #[test]
+    fn test_get_key_paths_with_key_files() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("test.key"), "key_content").unwrap();
+        std::fs::write(dir.path().join("test.txt"), "not_a_key").unwrap();
+        let config = ConfigServer {
+            config_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let paths = config.get_key_paths().unwrap();
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].extension().unwrap() == "key");
+    }
+
+    #[test]
+    fn test_create_server_udp_socket_with_address_arg() {
+        std::env::remove_var("LISTEN_FDS");
+        std::env::remove_var("LISTEN_PID");
+        std::env::remove_var("RUROCO_LISTEN_ADDRESS");
+        let config = ConfigServer::default();
+        let port = crate::common::get_random_range(1024, 65535).unwrap();
+        let socket = config.create_server_udp_socket(Some(format!("127.0.0.1:{port}"))).unwrap();
+        let addr = socket.local_addr().unwrap();
+        assert_eq!(addr.port(), port);
+    }
+
+    #[test]
+    fn test_create_server_udp_socket_with_env_var() {
+        let port = crate::common::get_random_range(1024, 65535).unwrap();
+        std::env::set_var("RUROCO_LISTEN_ADDRESS", format!("127.0.0.1:{port}"));
+        std::env::remove_var("LISTEN_FDS");
+        std::env::remove_var("LISTEN_PID");
+        let config = ConfigServer::default();
+        let socket = config.create_server_udp_socket(None).unwrap();
+        let addr = socket.local_addr().unwrap();
+        assert_eq!(addr.port(), port);
+    }
+
+    #[test]
+    fn test_create_server_udp_socket_invalid_listen_fds() {
+        std::env::set_var("LISTEN_PID", std::process::id().to_string());
+        std::env::set_var("LISTEN_FDS", "2");
+        std::env::remove_var("RUROCO_LISTEN_ADDRESS");
+        let config = ConfigServer::default();
+        let result = config.create_server_udp_socket(None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("LISTEN_FDS was set to 2"));
+    }
+
+    #[test]
+    fn test_create_blocklist() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ConfigServer {
+            config_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let blocklist = config.create_blocklist().unwrap();
+        assert!(blocklist.get().is_empty());
+    }
+
+    #[test]
+    fn test_get_commander_unix_socket_path() {
+        let config = ConfigServer {
+            config_dir: PathBuf::from("/tmp/ruroco_test"),
+            ..Default::default()
+        };
+        let path = config.get_commander_unix_socket_path();
+        assert!(path.to_str().unwrap().contains("ruroco.socket"));
+    }
+
+    #[test]
+    fn test_deserialize_with_commands() {
+        let toml = r#"
+            ips = ["127.0.0.1", "::1"]
+            [commands]
+            default = "echo hello"
+            restart = "systemctl restart foo"
+        "#;
+        let config = ConfigServer::deserialize(toml).unwrap();
+        assert_eq!(config.ips.len(), 2);
+        assert_eq!(config.commands.len(), 2);
+        assert_eq!(config.commands.get("default").unwrap(), "echo hello");
+    }
 }

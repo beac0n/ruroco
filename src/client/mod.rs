@@ -96,4 +96,13 @@ mod tests {
 
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_run_client_send_with_gen_command() {
+        let _conf_dir = set_test_conf_dir();
+        let cli = CliClient::parse_from(vec!["ruroco", "gen"]);
+        let result = crate::client::run_client_send(cli);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Invalid command for run_client_send");
+    }
 }

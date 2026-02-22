@@ -23,3 +23,29 @@ pub(crate) fn install_signal_handlers() {
         signal(2, handle_signal); // SIGINT
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shutdown_not_requested_by_default() {
+        // Reset state
+        SHUTDOWN_REQUESTED.store(false, Ordering::SeqCst);
+        assert!(!shutdown_requested());
+    }
+
+    #[test]
+    fn test_handle_signal_sets_shutdown() {
+        SHUTDOWN_REQUESTED.store(false, Ordering::SeqCst);
+        handle_signal(15);
+        assert!(shutdown_requested());
+        // Reset
+        SHUTDOWN_REQUESTED.store(false, Ordering::SeqCst);
+    }
+
+    #[test]
+    fn test_install_signal_handlers_does_not_panic() {
+        install_signal_handlers();
+    }
+}

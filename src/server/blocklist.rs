@@ -142,4 +142,43 @@ mod tests {
 
         remove_blocklist();
     }
+
+    #[test]
+    fn test_get_counter() {
+        let mut blocklist = create_blocklist();
+        let key_id = [0u8; 8];
+        assert_eq!(blocklist.get_counter(key_id), None);
+
+        blocklist.add(key_id, 100);
+        assert_eq!(blocklist.get_counter(key_id), Some(&100));
+
+        let unknown_key_id = [1u8; 8];
+        assert_eq!(blocklist.get_counter(unknown_key_id), None);
+
+        remove_blocklist();
+    }
+
+    #[test]
+    fn test_is_blocked_lower_counter() {
+        let mut blocklist = create_blocklist();
+        let key_id = [0u8; 8];
+        blocklist.add(key_id, 100);
+
+        // Counter equal to stored value should be blocked
+        assert!(blocklist.is_blocked(key_id, 100));
+        // Counter less than stored value should be blocked
+        assert!(blocklist.is_blocked(key_id, 50));
+        // Counter greater than stored value should not be blocked
+        assert!(!blocklist.is_blocked(key_id, 101));
+
+        remove_blocklist();
+    }
+
+    #[test]
+    fn test_create_with_tempdir() {
+        let dir = tempfile::tempdir().unwrap();
+        let blocklist = Blocklist::create(dir.path()).unwrap();
+        assert!(blocklist.get().is_empty());
+        assert!(Blocklist::get_blocklist_path(dir.path()).exists());
+    }
 }

@@ -105,4 +105,50 @@ mod tests {
         assert_eq!(get_id_by_name_and_flag("barfoobaz", "-u"), None);
         assert_eq!(get_id_by_name_and_flag("barfoobaz", "-g"), None);
     }
+
+    #[test]
+    fn test_get_id_by_name_and_flag_empty_name() {
+        assert_eq!(get_id_by_name_and_flag("", "-u"), None);
+        assert_eq!(get_id_by_name_and_flag("", "-g"), None);
+    }
+
+    #[test]
+    fn test_change_file_ownership_empty_user_and_group() {
+        use crate::common::fs::change_file_ownership;
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("test_file");
+        fs::File::create(&file_path).unwrap();
+        // Empty user and group should succeed (no ownership change)
+        let result = change_file_ownership(&file_path, "", "");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_change_file_ownership_invalid_user() {
+        use crate::common::fs::change_file_ownership;
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("test_file");
+        fs::File::create(&file_path).unwrap();
+        let result = change_file_ownership(&file_path, "nonexistent_ruroco_user_xyz", "");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not find user"));
+    }
+
+    #[test]
+    fn test_change_file_ownership_invalid_group() {
+        use crate::common::fs::change_file_ownership;
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("test_file");
+        fs::File::create(&file_path).unwrap();
+        let result = change_file_ownership(&file_path, "", "nonexistent_ruroco_group_xyz");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not find group"));
+    }
+
+    #[test]
+    fn test_resolve_path_nonexistent_relative() {
+        // A relative path that doesn't exist should still return a path
+        let result = resolve_path(&PathBuf::from("./does_not_exist_ruroco_test"));
+        assert!(result.ends_with("does_not_exist_ruroco_test"));
+    }
 }

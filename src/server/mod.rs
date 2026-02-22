@@ -347,8 +347,162 @@ mod tests {
         )
     }
 
+    fn create_server_with_key() -> anyhow::Result<(Server, String)> {
+        let temp_dir = tempfile::tempdir()?;
+        let test_folder_path = temp_dir.keep();
+
+        let key = Generator::create()?.gen()?;
+        let key_path = test_folder_path.join(gen_file_name(".key"));
+        fs::write(&key_path, &key)?;
+
+        let server = Server::create(
+            ConfigServer {
+                config_dir: test_folder_path.clone(),
+                ips: vec!["127.0.0.1".parse().unwrap(), "::1".parse().unwrap()],
+                ..Default::default()
+            },
+            Some(format!("127.0.0.1:{}", get_random_range(1024, 65535)?)),
+        )?;
+        Ok((server, key))
+    }
+
     fn gen_file_name(suffix: &str) -> String {
         let rand_str = get_random_string(16).unwrap();
         format!("{rand_str}{suffix}")
+    }
+
+    #[test]
+    fn test_validate_blocked_counter() {
+        use crate::common::client_data::ClientData;
+        use crate::common::data_parser::DataParser;
+
+        let (mut server, key) = create_server_with_key().unwrap();
+        let parser = DataParser::create(&key).unwrap();
+
+        let plaintext = ClientData::create(
+            "default",
+            false,
+            Some("127.0.0.1".parse().unwrap()),
+            "127.0.0.1".parse().unwrap(),
+            100,
+        )
+        .unwrap()
+        .serialize()
+        .unwrap();
+
+        let encoded = parser.encode(&plaintext).unwrap();
+        server.client_recv_data = encoded;
+
+        // First request should succeed (no commander socket, but that's a send_command error, not
+        // validate error)
+        let result1 = server.run_loop_iteration(Ok((
+            MSG_SIZE,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+        )));
+        // It will succeed on validation but fail on send_command (no commander socket)
+        // The important thing is it doesn't fail with "blocked" error
+        assert!(result1.is_ok());
+
+        // Replay with same counter should be blocked
+        server.client_recv_data = encoded;
+        let result2 = server.run_loop_iteration(Ok((
+            MSG_SIZE,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+        )));
+        assert!(result2.is_err());
+        assert!(result2.unwrap_err().to_string().contains("blocklist"), "expected blocklist error");
+    }
+
+    #[test]
+    fn test_validate_invalid_destination_ip() {
+        use crate::common::client_data::ClientData;
+        use crate::common::data_parser::DataParser;
+
+        let (mut server, key) = create_server_with_key().unwrap();
+        let parser = DataParser::create(&key).unwrap();
+
+        // Use a destination IP that's not in the server's config
+        let plaintext = ClientData::create(
+            "default",
+            false,
+            Some("127.0.0.1".parse().unwrap()),
+            "10.0.0.1".parse().unwrap(), // not in server's ips list
+            200,
+        )
+        .unwrap()
+        .serialize()
+        .unwrap();
+
+        let encoded = parser.encode(&plaintext).unwrap();
+        server.client_recv_data = encoded;
+
+        let result = server.run_loop_iteration(Ok((
+            MSG_SIZE,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+        )));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid host IP"));
+    }
+
+    #[test]
+    fn test_validate_invalid_source_ip() {
+        use crate::common::client_data::ClientData;
+        use crate::common::data_parser::DataParser;
+
+        let (mut server, key) = create_server_with_key().unwrap();
+        let parser = DataParser::create(&key).unwrap();
+
+        // Strict mode with source IP mismatch
+        let plaintext = ClientData::create(
+            "default",
+            true,                              // strict
+            Some("10.0.0.1".parse().unwrap()), // doesn't match actual source
+            "127.0.0.1".parse().unwrap(),
+            300,
+        )
+        .unwrap()
+        .serialize()
+        .unwrap();
+
+        let encoded = parser.encode(&plaintext).unwrap();
+        server.client_recv_data = encoded;
+
+        let result = server.run_loop_iteration(Ok((
+            MSG_SIZE,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+        )));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid source IP"));
+    }
+
+    #[test]
+    fn test_validate_ipv6_mapped_ipv4() {
+        use crate::common::client_data::ClientData;
+        use crate::common::data_parser::DataParser;
+
+        let (mut server, key) = create_server_with_key().unwrap();
+        let parser = DataParser::create(&key).unwrap();
+
+        let plaintext = ClientData::create(
+            "default",
+            false,
+            Some("127.0.0.1".parse().unwrap()),
+            "127.0.0.1".parse().unwrap(),
+            400,
+        )
+        .unwrap()
+        .serialize()
+        .unwrap();
+
+        let encoded = parser.encode(&plaintext).unwrap();
+        server.client_recv_data = encoded;
+
+        // Send from IPv6-mapped IPv4 address ::ffff:127.0.0.1
+        let result = server.run_loop_iteration(Ok((
+            MSG_SIZE,
+            SocketAddr::new("::ffff:127.0.0.1".parse().unwrap(), 8080),
+        )));
+        // Should succeed (IPv6-mapped IPv4 gets converted to IPv4)
+        assert!(result.is_ok());
     }
 }

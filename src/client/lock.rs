@@ -93,3 +93,66 @@ impl Drop for ClientLock {
         let _ = remove_file(&self.path);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ClientLock;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn temp_lock_path() -> (TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().expect("failed to create temp dir");
+        let path = dir.path().join("client.lock");
+        (dir, path)
+    }
+
+    #[test]
+    fn test_acquire_creates_lock_file() {
+        let (_dir, path) = temp_lock_path();
+        let lock = ClientLock::acquire(path.clone()).unwrap();
+        assert!(path.exists());
+        let contents = fs::read_to_string(&path).unwrap();
+        assert!(contents.trim().parse::<u32>().is_ok());
+        drop(lock);
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn test_acquire_fails_when_pid_running() {
+        let (_dir, path) = temp_lock_path();
+        let _lock = ClientLock::acquire(path.clone()).unwrap();
+        let result = ClientLock::acquire(path.clone());
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(err.contains("Client already running"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn test_acquire_cleans_stale_lock() {
+        let (_dir, path) = temp_lock_path();
+        // Write a PID that doesn't exist
+        fs::write(&path, "999999999\n").unwrap();
+        let lock = ClientLock::acquire(path.clone()).unwrap();
+        assert!(path.exists());
+        drop(lock);
+    }
+
+    #[test]
+    fn test_acquire_cleans_lock_with_invalid_pid() {
+        let (_dir, path) = temp_lock_path();
+        // Write invalid content - not a valid PID
+        fs::write(&path, "not_a_pid\n").unwrap();
+        let lock = ClientLock::acquire(path.clone()).unwrap();
+        assert!(path.exists());
+        drop(lock);
+    }
+
+    #[test]
+    fn test_drop_removes_lock() {
+        let (_dir, path) = temp_lock_path();
+        let lock = ClientLock::acquire(path.clone()).unwrap();
+        assert!(path.exists());
+        drop(lock);
+        assert!(!path.exists());
+    }
+}

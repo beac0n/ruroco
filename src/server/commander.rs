@@ -231,4 +231,89 @@ mod tests {
 
         assert!(socket_file_path.exists());
     }
+
+    #[test]
+    fn test_vec_to_str_valid_utf8() {
+        assert_eq!(Commander::vec_to_str(b"hello world"), "hello world");
+    }
+
+    #[test]
+    fn test_vec_to_str_empty() {
+        assert_eq!(Commander::vec_to_str(b""), "");
+    }
+
+    #[test]
+    fn test_vec_to_str_invalid_utf8() {
+        assert_eq!(Commander::vec_to_str(&[0xFF, 0xFE]), "");
+    }
+
+    #[test]
+    fn test_create_with_empty_commands() {
+        let commander = Commander::create(ConfigServer {
+            commands: HashMap::new(),
+            config_dir: PathBuf::from("/tmp/ruroco_test_empty"),
+            ..Default::default()
+        })
+        .unwrap();
+        assert!(commander.cmds.is_empty());
+    }
+
+    #[test]
+    fn test_create_with_multiple_commands() {
+        let mut commands = HashMap::new();
+        commands.insert("cmd1".to_string(), "echo 1".to_string());
+        commands.insert("cmd2".to_string(), "echo 2".to_string());
+        let commander = Commander::create(ConfigServer {
+            commands,
+            config_dir: PathBuf::from("/tmp/ruroco_test_multi"),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(commander.cmds.len(), 2);
+    }
+
+    #[test]
+    fn test_run_command_success() {
+        let commander = Commander::create(ConfigServer {
+            commands: HashMap::new(),
+            config_dir: PathBuf::from("/tmp/ruroco_test_cmd"),
+            ..Default::default()
+        })
+        .unwrap();
+        // Should not panic, just logs
+        commander.run_command("echo hello", "127.0.0.1".parse().unwrap());
+    }
+
+    #[test]
+    fn test_run_command_failure() {
+        let commander = Commander::create(ConfigServer {
+            commands: HashMap::new(),
+            config_dir: PathBuf::from("/tmp/ruroco_test_cmd_fail"),
+            ..Default::default()
+        })
+        .unwrap();
+        // A failing command should not panic
+        commander.run_command("false", "127.0.0.1".parse().unwrap());
+    }
+
+    #[test]
+    fn test_run_command_sets_env_var() {
+        let dir = tempfile::tempdir().unwrap();
+        let output_file = dir.path().join("env_output.txt");
+        let output_path = output_file.to_str().unwrap();
+        let commander = Commander::create(ConfigServer {
+            commands: HashMap::new(),
+            config_dir: PathBuf::from("/tmp/ruroco_test_env"),
+            ..Default::default()
+        })
+        .unwrap();
+        commander.run_command(
+            &format!("echo $RUROCO_IP > {output_path}"),
+            "192.168.1.100".parse().unwrap(),
+        );
+        // Give a moment for command to finish
+        thread::sleep(Duration::from_millis(100));
+        let content = fs::read_to_string(&output_file).unwrap_or_default();
+        assert!(content.trim().contains("192.168.1.100"));
+    }
 }
