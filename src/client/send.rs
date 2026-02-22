@@ -47,10 +47,8 @@ impl Sender {
         info(&format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
         let destination_ips_validated = self.get_destination_ips()?;
         info(&format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
-        match destination_ips_validated.as_slice() {
-            [destination_ip] => self.send_data(*destination_ip)?,
-            [_, ipv6_destination_ip] => self.send_data(*ipv6_destination_ip)?,
-            _ => bail!("Found too many IPs: {destination_ips_validated:?}"),
+        for destination_ip in &destination_ips_validated {
+            self.send_data(*destination_ip)?;
         }
 
         Ok(())
