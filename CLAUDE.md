@@ -63,3 +63,5 @@ Defined in `src/common/protocol/constants.rs`:
 Server config: `config/config.toml`. Commands receive client IP via `$RUROCO_IP` env var.
 Client state: `~/.config/ruroco/counter` (u128 big-endian), `~/.config/ruroco/client.lock` (file mutex).
 Systemd service files in `systemd/` (socket activation on `[::]:80`, strict sandboxing).
+
+Env var overrides: `RUROCO_CONF_DIR` (client config dir), `RUROCO_LISTEN_ADDRESS` (server bind address).
