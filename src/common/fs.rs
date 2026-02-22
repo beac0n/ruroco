@@ -76,9 +76,16 @@ fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::fs::{get_id_by_name_and_flag, resolve_path};
+    use crate::common::fs::{change_file_ownership, get_id_by_name_and_flag, resolve_path};
     use std::path::PathBuf;
     use std::{env, fs};
+
+    fn create_temp_file() -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test_file");
+        fs::File::create(&path).unwrap();
+        (dir, path)
+    }
 
     #[test]
     fn test_resolve_absolute_path() {
@@ -92,6 +99,12 @@ mod tests {
             resolve_path(&PathBuf::from("./tmp/foo")),
             env::current_dir().unwrap().join("tmp/foo")
         );
+    }
+
+    #[test]
+    fn test_resolve_path_nonexistent_relative() {
+        let result = resolve_path(&PathBuf::from("./does_not_exist_ruroco_test"));
+        assert!(result.ends_with("does_not_exist_ruroco_test"));
     }
 
     #[test]
@@ -114,41 +127,43 @@ mod tests {
 
     #[test]
     fn test_change_file_ownership_empty_user_and_group() {
-        use crate::common::fs::change_file_ownership;
-        let dir = tempfile::tempdir().unwrap();
-        let file_path = dir.path().join("test_file");
-        fs::File::create(&file_path).unwrap();
-        // Empty user and group should succeed (no ownership change)
-        let result = change_file_ownership(&file_path, "", "");
-        assert!(result.is_ok());
+        let (_dir, path) = create_temp_file();
+        assert!(change_file_ownership(&path, "", "").is_ok());
     }
 
     #[test]
     fn test_change_file_ownership_invalid_user() {
-        use crate::common::fs::change_file_ownership;
-        let dir = tempfile::tempdir().unwrap();
-        let file_path = dir.path().join("test_file");
-        fs::File::create(&file_path).unwrap();
-        let result = change_file_ownership(&file_path, "nonexistent_ruroco_user_xyz", "");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Could not find user"));
+        let (_dir, path) = create_temp_file();
+        assert!(change_file_ownership(&path, "nonexistent_ruroco_user_xyz", "")
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find user"));
     }
 
     #[test]
     fn test_change_file_ownership_invalid_group() {
-        use crate::common::fs::change_file_ownership;
-        let dir = tempfile::tempdir().unwrap();
-        let file_path = dir.path().join("test_file");
-        fs::File::create(&file_path).unwrap();
-        let result = change_file_ownership(&file_path, "", "nonexistent_ruroco_group_xyz");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Could not find group"));
+        let (_dir, path) = create_temp_file();
+        assert!(change_file_ownership(&path, "", "nonexistent_ruroco_group_xyz")
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find group"));
     }
 
     #[test]
-    fn test_resolve_path_nonexistent_relative() {
-        // A relative path that doesn't exist should still return a path
-        let result = resolve_path(&PathBuf::from("./does_not_exist_ruroco_test"));
-        assert!(result.ends_with("does_not_exist_ruroco_test"));
+    fn test_change_file_ownership_current_user() {
+        let (_dir, path) = create_temp_file();
+        assert!(change_file_ownership(&path, "", "").is_ok());
+        // "root" always exists — chown may fail with permission denied but not "Could not find"
+        if let Err(e) = change_file_ownership(&path, "root", "root") {
+            assert!(e.to_string().contains("Could not change ownership"), "unexpected: {e}");
+        }
+    }
+
+    #[test]
+    fn test_change_file_ownership_nonexistent_path() {
+        assert!(change_file_ownership(&PathBuf::from("/tmp/no_such_file_ruroco_xyz"), "root", "root")
+            .unwrap_err()
+            .to_string()
+            .contains("Could not change ownership"));
     }
 }

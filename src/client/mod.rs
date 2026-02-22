@@ -98,6 +98,24 @@ mod tests {
     }
 
     #[test]
+    fn test_run_client_send_with_send_command() {
+        let _conf_dir = set_test_conf_dir();
+        let key = Generator::create().unwrap().gen().unwrap();
+        let cli = CliClient::parse_from(vec![
+            "ruroco",
+            "send",
+            "-a",
+            "127.0.0.1:1234",
+            "-k",
+            &key,
+            "-i",
+            "192.168.178.123",
+        ]);
+        let result = crate::client::run_client_send(cli);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_run_client_send_with_gen_command() {
         let _conf_dir = set_test_conf_dir();
         let cli = CliClient::parse_from(vec!["ruroco", "gen"]);

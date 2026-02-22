@@ -61,4 +61,56 @@ mod tests {
         assert!(loaded.is_blocked([1, 2, 3, 4, 5, 6, 7, 8], 123456789012345678901234567890));
         assert!(loaded.is_blocked([8, 7, 6, 5, 4, 3, 2, 1], u128::MAX));
     }
+
+    #[test]
+    fn test_deserialize_invalid_u128_value() {
+        let dir = tempfile::tempdir().unwrap();
+        let blocklist_path = dir.path().join("blocklist.toml");
+        // Write a blocklist with an invalid u128 value
+        std::fs::write(
+            &blocklist_path,
+            "path = \"/tmp\"\n[map]\n12345 = \"not_a_number\"\n",
+        )
+        .unwrap();
+        let result = Blocklist::create(dir.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_serialize_empty_map() {
+        let dir = tempfile::tempdir().unwrap();
+        let blocklist = Blocklist::create(dir.path()).unwrap();
+        assert!(blocklist.get().is_empty());
+        blocklist.save().unwrap();
+
+        let loaded = Blocklist::create(dir.path()).unwrap();
+        assert!(loaded.get().is_empty());
+    }
+
+    #[test]
+    fn test_deserialize_map_type_mismatch() {
+        let dir = tempfile::tempdir().unwrap();
+        let blocklist_path = dir.path().join("blocklist.toml");
+        // Write a blocklist where map is a string instead of a table,
+        // triggering the expecting() method in the Visitor
+        std::fs::write(
+            &blocklist_path,
+            "path = \"/tmp\"\nmap = \"not_a_map\"\n",
+        )
+        .unwrap();
+        let result = Blocklist::create(dir.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_serialize_deserialize_zero_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut blocklist = Blocklist::create(dir.path()).unwrap();
+        blocklist.add([0, 0, 0, 0, 0, 0, 0, 0], 0);
+        blocklist.save().unwrap();
+
+        let loaded = Blocklist::create(dir.path()).unwrap();
+        assert_eq!(loaded.get().len(), 1);
+        assert!(loaded.is_blocked([0, 0, 0, 0, 0, 0, 0, 0], 0));
+    }
 }

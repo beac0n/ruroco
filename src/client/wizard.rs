@@ -119,3 +119,35 @@ impl Wizard {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Wizard;
+
+    #[test]
+    fn test_write_data_success() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("test_file.txt");
+        let path_str = file_path.to_str().unwrap();
+        let data = b"hello world";
+
+        Wizard::write_data(path_str, data).unwrap();
+
+        let contents = std::fs::read(file_path).unwrap();
+        assert_eq!(contents, data);
+    }
+
+    #[test]
+    fn test_write_data_invalid_path() {
+        let result = Wizard::write_data("/no/such/dir/file.txt", b"data");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to create"));
+    }
+
+    #[test]
+    fn test_create() {
+        let wizard = Wizard::create();
+        // Wizard is a unit struct, just ensure create doesn't panic
+        assert_eq!(format!("{wizard:?}"), "Wizard");
+    }
+}

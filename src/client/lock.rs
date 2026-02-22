@@ -148,6 +148,18 @@ mod tests {
     }
 
     #[test]
+    fn test_acquire_fails_when_parent_dir_missing() {
+        let path = std::path::PathBuf::from("/tmp/no_such_ruroco_dir_xyz/client.lock");
+        let result = ClientLock::acquire(path);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("Client lock unavailable"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
     fn test_drop_removes_lock() {
         let (_dir, path) = temp_lock_path();
         let lock = ClientLock::acquire(path.clone()).unwrap();
