@@ -153,10 +153,7 @@ mod tests {
         let result = ClientLock::acquire(path);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
-        assert!(
-            err.contains("Client lock unavailable"),
-            "unexpected error: {err}"
-        );
+        assert!(err.contains("Client lock unavailable"), "unexpected error: {err}");
     }
 
     #[test]

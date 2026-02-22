@@ -347,9 +347,7 @@ mod tests {
         )
     }
 
-    fn create_server_with_key_in_dir(
-        config_dir: PathBuf,
-    ) -> anyhow::Result<(Server, String)> {
+    fn create_server_with_key_in_dir(config_dir: PathBuf) -> anyhow::Result<(Server, String)> {
         let key = Generator::create()?.gen()?;
         let key_path = config_dir.join(gen_file_name(".key"));
         fs::write(&key_path, &key)?;
@@ -405,8 +403,15 @@ mod tests {
         let (mut server, key) = create_server_with_key().unwrap();
         let localhost = "127.0.0.1".parse().unwrap();
 
-        let encoded =
-            load_encrypted_packet(&mut server, &key, "default", false, Some(localhost), localhost, 100);
+        let encoded = load_encrypted_packet(
+            &mut server,
+            &key,
+            "default",
+            false,
+            Some(localhost),
+            localhost,
+            100,
+        );
         assert!(server.run_loop_iteration(localhost_src(8080)).is_ok());
 
         // Replay with same counter should be blocked
@@ -419,23 +424,38 @@ mod tests {
     fn test_validate_invalid_destination_ip() {
         let (mut server, key) = create_server_with_key().unwrap();
         load_encrypted_packet(
-            &mut server, &key, "default", false,
+            &mut server,
+            &key,
+            "default",
+            false,
             Some("127.0.0.1".parse().unwrap()),
             "10.0.0.1".parse().unwrap(), // not in server's ips list
             200,
         );
-        assert!(server.run_loop_iteration(localhost_src(8080)).unwrap_err().to_string().contains("Invalid host IP"));
+        assert!(server
+            .run_loop_iteration(localhost_src(8080))
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid host IP"));
     }
 
     #[test]
     fn test_validate_invalid_source_ip() {
         let (mut server, key) = create_server_with_key().unwrap();
         load_encrypted_packet(
-            &mut server, &key, "default", true, // strict
-            Some("10.0.0.1".parse().unwrap()),   // doesn't match actual source
-            "127.0.0.1".parse().unwrap(), 300,
+            &mut server,
+            &key,
+            "default",
+            true,                              // strict
+            Some("10.0.0.1".parse().unwrap()), // doesn't match actual source
+            "127.0.0.1".parse().unwrap(),
+            300,
         );
-        assert!(server.run_loop_iteration(localhost_src(8080)).unwrap_err().to_string().contains("Invalid source IP"));
+        assert!(server
+            .run_loop_iteration(localhost_src(8080))
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid source IP"));
     }
 
     #[test]
@@ -454,13 +474,20 @@ mod tests {
         let commander_dir = socket_dir.clone();
         let cmds = commands.clone();
         std::thread::spawn(move || {
-            Commander::create(ConfigServer { commands: cmds, config_dir: commander_dir, ..Default::default() })
-                .unwrap().run()
+            Commander::create(ConfigServer {
+                commands: cmds,
+                config_dir: commander_dir,
+                ..Default::default()
+            })
+            .unwrap()
+            .run()
         });
 
         let socket_path = socket_dir.join("ruroco.socket");
         for _ in 0..50 {
-            if socket_path.exists() { break; }
+            if socket_path.exists() {
+                break;
+            }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
         assert!(socket_path.exists(), "commander socket not created");
@@ -484,7 +511,10 @@ mod tests {
         server.socket_path = dir.path().join("nonexistent.socket");
 
         assert!(server
-            .write_to_socket(CommanderData { cmd_hash: 42, ip: "127.0.0.1".parse().unwrap() })
+            .write_to_socket(CommanderData {
+                cmd_hash: 42,
+                ip: "127.0.0.1".parse().unwrap()
+            })
             .unwrap_err()
             .to_string()
             .contains("Could not connect to socket"));

@@ -161,9 +161,13 @@ mod tests {
 
     #[test]
     fn test_change_file_ownership_nonexistent_path() {
-        assert!(change_file_ownership(&PathBuf::from("/tmp/no_such_file_ruroco_xyz"), "root", "root")
-            .unwrap_err()
-            .to_string()
-            .contains("Could not change ownership"));
+        assert!(change_file_ownership(
+            &PathBuf::from("/tmp/no_such_file_ruroco_xyz"),
+            "root",
+            "root"
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("Could not change ownership"));
     }
 }

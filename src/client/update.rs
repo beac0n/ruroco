@@ -423,7 +423,10 @@ mod tests {
     #[test_with::env(TEST_UPDATER)]
     #[test]
     fn test_get_github_api_data_specific_version() {
-        assert_eq!(Updater::get_github_api_data(Some(&"v0.10.0".to_string())).unwrap().tag_name, "v0.10.0");
+        assert_eq!(
+            Updater::get_github_api_data(Some(&"v0.10.0".to_string())).unwrap().tag_name,
+            "v0.10.0"
+        );
     }
 
     #[test_with::env(TEST_UPDATER)]
@@ -455,8 +458,12 @@ mod tests {
         let (port, handle) = serve_payload(b"fake-binary-content");
         let dir = tempfile::tempdir().unwrap();
         let updater = create_updater(dir.path());
-        let result =
-            updater.download_and_save_bin(format!("http://127.0.0.1:{port}/bin"), "tb", 0o755, None);
+        let result = updater.download_and_save_bin(
+            format!("http://127.0.0.1:{port}/bin"),
+            "tb",
+            0o755,
+            None,
+        );
         handle.join().unwrap();
         assert!(result.is_ok(), "download_and_save_bin failed: {result:?}");
 
@@ -472,8 +479,12 @@ mod tests {
         fs::write(dir.path().join("tb"), b"old-binary").unwrap();
 
         let updater = create_updater(dir.path());
-        let result =
-            updater.download_and_save_bin(format!("http://127.0.0.1:{port}/bin"), "tb", 0o755, None);
+        let result = updater.download_and_save_bin(
+            format!("http://127.0.0.1:{port}/bin"),
+            "tb",
+            0o755,
+            None,
+        );
         handle.join().unwrap();
         assert!(result.is_ok(), "download_and_save_bin failed: {result:?}");
 

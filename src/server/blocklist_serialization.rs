@@ -67,11 +67,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let blocklist_path = dir.path().join("blocklist.toml");
         // Write a blocklist with an invalid u128 value
-        std::fs::write(
-            &blocklist_path,
-            "path = \"/tmp\"\n[map]\n12345 = \"not_a_number\"\n",
-        )
-        .unwrap();
+        std::fs::write(&blocklist_path, "path = \"/tmp\"\n[map]\n12345 = \"not_a_number\"\n")
+            .unwrap();
         let result = Blocklist::create(dir.path());
         assert!(result.is_err());
     }
@@ -93,11 +90,7 @@ mod tests {
         let blocklist_path = dir.path().join("blocklist.toml");
         // Write a blocklist where map is a string instead of a table,
         // triggering the expecting() method in the Visitor
-        std::fs::write(
-            &blocklist_path,
-            "path = \"/tmp\"\nmap = \"not_a_map\"\n",
-        )
-        .unwrap();
+        std::fs::write(&blocklist_path, "path = \"/tmp\"\nmap = \"not_a_map\"\n").unwrap();
         let result = Blocklist::create(dir.path());
         assert!(result.is_err());
     }

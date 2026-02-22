@@ -274,7 +274,10 @@ mod tests {
         let mut commands = HashMap::new();
         commands.insert("cmd1".to_string(), "echo 1".to_string());
         commands.insert("cmd2".to_string(), "echo 2".to_string());
-        assert_eq!(create_commander(commands, PathBuf::from("/tmp/ruroco_test_multi")).cmds.len(), 2);
+        assert_eq!(
+            create_commander(commands, PathBuf::from("/tmp/ruroco_test_multi")).cmds.len(),
+            2
+        );
     }
 
     #[test]
@@ -294,10 +297,15 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let output_file = dir.path().join("env_output.txt");
         let output_path = output_file.to_str().unwrap();
-        create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_env"))
-            .run_command(&format!("echo $RUROCO_IP > {output_path}"), "192.168.1.100".parse().unwrap());
+        create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_env")).run_command(
+            &format!("echo $RUROCO_IP > {output_path}"),
+            "192.168.1.100".parse().unwrap(),
+        );
         thread::sleep(Duration::from_millis(100));
-        assert!(fs::read_to_string(&output_file).unwrap_or_default().trim().contains("192.168.1.100"));
+        assert!(fs::read_to_string(&output_file)
+            .unwrap_or_default()
+            .trim()
+            .contains("192.168.1.100"));
     }
 
     #[test]
@@ -319,7 +327,13 @@ mod tests {
 
         let socket_path = socket_dir.join("ruroco.socket");
         wait_for_socket(&socket_path);
-        send_to_socket(&socket_path, &CommanderData { cmd_hash, ip: "127.0.0.1".parse().unwrap() });
+        send_to_socket(
+            &socket_path,
+            &CommanderData {
+                cmd_hash,
+                ip: "127.0.0.1".parse().unwrap(),
+            },
+        );
 
         thread::sleep(Duration::from_millis(500));
         assert!(output_file.exists(), "command was not executed");
@@ -335,7 +349,13 @@ mod tests {
 
         let socket_path = socket_dir.join("ruroco.socket");
         wait_for_socket(&socket_path);
-        send_to_socket(&socket_path, &CommanderData { cmd_hash: 99999, ip: "127.0.0.1".parse().unwrap() });
+        send_to_socket(
+            &socket_path,
+            &CommanderData {
+                cmd_hash: 99999,
+                ip: "127.0.0.1".parse().unwrap(),
+            },
+        );
 
         thread::sleep(Duration::from_millis(200));
         assert!(socket_path.exists(), "commander should still be running");
@@ -350,7 +370,13 @@ mod tests {
         let listener = std::os::unix::net::UnixListener::bind(&socket_path).unwrap();
         let socket_path_clone = socket_path.clone();
         let writer = thread::spawn(move || {
-            send_to_socket(&socket_path_clone, &CommanderData { cmd_hash: 42, ip: "10.0.0.1".parse().unwrap() });
+            send_to_socket(
+                &socket_path_clone,
+                &CommanderData {
+                    cmd_hash: 42,
+                    ip: "10.0.0.1".parse().unwrap(),
+                },
+            );
         });
 
         let (mut stream, _) = listener.accept().unwrap();
