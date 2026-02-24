@@ -20,7 +20,7 @@ anyhow = "1.0"
 
 [dev-dependencies]
 test-with = { version = "*", default-features = false, features = [] }
-tempfile = "3.23.0"
+tempfile = "3.26.0"
 
 [lib]
 crate-type = ["lib", "cdylib"]
