@@ -5,32 +5,58 @@ edition = "2021"
 repository = "https://github.com/beac0n/ruroco"
 
 [dependencies]
-clap = { version = "4.5", features = ["derive", "string"] }
-openssl = { version = "0.10" }
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.9"
-slint = "1.10"
-jni = "0.21"
-ndk-context = "0.1"
-reqwest = { version = "0.12", features = ["blocking", "json"] }
+anyhow = "1.0"
 base64 = "0.22"
 blake2 = "0.10.6"
 chrono = { version = "0.4", features = ["clock"] }
-anyhow = "1.0"
+clap = { version = "4.5", features = ["derive", "string"] }
+openssl = { version = "0.10" }
+reqwest = { version = "0.12", features = ["blocking", "json"], optional = true } # only needed for client to update itself
+serde = { version = "1.0", features = ["derive"] }
+slint = { version = "1.10", optional = true }
+toml = { version = "0.9", optional = true }
+
+# android dependencies
+jni = { version = "0.21", optional = true }
+ndk-context = { version = "0.1", optional = true }
 
 [dev-dependencies]
 test-with = { version = "*", default-features = false, features = [] }
 tempfile = "3.23.0"
 
+[build-dependencies]
+slint-build = { version = "1.9.2", optional = true }
+
+[features]
+default = ["with-gui", "with-server"]
+release-build = ["openssl/vendored"]
+android-build = ["dep:ndk-context", "dep:jni", "slint/backend-android-activity-06"]
+with-server = ["dep:toml"]
+with-gui = ["dep:slint", "dep:toml", "dep:slint-build", "with-client"]
+with-client = ["dep:reqwest"]
+
 [lib]
 crate-type = ["lib", "cdylib"]
 
-[features]
-release-build = ["openssl/vendored"]
-android-build = ["slint/backend-android-activity-06"]
+[[bin]]
+name = "ruroco-client"
+path = "src/bin/client.rs"
+required-features = ["with-client"]
 
-[build-dependencies]
-slint-build = "1.9.2"
+[[bin]]
+name = "ruroco-client-ui"
+path = "src/bin/client_ui.rs"
+required-features = ["with-gui"]
+
+[[bin]]
+name = "ruroco-server"
+path = "src/bin/server.rs"
+required-features = ["with-server"]
+
+[[bin]]
+name = "ruroco-commander"
+path = "src/bin/commander.rs"
+required-features = ["with-server"]
 
 [profile.dev]
 opt-level = 0
