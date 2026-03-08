@@ -24,8 +24,8 @@ ndk-context = { version = "0.1", optional = true }
 test-with = { version = "*", default-features = false, features = [] }
 tempfile = "3.23.0"
 
-[build-dependencies]
-slint-build = { version = "1.9.2", optional = true }
+[lib]
+crate-type = ["lib", "cdylib"]
 
 [features]
 default = ["with-gui", "with-server"]
@@ -35,8 +35,8 @@ with-server = ["dep:toml"]
 with-gui = ["dep:slint", "dep:toml", "dep:slint-build", "with-client"]
 with-client = ["dep:reqwest"]
 
-[lib]
-crate-type = ["lib", "cdylib"]
+[build-dependencies]
+slint-build = { version = "1.9.2", optional = true }
 
 [[bin]]
 name = "ruroco-client"
