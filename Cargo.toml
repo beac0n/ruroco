@@ -39,22 +39,22 @@ with-client = ["dep:reqwest"]
 slint-build = { version = "1.9.2", optional = true }
 
 [[bin]]
-name = "ruroco-client"
+name = "client"
 path = "src/bin/client.rs"
 required-features = ["with-client"]
 
 [[bin]]
-name = "ruroco-client-ui"
+name = "client_ui"
 path = "src/bin/client_ui.rs"
 required-features = ["with-gui"]
 
 [[bin]]
-name = "ruroco-server"
+name = "server"
 path = "src/bin/server.rs"
 required-features = ["with-server"]
 
 [[bin]]
-name = "ruroco-commander"
+name = "commander"
 path = "src/bin/commander.rs"
 required-features = ["with-server"]
 
