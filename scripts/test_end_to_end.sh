@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
 sudo useradd --system ruroco --shell /bin/false || true
 RUROCO_KEY="$(./target/x86_64-unknown-linux-gnu/debug/client gen)"
 echo "$RUROCO_KEY" > ruroco.key
