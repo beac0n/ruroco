@@ -9,12 +9,12 @@ anyhow = "1.0"
 base64 = "0.22"
 blake2 = "0.10.6"
 chrono = { version = "0.4", features = ["clock"] }
-clap = { version = "4.5", features = ["derive", "string"] }
+clap = { version = "4.6", features = ["derive", "string"] }
 openssl = { version = "0.10" }
 reqwest = { version = "0.13", features = ["blocking", "json"], optional = true } # only needed for client to update itself
 serde = { version = "1.0", features = ["derive"] }
-slint = { version = "1.10", optional = true }
-toml = { version = "1.0", optional = true }
+slint = { version = "1.15", optional = true }
+toml = { version = "1.1", optional = true }
 
 # android dependencies
 jni = { version = "0.22", optional = true }
@@ -22,7 +22,7 @@ ndk-context = { version = "0.1", optional = true }
 
 [dev-dependencies]
 test-with = { version = "*", default-features = false, features = [] }
-tempfile = "3.23.0"
+tempfile = "3.27.0"
 
 [lib]
 crate-type = ["lib", "cdylib"]
@@ -36,7 +36,7 @@ with-gui = ["dep:slint", "dep:toml", "dep:slint-build", "with-client"]
 with-client = ["dep:reqwest"]
 
 [build-dependencies]
-slint-build = { version = "1.10", optional = true }
+slint-build = { version = "1.15", optional = true }
 
 [[bin]]
 name = "client"
