@@ -184,7 +184,7 @@ pub fn run_server(server: CliServer) -> anyhow::Result<()> {
     Server::create_from_path(&server.config)?.run()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "with-client", feature = "with-server"))]
 mod tests {
     use crate::client::gen::Generator;
     use crate::common::protocol::MSG_SIZE;
