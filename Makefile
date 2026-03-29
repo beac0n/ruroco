@@ -13,7 +13,10 @@ dev_ui_android:
 	nix-shell nix/android.nix --pure --run ./scripts/dev_ui_android.sh
 
 build:
-	cargo build --color=always --package ruroco --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features with-client --bin client --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features with-gui --bin client_ui --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features with-server --bin server --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features with-server --bin commander --target x86_64-unknown-linux-gnu
 
 clean:
 	rm -rf target
@@ -22,7 +25,10 @@ clean:
 release: release_android release_linux
 
 release_linux:
-	cargo build --color=always --release --package ruroco --features release-build --target x86_64-unknown-linux-gnu
+	cargo build --color=always --release --package ruroco --no-default-features --features release-build,with-client --bin client --target x86_64-unknown-linux-gnu
+	cargo build --color=always --release --package ruroco --no-default-features --features release-build,with-gui --bin client_ui --target x86_64-unknown-linux-gnu
+	cargo build --color=always --release --package ruroco --no-default-features --features release-build,with-server --bin server --target x86_64-unknown-linux-gnu
+	cargo build --color=always --release --package ruroco --no-default-features --features release-build,with-server --bin commander --target x86_64-unknown-linux-gnu
 
 release_linux_nix:
 	nix-shell nix/linux.nix --pure --run ./scripts/release_linux.sh
