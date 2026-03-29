@@ -16,9 +16,5 @@ pub(crate) use logging::error;
 pub(crate) use logging::info;
 pub(crate) use protocol::client_data;
 pub(crate) use protocol::parser as data_parser;
-#[cfg(feature = "with-server")]
-pub(crate) use protocol::serialization as serialization_util;
 #[cfg(feature = "with-client")]
 pub(crate) use protocol::serialization::serialize_ip;
-#[cfg(feature = "with-server")]
-pub(crate) use protocol::serialization::deserialize_ip;

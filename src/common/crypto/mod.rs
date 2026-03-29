@@ -4,6 +4,10 @@ use blake2::Blake2bVar;
 use openssl::rand::rand_bytes;
 
 pub(crate) mod handler;
+#[cfg(feature = "with-client")]
+mod handler_client;
+#[cfg(feature = "with-server")]
+mod handler_server;
 
 #[cfg(feature = "with-client")]
 pub(crate) use handler::CryptoHandler;

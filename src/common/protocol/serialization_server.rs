@@ -1,0 +1,12 @@
+use std::net::{IpAddr, Ipv6Addr};
+
+const IP_SIZE: usize = 16;
+
+pub(crate) fn deserialize_ip(data: [u8; IP_SIZE]) -> IpAddr {
+    let v6 = Ipv6Addr::from(data);
+    if let Some(v4) = v6.to_ipv4_mapped() {
+        IpAddr::V4(v4)
+    } else {
+        IpAddr::V6(v6)
+    }
+}
