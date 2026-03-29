@@ -1,6 +1,7 @@
 use crate::common::protocol::client_data::ClientData;
 use crate::common::protocol::PLAINTEXT_SIZE;
-use crate::common::{blake2b_u64, serialize_ip};
+use crate::common::blake2b_u64;
+use crate::common::protocol::serialization::serialize_ip;
 use std::net::IpAddr;
 
 impl ClientData {

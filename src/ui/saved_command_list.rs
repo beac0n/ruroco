@@ -1,4 +1,5 @@
-use crate::common::{error, resolve_path};
+use crate::common::logging::error;
+use crate::common::resolve_path;
 use crate::ui::command_data::{command_to_data, data_to_command};
 use crate::ui::rust_slint_bridge::CommandData;
 use serde::{Deserialize, Serialize};

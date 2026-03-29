@@ -65,7 +65,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, feature = "with-client", feature = "with-server"))]
+#[cfg(test)]
 mod cross_tests {
     use super::CryptoHandler;
     use crate::common::protocol::PLAINTEXT_SIZE;

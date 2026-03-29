@@ -10,7 +10,7 @@ pub(crate) struct ClientData {
     pub(crate) dst_ip: IpAddr,
 }
 
-#[cfg(all(test, feature = "with-client", feature = "with-server"))]
+#[cfg(test)]
 mod tests {
     use crate::common::blake2b_u64;
     use crate::common::protocol::client_data::ClientData;

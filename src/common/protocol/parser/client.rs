@@ -1,4 +1,4 @@
-use crate::common::crypto::CryptoHandler;
+use crate::common::crypto::handler::CryptoHandler;
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
 
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl DataParser {
     }
 }
 
-#[cfg(all(test, feature = "with-server"))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::common::protocol::PLAINTEXT_SIZE;

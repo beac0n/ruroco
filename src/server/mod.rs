@@ -13,7 +13,7 @@ use crate::common::client_data::ClientData;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data_parser;
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
-use crate::common::{error, info};
+use crate::common::logging::{error, info};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::signal::{install_signal_handlers, shutdown_requested};
@@ -184,7 +184,7 @@ pub fn run_server(server: CliServer) -> anyhow::Result<()> {
     Server::create_from_path(&server.config)?.run()
 }
 
-#[cfg(all(test, feature = "with-client", feature = "with-server"))]
+#[cfg(test)]
 mod tests {
     use crate::client::gen::Generator;
     use crate::common::protocol::MSG_SIZE;

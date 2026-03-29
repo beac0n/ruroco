@@ -9,8 +9,6 @@ mod handler_client;
 #[cfg(feature = "with-server")]
 mod handler_server;
 
-#[cfg(feature = "with-client")]
-pub(crate) use handler::CryptoHandler;
 
 pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     let mut hasher = Blake2bVar::new(8)

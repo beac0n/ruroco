@@ -1,4 +1,5 @@
-use crate::common::{change_file_ownership, error, info};
+use crate::common::{change_file_ownership, info};
+use crate::common::logging::error;
 use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::util::get_commander_unix_socket_path;

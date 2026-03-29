@@ -6,7 +6,7 @@ use crate::ui::android_update::update_android;
 use crate::client::config::{CliClient, DEFAULT_COMMAND};
 use crate::client::run_client_send;
 use crate::common::crypto_handler::CryptoHandler;
-use crate::common::{error, info};
+use crate::common::logging::{error, info};
 use crate::ui::colors::{GREEN, RED};
 use crate::ui::command_data::{add_command_name, command_to_data, data_to_command};
 use crate::ui::rust_slint_bridge_ctx::RustSlintBridgeCtx;
