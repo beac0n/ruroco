@@ -36,7 +36,7 @@ with-gui = ["dep:slint", "dep:toml", "dep:slint-build", "with-client"]
 with-client = ["dep:reqwest"]
 
 [build-dependencies]
-slint-build = { version = "1.9.2", optional = true }
+slint-build = { version = "1.10", optional = true }
 
 [[bin]]
 name = "client"

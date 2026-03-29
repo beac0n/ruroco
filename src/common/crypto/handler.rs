@@ -1,10 +1,15 @@
 use anyhow::{anyhow, bail, Context};
 use base64::{engine::general_purpose, Engine};
+#[cfg(feature = "with-client")]
 use openssl::hash::MessageDigest;
+#[cfg(feature = "with-client")]
 use openssl::pkcs5::pbkdf2_hmac;
+#[cfg(feature = "with-client")]
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
+#[cfg(feature = "with-server")]
 use std::fs;
+#[cfg(feature = "with-server")]
 use std::path::Path;
 
 use crate::common::protocol::{CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
@@ -12,7 +17,9 @@ use crate::common::protocol::{CIPHERTEXT_SIZE, KEY_ID_SIZE, PLAINTEXT_SIZE};
 const IV_SIZE: usize = 12;
 const TAG_SIZE: usize = 16;
 const KEY_SIZE: usize = 32;
+#[cfg(feature = "with-client")]
 const SALT_SIZE: usize = 16;
+#[cfg(feature = "with-client")]
 const KEY_DERIVATION_ITERATIONS: usize = 100_000;
 
 #[derive(Debug)]
@@ -22,6 +29,7 @@ pub(crate) struct CryptoHandler {
 }
 
 impl CryptoHandler {
+    #[cfg(feature = "with-server")]
     pub(crate) fn from_key_path(key_path: &Path) -> anyhow::Result<Self> {
         let key = fs::read_to_string(key_path).with_context(|| "Could not read key")?;
         Self::create(&key)
@@ -46,6 +54,7 @@ impl CryptoHandler {
         })
     }
 
+    #[cfg(feature = "with-client")]
     pub(crate) fn gen_key() -> anyhow::Result<String> {
         let mut secret = [0u8; KEY_SIZE];
         rand_bytes(&mut secret).with_context(|| "Could not generate secret")?;
@@ -63,6 +72,7 @@ impl CryptoHandler {
         Ok(general_purpose::STANDARD.encode([id.as_slice(), key.as_slice()].concat()))
     }
 
+    #[cfg(feature = "with-client")]
     pub(crate) fn encrypt(
         &self,
         plaintext: &[u8; PLAINTEXT_SIZE],
@@ -98,6 +108,7 @@ impl CryptoHandler {
         Ok(out)
     }
 
+    #[cfg(feature = "with-server")]
     pub(crate) fn decrypt(
         &self,
         iv_tag_ciphertext: &[u8; CIPHERTEXT_SIZE],
@@ -129,7 +140,7 @@ impl CryptoHandler {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "with-client", feature = "with-server"))]
 mod tests {
     use crate::common::crypto::CryptoHandler;
     use crate::common::protocol::PLAINTEXT_SIZE;

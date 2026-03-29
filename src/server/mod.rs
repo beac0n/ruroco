@@ -11,7 +11,7 @@ pub mod util;
 
 use crate::common::client_data::ClientData;
 use crate::common::crypto_handler::CryptoHandler;
-use crate::common::data_parser::DataParser;
+use crate::common::data_parser;
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
 use crate::common::{error, info};
 use crate::server::blocklist::Blocklist;
@@ -98,7 +98,7 @@ impl Server {
     }
 
     fn decrypt(&mut self) -> anyhow::Result<([u8; 8], [u8; PLAINTEXT_SIZE])> {
-        let (key_id, encrypted_data) = DataParser::decode(&self.client_recv_data)?;
+        let (key_id, encrypted_data) = data_parser::decode(&self.client_recv_data)?;
         let plaintext = self
             .crypto_handlers
             .get(key_id)

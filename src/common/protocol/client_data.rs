@@ -1,5 +1,8 @@
 use crate::common::protocol::PLAINTEXT_SIZE;
-use crate::common::{blake2b_u64, deserialize_ip, serialize_ip};
+#[cfg(feature = "with-client")]
+use crate::common::{blake2b_u64, serialize_ip};
+#[cfg(feature = "with-server")]
+use crate::common::deserialize_ip;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
@@ -13,6 +16,7 @@ pub(crate) struct ClientData {
 }
 
 impl ClientData {
+    #[cfg(feature = "with-client")]
     pub(crate) fn create(
         command: &str,
         strict: bool,
@@ -29,6 +33,7 @@ impl ClientData {
         })
     }
 
+    #[cfg(feature = "with-client")]
     pub(crate) fn serialize(&self) -> anyhow::Result<[u8; PLAINTEXT_SIZE]> {
         let mut out = [0u8; PLAINTEXT_SIZE];
 
@@ -41,6 +46,7 @@ impl ClientData {
         Ok(out)
     }
 
+    #[cfg(feature = "with-server")]
     pub(crate) fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> anyhow::Result<Self> {
         let mut command_hash_bytes = [0u8; 8];
         command_hash_bytes.copy_from_slice(&data[0..8]);
@@ -63,6 +69,7 @@ impl ClientData {
         })
     }
 
+    #[cfg(feature = "with-server")]
     pub(crate) fn is_source_ip_invalid(&self, source_ip: IpAddr) -> bool {
         self.strict && self.src_ip.is_some_and(|ip_sent| ip_sent != source_ip)
     }

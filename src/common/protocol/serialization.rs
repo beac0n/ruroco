@@ -1,4 +1,6 @@
-use std::net::{IpAddr, Ipv6Addr};
+#[cfg(feature = "with-server")]
+use std::net::Ipv6Addr;
+use std::net::IpAddr;
 
 const IP_SIZE: usize = 16;
 
@@ -9,6 +11,7 @@ pub(crate) fn serialize_ip(ip: &IpAddr) -> [u8; IP_SIZE] {
     }
 }
 
+#[cfg(feature = "with-server")]
 pub(crate) fn deserialize_ip(data: [u8; IP_SIZE]) -> IpAddr {
     let v6 = Ipv6Addr::from(data);
     if let Some(v4) = v6.to_ipv4_mapped() {

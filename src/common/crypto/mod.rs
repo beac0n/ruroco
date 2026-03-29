@@ -5,6 +5,7 @@ use openssl::rand::rand_bytes;
 
 pub(crate) mod handler;
 
+#[cfg(feature = "with-client")]
 pub(crate) use handler::CryptoHandler;
 
 pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
