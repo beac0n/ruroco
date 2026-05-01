@@ -100,6 +100,10 @@ impl Commander {
     }
 
     fn run_command(&self, command: &str, ip: IpAddr) {
+        if Self::sanitize_ip(ip) {
+            return;
+        }
+
         match Command::new("sh")
             .arg("-c")
             .arg(command)
@@ -118,6 +122,18 @@ impl Commander {
             }
             Err(e) => error(format!("Error executing {command}: {e}")),
         };
+    }
+
+    fn sanitize_ip(ip: IpAddr) -> bool {
+        let ip_str = ip.to_string();
+        if ip_str.parse::<IpAddr>().is_err()
+            || !ip_str.chars().all(|c| c.is_ascii_hexdigit() || c == '.' || c == ':')
+        {
+            error(format!("refusing to execute with suspicious IP: {:?}", ip_str));
+            true
+        } else {
+            false
+        }
     }
 
     fn read(stream: &mut UnixStream) -> anyhow::Result<[u8; CMDR_DATA_SIZE]> {
