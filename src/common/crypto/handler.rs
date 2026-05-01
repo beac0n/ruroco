@@ -100,16 +100,4 @@ mod cross_tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_from_key_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let key_path = dir.path().join("test.key");
-        let key = CryptoHandler::gen_key().unwrap();
-        std::fs::write(&key_path, &key).unwrap();
-
-        let handler = CryptoHandler::from_key_path(&key_path).unwrap();
-        let from_str = CryptoHandler::create(&key).unwrap();
-        assert_eq!(handler.key, from_str.key);
-        assert_eq!(handler.id, from_str.id);
-    }
 }

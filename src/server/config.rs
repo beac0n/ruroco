@@ -138,24 +138,36 @@ impl ConfigServer {
         let key_paths = self.get_key_paths()?;
         info(&format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
 
-        let crypto_handlers = key_paths
-            .into_iter()
-            .map(|p| CryptoHandler::from_key_path(&p))
-            .collect::<anyhow::Result<Vec<CryptoHandler>>>()?;
+        let content_to_path = Self::get_content_to_path(&key_paths)?;
+        if key_paths.len() != content_to_path.len() {
+            bail!("Duplicate key files detected; refusing to start");
+        }
 
-        let hashmap_data = crypto_handlers
+        content_to_path
             .into_iter()
-            .map(|h| {
+            .map(|(content, p)| {
+                let h = CryptoHandler::create(&content)
+                    .with_context(|| format!("load key {}", p.display()))?;
                 info(&format!("loading key with id {:X?}", &h.id));
                 Ok((h.id, h))
             })
-            .collect::<anyhow::Result<Vec<([u8; KEY_ID_SIZE], CryptoHandler)>>>()?;
-
-        Ok(hashmap_data.into_iter().collect())
+            .collect()
     }
 
     pub(crate) fn get_commander_unix_socket_path(&self) -> PathBuf {
         get_commander_unix_socket_path(&self.resolve_config_dir())
+    }
+
+    fn get_content_to_path(key_paths: &[PathBuf]) -> anyhow::Result<HashMap<String, PathBuf>> {
+        let content_to_path = key_paths
+            .iter()
+            .map(|p| {
+                fs::read_to_string(p)
+                    .with_context(|| format!("Could not read key file {}", p.display()))
+                    .map(|content| (content, p.clone()))
+            })
+            .collect::<anyhow::Result<HashMap<String, PathBuf>>>()?;
+        Ok(content_to_path)
     }
 
     fn get_key_paths(&self) -> anyhow::Result<Vec<PathBuf>> {

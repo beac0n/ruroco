@@ -2,18 +2,11 @@ use crate::common::crypto::handler::CryptoHandler;
 use crate::common::protocol::{CIPHERTEXT_SIZE, PLAINTEXT_SIZE};
 use anyhow::Context;
 use openssl::symm::{Cipher, Crypter, Mode};
-use std::fs;
-use std::path::Path;
 
 const IV_SIZE: usize = 12;
 const TAG_SIZE: usize = 16;
 
 impl CryptoHandler {
-    pub(crate) fn from_key_path(key_path: &Path) -> anyhow::Result<Self> {
-        let key = fs::read_to_string(key_path).with_context(|| "Could not read key")?;
-        Self::create(&key)
-    }
-
     pub(crate) fn decrypt(
         &self,
         iv_tag_ciphertext: &[u8; CIPHERTEXT_SIZE],
@@ -45,13 +38,3 @@ impl CryptoHandler {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::CryptoHandler;
-
-    #[test]
-    fn test_from_key_path_nonexistent() {
-        let result = CryptoHandler::from_key_path(std::path::Path::new("/tmp/no_such_key.key"));
-        assert!(result.is_err());
-    }
-}
