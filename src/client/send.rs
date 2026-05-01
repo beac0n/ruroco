@@ -9,6 +9,7 @@ use openssl::version::version;
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Sender {
@@ -40,7 +41,10 @@ impl Sender {
         info(&format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
         let destination_ips_validated = self.get_destination_ips()?;
         info(&format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
-        for destination_ip in &destination_ips_validated {
+        for (i, destination_ip) in destination_ips_validated.iter().enumerate() {
+            if i > 0 && self.cmd.send_delay_ms > 0 {
+                std::thread::sleep(Duration::from_millis(self.cmd.send_delay_ms));
+            }
             self.send_data(*destination_ip)?;
         }
 

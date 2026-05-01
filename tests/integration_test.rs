@@ -80,6 +80,7 @@ mod tests {
                 ip: self.client_sent_ip.clone(),
                 ipv4: false,
                 ipv6: false,
+                send_delay_ms: 50,
             })
             .expect("could not create sender");
 

@@ -39,6 +39,9 @@ pub struct SendCommand {
     /// Connect via IPv6
     #[arg(short = '6', long)]
     pub ipv6: bool,
+    /// Delay in milliseconds between sending to multiple destinations (IPv4 + IPv6)
+    #[arg(long, default_value = "50")]
+    pub send_delay_ms: u64,
 }
 
 #[derive(Parser, Debug)]
@@ -74,6 +77,7 @@ impl Default for SendCommand {
             ip: None,
             ipv4: false,
             ipv6: false,
+            send_delay_ms: 50,
         }
     }
 }
