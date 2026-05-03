@@ -6,13 +6,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::common::fs::write_atomic;
+use crate::common::protocol::KEY_ID_SIZE;
 use crate::common::resolve_path;
 use serde::{Deserialize, Serialize};
 
 /// contains a list of blocked deadlines and a path to where the blocklist is persisted
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct Blocklist {
-    map: HashMap<[u8; 8], u128>,
+    map: HashMap<[u8; KEY_ID_SIZE], u128>,
     path: PathBuf,
 }
 
@@ -49,28 +50,28 @@ impl Blocklist {
     /// stored value records the most recent counter accepted. Do not relax this
     /// to `>` — identical packets (retransmits, captures, adversarial replays)
     /// must be rejected.
-    pub fn is_counter_replayed(&self, key_id: [u8; 8], value: u128) -> bool {
+    pub fn is_counter_replayed(&self, key_id: [u8; KEY_ID_SIZE], value: u128) -> bool {
         match self.map.get(&key_id) {
             Some(v) => v >= &value,
             None => true,
         }
     }
 
-    pub(crate) fn seed_if_absent(&mut self, key_id: [u8; 8], floor: u128) {
+    pub(crate) fn seed_if_absent(&mut self, key_id: [u8; KEY_ID_SIZE], floor: u128) {
         self.map.entry(key_id).or_insert(floor);
     }
 
-    pub(crate) fn get_counter(&self, key_id: [u8; 8]) -> Option<&u128> {
+    pub(crate) fn get_counter(&self, key_id: [u8; KEY_ID_SIZE]) -> Option<&u128> {
         self.map.get(&key_id)
     }
 
     /// returns a reference to the blocklists list
-    pub fn get(&self) -> &HashMap<[u8; 8], u128> {
+    pub fn get(&self) -> &HashMap<[u8; KEY_ID_SIZE], u128> {
         &self.map
     }
 
     /// adds a new entry to the blocklist
-    pub fn add(&mut self, key_id: [u8; 8], entry: u128) {
+    pub fn add(&mut self, key_id: [u8; KEY_ID_SIZE], entry: u128) {
         self.map.insert(key_id, entry);
     }
 

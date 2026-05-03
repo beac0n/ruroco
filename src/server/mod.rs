@@ -107,7 +107,7 @@ impl Server {
         }
     }
 
-    fn decrypt(&mut self) -> anyhow::Result<([u8; 8], [u8; PLAINTEXT_SIZE])> {
+    fn decrypt(&mut self) -> anyhow::Result<([u8; KEY_ID_SIZE], [u8; PLAINTEXT_SIZE])> {
         let (key_id, encrypted_data) = data_parser::decode(&self.client_recv_data)?;
         let plaintext = self
             .crypto_handlers
@@ -133,7 +133,7 @@ impl Server {
 
     fn validate_and_send_command(
         &mut self,
-        key_id: [u8; 8],
+        key_id: [u8; KEY_ID_SIZE],
         plaintext_data: [u8; PLAINTEXT_SIZE],
         src_ip: IpAddr,
     ) -> anyhow::Result<()> {
@@ -166,7 +166,7 @@ impl Server {
         }
     }
 
-    fn update_block_list(&mut self, key_id: [u8; 8], counter: u128) {
+    fn update_block_list(&mut self, key_id: [u8; KEY_ID_SIZE], counter: u128) {
         self.blocklist.add(key_id, counter);
         if let Err(e) = self.blocklist.save() {
             error(format!("Could not update block list: {e}"))
