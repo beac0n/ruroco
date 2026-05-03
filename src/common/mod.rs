@@ -14,6 +14,15 @@ pub(crate) use logging::info;
 pub(crate) use protocol::client_data;
 pub(crate) use protocol::parser as data_parser;
 
+pub(crate) fn normalize_ip(ip: std::net::IpAddr) -> std::net::IpAddr {
+    match ip {
+        std::net::IpAddr::V6(v6) => {
+            v6.to_ipv4_mapped().map(std::net::IpAddr::V4).unwrap_or(std::net::IpAddr::V6(v6))
+        }
+        other => other,
+    }
+}
+
 pub(crate) fn now_nanos() -> anyhow::Result<u128> {
     use anyhow::Context;
     Ok(std::time::SystemTime::now()
