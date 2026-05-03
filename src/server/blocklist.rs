@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// contains a list of blocked deadlines and a path to where the blocklist is persisted
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct Blocklist {
-    map: HashMap<u64, u128>,
+    map: HashMap<[u8; 8], u128>,
     path: PathBuf,
 }
 
@@ -50,32 +50,28 @@ impl Blocklist {
     /// to `>` — identical packets (retransmits, captures, adversarial replays)
     /// must be rejected.
     pub fn is_counter_replayed(&self, key_id: [u8; 8], value: u128) -> bool {
-        match self.map.get(&Self::key_id_to_u64(key_id)) {
+        match self.map.get(&key_id) {
             Some(v) => v >= &value,
             None => true,
         }
     }
 
     pub(crate) fn seed_if_absent(&mut self, key_id: [u8; 8], floor: u128) {
-        self.map.entry(Self::key_id_to_u64(key_id)).or_insert(floor);
+        self.map.entry(key_id).or_insert(floor);
     }
 
     pub(crate) fn get_counter(&self, key_id: [u8; 8]) -> Option<&u128> {
-        self.map.get(&Self::key_id_to_u64(key_id))
-    }
-
-    fn key_id_to_u64(key_id: [u8; 8]) -> u64 {
-        u64::from_be_bytes(key_id)
+        self.map.get(&key_id)
     }
 
     /// returns a reference to the blocklists list
-    pub fn get(&self) -> &HashMap<u64, u128> {
+    pub fn get(&self) -> &HashMap<[u8; 8], u128> {
         &self.map
     }
 
     /// adds a new entry to the blocklist
     pub fn add(&mut self, key_id: [u8; 8], entry: u128) {
-        self.map.insert(Self::key_id_to_u64(key_id), entry);
+        self.map.insert(key_id, entry);
     }
 
     /// saves the current content of the blocklist to the defined path
@@ -111,7 +107,7 @@ mod tests {
         blocklist.add(key_id, number);
         assert_eq!(blocklist.get().len(), 1);
 
-        assert_eq!(blocklist.get().get(&Blocklist::key_id_to_u64(key_id)).unwrap().clone(), number);
+        assert_eq!(blocklist.get().get(&key_id).unwrap().clone(), number);
 
         remove_blocklist();
     }
@@ -126,7 +122,7 @@ mod tests {
 
         let other_blocklist = Blocklist::create(&env::current_dir().unwrap()).unwrap();
         assert_eq!(other_blocklist.get().len(), 1);
-        assert_eq!(blocklist.get().get(&Blocklist::key_id_to_u64(key_id)).unwrap().clone(), 42);
+        assert_eq!(blocklist.get().get(&key_id).unwrap().clone(), 42);
 
         remove_blocklist();
     }

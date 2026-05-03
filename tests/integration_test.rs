@@ -80,7 +80,7 @@ mod tests {
             fs::write(&self.key_path, key).expect("failed to write key")
         }
 
-        fn get_blocked_list(&self) -> HashMap<u64, u128> {
+        fn get_blocked_list(&self) -> HashMap<[u8; 8], u128> {
             let blocklist = Blocklist::create(&self.config_dir).unwrap();
             blocklist.get().clone()
         }
