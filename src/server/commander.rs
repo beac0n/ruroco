@@ -238,6 +238,7 @@ mod tests {
                 socket_user: "ruroco".to_string(),
                 socket_group: "ruroco".to_string(),
                 commands,
+                ..Default::default()
             })
             .unwrap()
         );

@@ -37,6 +37,8 @@ pub struct ConfigServer {
     pub socket_user: String,
     #[serde(default = "default_socket_group")]
     pub socket_group: String,
+    #[serde(default = "default_max_requests_per_second")]
+    pub max_requests_per_second: u32,
 }
 
 fn deserialize_ips<'de, D>(d: D) -> Result<Vec<IpAddr>, D::Error>
@@ -47,13 +49,7 @@ where
     v.into_iter()
         .map(|s| {
             let ip: IpAddr = s.parse().map_err(serde::de::Error::custom)?;
-            // Normalize IPv6-mapped IPv4 addresses (e.g. "::ffff:127.0.0.1") to their
-            // plain IPv4 form so that comparisons against protocol-deserialized IPs
-            // (which also go through to_ipv4_mapped()) always agree.
-            Ok(match ip {
-                IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(IpAddr::V6(v6), IpAddr::V4),
-                other => other,
-            })
+            Ok(crate::common::normalize_ip(ip))
         })
         .collect()
 }
@@ -203,6 +199,7 @@ impl Default for ConfigServer {
             socket_user: "".to_string(),
             socket_group: "".to_string(),
             config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
+            max_requests_per_second: default_max_requests_per_second(),
         }
     }
 }
@@ -215,6 +212,10 @@ fn default_socket_group() -> String {
     "ruroco".to_string()
 }
 
+fn default_max_requests_per_second() -> u32 {
+    2
+}
+
 fn default_config_path() -> PathBuf {
     PathBuf::from("/etc/ruroco")
 }
@@ -222,7 +223,8 @@ fn default_config_path() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use crate::server::config::{
-        default_config_path, default_socket_group, default_socket_user, ConfigServer,
+        default_config_path, default_max_requests_per_second, default_socket_group,
+        default_socket_user, ConfigServer,
     };
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -250,6 +252,7 @@ mod tests {
                 config_dir: default_config_path(),
                 socket_user: default_socket_user(),
                 socket_group: default_socket_group(),
+                max_requests_per_second: default_max_requests_per_second(),
             }
         );
     }

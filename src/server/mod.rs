@@ -10,9 +10,9 @@ pub mod util;
 
 use crate::common::client_data::ClientData;
 use crate::common::crypto_handler::CryptoHandler;
-use crate::common::data_parser;
 use crate::common::logging::{error, info};
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
+use crate::common::{data_parser, normalize_ip, now_nanos};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::signal::{install_signal_handlers, shutdown_requested};
@@ -24,7 +24,7 @@ use std::io::{ErrorKind, Write};
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct Server {
@@ -34,6 +34,7 @@ pub struct Server {
     client_recv_data: [u8; MSG_SIZE],
     socket_path: PathBuf,
     blocklist: Blocklist,
+    rate_limiter: HashMap<IpAddr, (Instant, u32)>,
 }
 
 impl Server {
@@ -47,7 +48,7 @@ impl Server {
     pub fn create(config: ConfigServer, address: Option<String>) -> anyhow::Result<Server> {
         let crypto_handlers = config.create_crypto_handlers()?;
         let mut blocklist = config.create_blocklist()?;
-        let floor = crate::common::now_nanos()?;
+        let floor = now_nanos()?;
         for key_id in crypto_handlers.keys() {
             blocklist.seed_if_absent(*key_id, floor);
         }
@@ -58,6 +59,7 @@ impl Server {
             client_recv_data: [0u8; MSG_SIZE],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist,
+            rate_limiter: HashMap::new(),
             config,
         })
     }
@@ -96,8 +98,10 @@ impl Server {
             }
             Ok((count, src)) => {
                 info(&format!("Successfully received {count} bytes from {src}"));
+                let src_ip = normalize_ip(src.ip());
+                self.check_rate_limit(src_ip)?;
                 let (key_id, plaintext) = self.decrypt()?;
-                self.validate_and_send_command(key_id, plaintext, src.ip())
+                self.validate_and_send_command(key_id, plaintext, src_ip)
             }
             Err(e) => bail!("Could not receive bytes from socket: {e}"),
         }
@@ -113,17 +117,26 @@ impl Server {
         Ok((*key_id, plaintext))
     }
 
+    fn check_rate_limit(&mut self, src_ip: IpAddr) -> anyhow::Result<()> {
+        let max = self.config.max_requests_per_second;
+        let entry = self.rate_limiter.entry(src_ip).or_insert_with(|| (Instant::now(), 0));
+        if entry.0.elapsed() >= Duration::from_secs(1) {
+            entry.0 = Instant::now();
+            entry.1 = 1;
+        } else if entry.1 >= max {
+            bail!("Rate limit exceeded for {src_ip}: more than {max} requests per second");
+        } else {
+            entry.1 += 1;
+        }
+        Ok(())
+    }
+
     fn validate_and_send_command(
         &mut self,
         key_id: [u8; 8],
         plaintext_data: [u8; PLAINTEXT_SIZE],
         src_ip: IpAddr,
     ) -> anyhow::Result<()> {
-        let src_ip = match src_ip {
-            IpAddr::V6(v6) => v6.to_ipv4_mapped().map(IpAddr::V4).unwrap_or(IpAddr::V6(v6)),
-            _ => src_ip,
-        };
-
         match ClientData::deserialize(plaintext_data) {
             Ok(client_data) if self.blocklist.is_counter_replayed(key_id, client_data.counter) => {
                 Err(anyhow!("Invalid counter - {} is on blocklist", client_data.counter))
