@@ -1,7 +1,6 @@
 #[cfg(all(test, feature = "with-client", feature = "with-server"))]
 mod tests {
     use ruroco::client::config::SendCommand;
-    use ruroco::client::counter::Counter;
     use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
     use ruroco::common::get_random_range;
@@ -11,9 +10,24 @@ mod tests {
     use ruroco::server::util::get_commander_unix_socket_path;
     use ruroco::server::Server;
     use std::collections::HashMap;
-    use std::path::PathBuf;
-    use std::time::Duration;
+    use std::path::{Path, PathBuf};
+    use std::time::{Duration, Instant, SystemTime};
     use std::{env, fs, thread};
+
+    fn wait_for_file(path: &Path, since: SystemTime, timeout: Duration) -> bool {
+        let deadline = Instant::now() + timeout;
+        let mut interval = Duration::from_millis(10);
+        while Instant::now() < deadline {
+            if let Ok(meta) = path.metadata() {
+                if meta.modified().map(|m| m >= since).unwrap_or(false) {
+                    return true;
+                }
+            }
+            thread::sleep(interval);
+            interval = (interval * 2).min(Duration::from_millis(250));
+        }
+        false
+    }
 
     const TEST_IP_V4: &str = "192.168.178.123";
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
@@ -84,8 +98,9 @@ mod tests {
             })
             .expect("could not create sender");
 
+            let before = SystemTime::now();
             sender.send().expect("could not send command");
-            thread::sleep(Duration::from_secs(10)); // wait for files to be written and blocklist to be updated
+            wait_for_file(&self.test_file_path, before, Duration::from_secs(10));
         }
 
         fn run_commander(&self) {
