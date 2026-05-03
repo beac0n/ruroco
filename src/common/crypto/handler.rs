@@ -1,22 +1,30 @@
 use anyhow::{anyhow, bail, Context};
 use base64::{engine::general_purpose, Engine};
+use zeroize::{ZeroizeOnDrop, Zeroizing};
 
 use crate::common::protocol::KEY_ID_SIZE;
 
 const KEY_SIZE: usize = 32;
 
-#[derive(Debug)]
+#[derive(ZeroizeOnDrop)]
 pub(crate) struct CryptoHandler {
     pub(crate) key: [u8; KEY_SIZE],
     pub(crate) id: [u8; KEY_ID_SIZE],
 }
 
+impl core::fmt::Debug for CryptoHandler {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("CryptoHandler").field("id", &self.id).field("key", &"<redacted>").finish()
+    }
+}
+
 impl CryptoHandler {
     pub(crate) fn create(key_string: &str) -> anyhow::Result<Self> {
-        let key_string = key_string.trim();
-        let bytes = general_purpose::STANDARD
-            .decode(key_string)
-            .with_context(|| "Could not decode base64 key")?;
+        let bytes = Zeroizing::new(
+            general_purpose::STANDARD
+                .decode(key_string.trim())
+                .with_context(|| "Could not decode base64 key")?,
+        );
 
         let (id, key) =
             bytes.split_at_checked(KEY_ID_SIZE).ok_or_else(|| anyhow!("Key too short"))?;
@@ -62,6 +70,21 @@ mod tests {
         let result = CryptoHandler::create("not valid base64!!!");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Could not decode base64 key"));
+    }
+
+    #[test]
+    fn test_debug_redacts_key() {
+        use base64::engine::general_purpose;
+        use base64::Engine;
+        // id bytes = 0x01 (prints as 1), key bytes = 0xAB (prints as 171 if not redacted)
+        let mut raw = [0u8; 40];
+        raw[..8].fill(0x01);
+        raw[8..].fill(0xAB);
+        let encoded = general_purpose::STANDARD.encode(raw);
+        let handler = CryptoHandler::create(&encoded).unwrap();
+        let debug = format!("{handler:?}");
+        assert!(debug.contains("<redacted>"), "key must be redacted in Debug output");
+        assert!(!debug.contains("171"), "raw key bytes must not appear in Debug output");
     }
 }
 
