@@ -37,4 +37,3 @@ impl CryptoHandler {
         Ok(plaintext)
     }
 }
-

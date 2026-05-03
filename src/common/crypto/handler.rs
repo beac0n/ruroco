@@ -99,5 +99,4 @@ mod cross_tests {
         let result = handler2.decrypt(&ciphertext);
         assert!(result.is_err());
     }
-
 }
