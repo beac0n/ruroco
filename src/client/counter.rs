@@ -23,12 +23,6 @@ impl Counter {
         self.count
     }
 
-    pub fn dec(&mut self) -> anyhow::Result<()> {
-        self.count = self.count.saturating_sub(1);
-        self.write()?;
-        Ok(())
-    }
-
     pub(crate) fn inc(&mut self) -> anyhow::Result<()> {
         self.count = self.count.checked_add(1).ok_or_else(|| {
             anyhow::anyhow!(
@@ -81,20 +75,6 @@ mod tests {
         assert!(c.inc().is_err());
         let err = c.inc().unwrap_err().to_string();
         assert!(err.contains("counter overflow"), "unexpected error: {err}");
-    }
-
-    #[test]
-    fn test_dec_normal() {
-        let mut c = make_counter(5);
-        c.dec().unwrap();
-        assert_eq!(c.count(), 4);
-    }
-
-    #[test]
-    fn test_dec_saturates_at_zero() {
-        let mut c = make_counter(0);
-        c.dec().unwrap();
-        assert_eq!(c.count(), 0);
     }
 
     #[test]
