@@ -40,9 +40,9 @@ impl Wizard {
 
         info("=========================================");
         info("Ruroco Server Side installed successfully");
-        info(&format!("Please check the config in {CONFIG_TOML_PATH} and edit it accordingly"));
+        info(format!("Please check the config in {CONFIG_TOML_PATH} and edit it accordingly"));
         info("Generate key file with ruroco-client gen command");
-        info(&format!(
+        info(format!(
             "Save key file you just generated in 'config_dir' as defined in {CONFIG_TOML_PATH}"
         ));
         info("Save key you just generated in your client secure key store");
@@ -57,7 +57,7 @@ impl Wizard {
     }
 
     fn init_config_file() -> anyhow::Result<()> {
-        info(&format!("Initializing config file {CONFIG_TOML_PATH}"));
+        info(format!("Initializing config file {CONFIG_TOML_PATH}"));
         if !Path::new(CONFIG_TOML_PATH).exists() {
             Self::write_data(CONFIG_TOML_PATH, CONFIG_TOML_FILE_DATA)?;
         }
@@ -112,7 +112,7 @@ impl Wizard {
     }
 
     fn write_data(path: &str, data: &[u8]) -> anyhow::Result<()> {
-        info(&format!("Creating {path} ..."));
+        info(format!("Creating {path} ..."));
         let mut file =
             fs::File::create(path).with_context(|| format!("Failed to create {path}"))?;
         file.write_all(data).with_context(|| format!("Failed to write to {path}"))?;

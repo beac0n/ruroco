@@ -16,7 +16,7 @@ pub(crate) fn update_android() -> anyhow::Result<()> {
     let intent = util.new_view_intent(&uri)?;
     let result = util.start_activity(&intent);
     let _ = result.inspect_err(|err| {
-        info(&format!("Error (prob. expected) when opening browser window: {err}"))
+        info(format!("Error (prob. expected) when opening browser window: {err}"))
     });
 
     Ok(())

@@ -88,12 +88,12 @@ impl ConfigServer {
             address,
         ) {
             (_, _, _, Some(address)) => {
-                info(&format!("UdpSocket bind to {address} - argument"));
+                info(format!("UdpSocket bind to {address} - argument"));
                 UdpSocket::bind(&address)
                     .with_context(|| format!("Could not UdpSocket bind {address:?}"))
             }
             (_, _, Some(address), _) => {
-                info(&format!("UdpSocket bind to {address} - RUROCO_LISTEN_ADDRESS"));
+                info(format!("UdpSocket bind to {address} - RUROCO_LISTEN_ADDRESS"));
                 UdpSocket::bind(&address)
                     .with_context(|| format!("Could not UdpSocket bind {address:?}"))
             }
@@ -101,7 +101,7 @@ impl ConfigServer {
                 if listen_pid == std::process::id().to_string() && listen_fds == "1" =>
             {
                 let fd: RawFd = 3;
-                info(&format!("UdpSocket from_raw_fd {fd} (systemd socket activation)"));
+                info(format!("UdpSocket from_raw_fd {fd} (systemd socket activation)"));
                 // SAFETY: systemd socket activation guarantees that FD 3 is the first
                 // passed socket when LISTEN_FDS=1 and LISTEN_PID matches the current
                 // process (both checked above). Ownership of the fd transfers to the
@@ -117,7 +117,7 @@ impl ConfigServer {
             }
             _ => {
                 let address = format!("[::]:{}", DEFAULT_PORT);
-                info(&format!("UdpSocket bind to {address} - fallback"));
+                info(format!("UdpSocket bind to {address} - fallback"));
                 UdpSocket::bind(&address)
                     .with_context(|| format!("Could not UdpSocket bind {address:?}"))
             }
@@ -132,7 +132,7 @@ impl ConfigServer {
         &self,
     ) -> anyhow::Result<HashMap<[u8; KEY_ID_SIZE], CryptoHandler>> {
         let key_paths = self.get_key_paths()?;
-        info(&format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
+        info(format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
 
         let content_to_path = Self::get_content_to_path(&key_paths)?;
         if key_paths.len() != content_to_path.len() {
@@ -144,7 +144,7 @@ impl ConfigServer {
             .map(|(content, p)| {
                 let h = CryptoHandler::create(&content)
                     .with_context(|| format!("load key {}", p.display()))?;
-                info(&format!("loading key with id {:X?}", &h.id));
+                info(format!("loading key with id {:X?}", &h.id));
                 Ok((h.id, h))
             })
             .collect()

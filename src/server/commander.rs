@@ -68,10 +68,7 @@ impl Commander {
         let _ = fs::remove_file(&self.socket_path);
 
         let mode = 0o204; // only server should be able to write, everyone else can read
-        info(&format!(
-            "Binding Unix Listener on {:?} with permissions {mode:o}",
-            &self.socket_path
-        ));
+        info(format!("Binding Unix Listener on {:?} with permissions {mode:o}", &self.socket_path));
         let listener = UnixListener::bind(&self.socket_path)
             .with_context(|| format!("Could not bind to socket {:?}", self.socket_path))?;
 
@@ -94,7 +91,7 @@ impl Commander {
         let cmd =
             self.cmds.get(cmd_hash).ok_or_else(|| anyhow!("Unknown command name: {cmd_hash}"))?;
 
-        info(&format!("Running command ({cmd_hash}) {cmd}"));
+        info(format!("Running command ({cmd_hash}) {cmd}"));
         self.run_command(cmd, cmdr_data.ip);
         Ok(())
     }
@@ -115,7 +112,7 @@ impl Commander {
                 let stderr = Commander::vec_to_str(&result.stderr);
                 let msg = format!("{command}\nstdout: {stdout}\nstderr: {stderr}");
                 if result.status.success() {
-                    info(&format!("Execution was successful: {msg}"))
+                    info(format!("Execution was successful: {msg}"))
                 } else {
                     error(format!("Execution was not successful: {msg}"))
                 }

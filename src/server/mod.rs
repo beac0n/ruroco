@@ -65,7 +65,7 @@ impl Server {
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
-        info(&format!("Running server on {:?}", self.socket));
+        info(format!("Running server on {:?}", self.socket));
         self.socket
             .set_read_timeout(Some(Duration::from_secs(1)))
             .with_context(|| "Could not set socket read timeout")?;
@@ -97,7 +97,7 @@ impl Server {
                 Err(anyhow!("Invalid read count {count}, expected {MSG_SIZE} from {src}"))
             }
             Ok((count, src)) => {
-                info(&format!("Successfully received {count} bytes from {src}"));
+                info(format!("Successfully received {count} bytes from {src}"));
                 let src_ip = normalize_ip(src.ip());
                 self.check_rate_limit(src_ip)?;
                 let (key_id, plaintext) = self.decrypt()?;
@@ -156,7 +156,7 @@ impl Server {
                 let server_counter = self.blocklist.get_counter(key_id);
                 let client_counter = client_data.counter;
                 let ip = client_data.src_ip.unwrap_or(src_ip);
-                info(&format!("Valid data - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
+                info(format!("Valid data - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
 
                 self.send_command(CommanderData { cmd_hash: cmd, ip });
                 self.update_block_list(key_id, client_data.counter);

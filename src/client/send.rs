@@ -24,7 +24,7 @@ impl Sender {
     /// * `send_command` - data holding information how to send the command - see SendCommand
     pub fn create(cmd: SendCommand) -> anyhow::Result<Self> {
         let counter_path = Self::get_counter_path()?;
-        info(&format!("Loading counter from {counter_path:?} ..."));
+        info(format!("Loading counter from {counter_path:?} ..."));
         Ok(Self {
             data_parser: DataParser::create(&cmd.key)?,
             cmd,
@@ -38,9 +38,9 @@ impl Sender {
 
     /// Send data to the server to execute a predefined command
     pub fn send(&mut self) -> anyhow::Result<()> {
-        info(&format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
+        info(format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
         let destination_ips_validated = self.get_destination_ips()?;
-        info(&format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
+        info(format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
         for (i, destination_ip) in destination_ips_validated.iter().enumerate() {
             if i > 0 && self.cmd.send_delay_ms > 0 {
                 std::thread::sleep(Duration::from_millis(self.cmd.send_delay_ms));
@@ -91,7 +91,7 @@ impl Sender {
         self.counter.inc()?;
         let bind_address = if ip.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" };
 
-        info(&format!("Connecting to {ip}..."));
+        info(format!("Connecting to {ip}..."));
         let data_to_encrypt = self.get_data_to_encrypt(ip)?;
         let data_to_send = self.data_parser.encode(&data_to_encrypt)?;
 
@@ -101,7 +101,7 @@ impl Sender {
         socket.connect(address).with_context(|| Self::socket_ctx(address))?;
         socket.send(&data_to_send).with_context(|| Self::socket_ctx(address))?;
 
-        info(&format!("Sent command {} from {bind_address} to udp://{address}", &self.cmd.command));
+        info(format!("Sent command {} from {bind_address} to udp://{address}", &self.cmd.command));
         Ok(())
     }
 

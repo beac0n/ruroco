@@ -28,7 +28,7 @@ Each binary needs different features: `with-client`, `with-gui`, `with-server`.
 - Max line width: 100 chars. 4-space indent. Config in `rustfmt.toml`.
 - All clippy warnings are errors in CI (`-D warnings`).
 - Logging: use `info()`/`error()` from `src/common/logging.rs` (custom logger, no external crate).
-  `error()` takes an owned value: `error(format!(...))` not `error(&format!(...))`.
+  Both take `impl Display`: `info(format!(...))` or `info("literal")` — never `&format!(...)`.
 - No unsafe code.
 
 ## Architecture

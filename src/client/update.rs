@@ -75,14 +75,14 @@ impl Updater {
         let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
 
         if !self.force && Some(current_version.clone()) == self.version {
-            info(&format!("Already using version {current_version}"));
+            info(format!("Already using version {current_version}"));
             return Ok(());
         }
 
         let api_data = Self::get_github_api_data(self.version.as_ref())?;
 
         if !self.force && current_version.clone() == api_data.tag_name {
-            info(&format!("Already using version {current_version}"));
+            info(format!("Already using version {current_version}"));
             return Ok(());
         }
 
@@ -189,7 +189,7 @@ impl Updater {
     ) -> anyhow::Result<()> {
         //TODO: Verify release signatures or checksums before swapping binaries to prevent
         // MITM/upstream compromise.
-        info(&format!("downloading from {bin_url}"));
+        info(format!("downloading from {bin_url}"));
 
         let target_bin_path = &self.bin_path.join(bin_name);
 
