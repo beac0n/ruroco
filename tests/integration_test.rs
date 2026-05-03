@@ -182,8 +182,13 @@ mod tests {
 
         test_data.run_client_send();
         let _ = fs::remove_file(&test_data.test_file_path);
-        let mut counter = Counter::create_and_init(Sender::get_counter_path().unwrap(), 0).unwrap();
-        counter.dec().unwrap();
+        let counter_path = Sender::get_counter_path().unwrap();
+        let bytes: [u8; 16] = fs::read(&counter_path)
+            .expect("could not read counter file")
+            .try_into()
+            .expect("counter file has wrong size");
+        let count = u128::from_be_bytes(bytes);
+        fs::write(&counter_path, (count - 1).to_be_bytes()).expect("could not write counter");
 
         test_data.run_client_send();
         test_data.assert_file_paths();
