@@ -4,10 +4,6 @@ use blake2::Blake2bVar;
 use openssl::rand::rand_bytes;
 
 pub(crate) mod handler;
-#[cfg(feature = "with-client")]
-mod handler_client;
-#[cfg(feature = "with-server")]
-mod handler_server;
 
 pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     let mut hasher = Blake2bVar::new(8)

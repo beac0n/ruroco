@@ -1,5 +1,4 @@
-use crate::common::protocol::serialization::serialize_ip;
-use crate::common::protocol::serialization_server::deserialize_ip;
+use crate::common::protocol::serialization::{deserialize_ip, serialize_ip};
 use std::net::IpAddr;
 
 pub(crate) const CMDR_DATA_SIZE: usize = 24;
