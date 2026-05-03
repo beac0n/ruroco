@@ -214,6 +214,7 @@ mod tests {
     use clap::Parser;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::path::PathBuf;
+    use std::time::Duration;
     use std::{env, fs, io};
 
     impl PartialEq for Server {
@@ -564,5 +565,59 @@ mod tests {
             SocketAddr::new("::ffff:127.0.0.1".parse().unwrap(), 8080),
         )));
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rate_limit_blocks_excess_requests() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let test_folder_path = temp_dir.keep();
+        fs::write(test_folder_path.join("test.key"), Generator::create().unwrap().gen().unwrap())
+            .unwrap();
+
+        let mut server = Server::create(
+            ConfigServer {
+                config_dir: test_folder_path,
+                max_requests_per_second: 2,
+                ..Default::default()
+            },
+            Some(format!("127.0.0.1:{}", get_random_range(1024, 65535).unwrap())),
+        )
+        .unwrap();
+
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        assert!(server.check_rate_limit(ip).is_ok());
+        assert!(server.check_rate_limit(ip).is_ok());
+        let err = server.check_rate_limit(ip).unwrap_err().to_string();
+        assert!(err.contains("Rate limit exceeded"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn test_rate_limit_resets_after_window() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let test_folder_path = temp_dir.keep();
+        fs::write(test_folder_path.join("test.key"), Generator::create().unwrap().gen().unwrap())
+            .unwrap();
+
+        let mut server = Server::create(
+            ConfigServer {
+                config_dir: test_folder_path,
+                max_requests_per_second: 1,
+                ..Default::default()
+            },
+            Some(format!("127.0.0.1:{}", get_random_range(1024, 65535).unwrap())),
+        )
+        .unwrap();
+
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        assert!(server.check_rate_limit(ip).is_ok());
+        assert!(server
+            .check_rate_limit(ip)
+            .unwrap_err()
+            .to_string()
+            .contains("Rate limit exceeded"));
+
+        std::thread::sleep(Duration::from_secs(1));
+
+        assert!(server.check_rate_limit(ip).is_ok());
     }
 }
