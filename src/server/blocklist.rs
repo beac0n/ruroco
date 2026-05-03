@@ -43,6 +43,12 @@ impl Blocklist {
         resolve_path(config_dir).join("blocklist.msgpck")
     }
 
+    /// Returns `true` if this `(key_id, counter)` pair has already been accepted.
+    ///
+    /// Uses `>=`: a counter equal to the stored value is a replay, because the
+    /// stored value records the most recent counter accepted. Do not relax this
+    /// to `>` — identical packets (retransmits, captures, adversarial replays)
+    /// must be rejected.
     pub fn is_counter_replayed(&self, key_id: [u8; 8], value: u128) -> bool {
         match self.map.get(&Self::key_id_to_u64(key_id)) {
             Some(v) => v >= &value,
