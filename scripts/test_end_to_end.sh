@@ -26,6 +26,12 @@ sudo systemctl daemon-reload
 sudo systemctl start ruroco-commander.service
 sudo systemctl start ruroco.service
 
+# Wait for the server to finish Server::create() and seed the blocklist floor.
+# Type=simple returns as soon as the process is forked; without this sleep the
+# client can call now_nanos() before the server sets its floor, causing the
+# counter to be rejected as "on blocklist".
+sleep 1
+
 ./target/x86_64-unknown-linux-gnu/debug/client send -a 127.0.0.1:80 -k "$RUROCO_KEY"
 
 sleep 2

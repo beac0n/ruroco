@@ -1,9 +1,9 @@
 use crate::client::util::set_permissions;
 use crate::common::{change_file_ownership, info};
 use anyhow::{anyhow, bail, Context};
-use reqwest::blocking::{get, Client};
 use serde::{Deserialize, Serialize};
 use std::env::consts::{ARCH, OS};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 use tempfile::NamedTempFile;
@@ -128,23 +128,13 @@ impl Updater {
     pub(crate) fn get_github_api_data(
         version_to_download: Option<&String>,
     ) -> anyhow::Result<GithubApiData> {
-        let response = Client::builder()
-            .user_agent("rust-client")
-            .build()
-            .with_context(|| "Could not build client")?
+        let agent = ureq::AgentBuilder::new().user_agent("rust-client").build();
+        let response_data: Vec<GithubApiData> = agent
             .get(GH_RELEASES_URL)
-            .send()
-            .with_context(|| "Could not get API response")?;
-
-        let status_code = response.status();
-        if !status_code.is_success() {
-            let response_text =
-                response.text().with_context(|| "Could not get text from response")?;
-            bail!("Request failed: {status_code} - {response_text}");
-        }
-
-        let response_data: Vec<GithubApiData> =
-            response.json().with_context(|| "Could not parse json")?;
+            .call()
+            .map_err(|e| anyhow!("Could not get API response: {e}"))?
+            .into_json()
+            .with_context(|| "Could not parse json")?;
 
         let data = match version_to_download {
             None => response_data.first().cloned(),
@@ -203,10 +193,12 @@ impl Updater {
 
         let target_bin_path = &self.bin_path.join(bin_name);
 
-        let bin_resp_bytes = get(bin_url)
-            .with_context(|| "Could not get binary")?
-            .bytes()
-            .with_context(|| "Could not get bytes")?;
+        let mut reader = ureq::get(&bin_url)
+            .call()
+            .map_err(|e| anyhow!("Could not get binary: {e}"))?
+            .into_reader();
+        let mut bin_resp_bytes = Vec::new();
+        reader.read_to_end(&mut bin_resp_bytes).with_context(|| "Could not get bytes")?;
 
         let target_bin_path_str = target_bin_path
             .to_str()

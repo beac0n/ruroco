@@ -13,7 +13,7 @@ zeroize = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["clock"] }
 clap = { version = "4.6", features = ["derive", "string"] }
 openssl = { version = "0.10" }
-reqwest = { version = "0.12", features = ["blocking", "json"], optional = true } # only needed for client to update itself; pinned to 0.12 because 0.13 switched default TLS to rustls-platform-verifier which requires a Kotlin AAR component bundled in the APK — not supported by xbuild
+ureq = { version = "2", features = ["json"], optional = true }
 tempfile = { version = "3.27", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 slint = { version = "1.15", optional = true }
@@ -31,12 +31,12 @@ tempfile = "3.27.0"
 crate-type = ["lib", "cdylib"]
 
 [features]
-default = ["with-gui", "with-server"]
+default = []
 release-build = ["openssl/vendored"]
 android-build = ["dep:ndk-context", "dep:jni", "slint/backend-android-activity-06"]
 with-server = ["dep:toml"]
-with-gui = ["dep:slint", "dep:toml", "dep:slint-build", "with-client"]
-with-client = ["dep:reqwest", "dep:tempfile"]
+with-gui = ["dep:slint", "dep:slint-build", "dep:toml", "with-client"]
+with-client = ["dep:ureq", "dep:tempfile"]
 
 [build-dependencies]
 slint-build = { version = "1.15", optional = true }

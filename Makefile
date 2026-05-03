@@ -52,7 +52,7 @@ check:
 	cargo check --locked --verbose
 
 format:
-	cargo fix --allow-dirty && cargo fmt && cargo clippy --tests --verbose -- -D warnings
+	cargo fix --allow-dirty --features with-client,with-server && cargo fmt && cargo clippy --tests --features with-client,with-server --verbose -- -D warnings
 
 install_client: release
 	mkdir -p ~/.local/bin/
@@ -76,3 +76,4 @@ clean_test_end_to_end:
 	sudo rm -rf /tmp/ruroco_test
 	sudo rm -rf /etc/ruroco
 	sudo rm -f /run/systemd/system/ruroco-commander.service /run/systemd/system/ruroco.service /run/systemd/system/ruroco.socket
+	rm -f ~/.config/ruroco/counter

@@ -67,12 +67,12 @@ Defined in `src/common/protocol/constants.rs`:
 ## Features (conditional compilation)
 
 ```
-default       = ["with-gui", "with-server"]
+default       = []                           # empty; all builds use --no-default-features
 release-build = ["openssl/vendored"]
 android-build = ["dep:ndk-context", "dep:jni"]
 with-server   = ["dep:toml"]
-with-gui      = ["dep:slint", "slint-build"]
-with-client   = ["dep:reqwest"]
+with-gui      = ["dep:slint", "dep:slint-build", "dep:toml", "with-client"]
+with-client   = ["dep:ureq", "dep:tempfile"]
 ```
 
 ## Key Files
