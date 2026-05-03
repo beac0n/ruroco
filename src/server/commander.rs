@@ -108,8 +108,8 @@ impl Commander {
             .output()
         {
             Ok(result) => {
-                let stdout = Commander::vec_to_str(&result.stdout);
-                let stderr = Commander::vec_to_str(&result.stderr);
+                let stdout = String::from_utf8_lossy(&result.stdout);
+                let stderr = String::from_utf8_lossy(&result.stderr);
                 let msg = format!("{command}\nstdout: {stdout}\nstderr: {stderr}");
                 if result.status.success() {
                     info(format!("Execution was successful: {msg}"))
@@ -139,10 +139,6 @@ impl Commander {
             .read(&mut buffer)
             .with_context(|| "Could not read command from Unix Stream to string")?;
         Ok(buffer)
-    }
-
-    fn vec_to_str(stdout: &[u8]) -> &str {
-        str::from_utf8(stdout).unwrap_or("")
     }
 }
 
@@ -256,21 +252,6 @@ mod tests {
 
         thread::sleep(Duration::from_secs(1));
         assert!(socket_file_path.exists());
-    }
-
-    #[test]
-    fn test_vec_to_str_valid_utf8() {
-        assert_eq!(Commander::vec_to_str(b"hello world"), "hello world");
-    }
-
-    #[test]
-    fn test_vec_to_str_empty() {
-        assert_eq!(Commander::vec_to_str(b""), "");
-    }
-
-    #[test]
-    fn test_vec_to_str_invalid_utf8() {
-        assert_eq!(Commander::vec_to_str(&[0xFF, 0xFE]), "");
     }
 
     #[test]
