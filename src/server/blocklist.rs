@@ -50,7 +50,7 @@ impl Blocklist {
     /// stored value records the most recent counter accepted. Do not relax this
     /// to `>` — identical packets (retransmits, captures, adversarial replays)
     /// must be rejected.
-    pub fn is_counter_replayed(&self, key_id: [u8; KEY_ID_SIZE], value: u128) -> bool {
+    pub(crate) fn is_counter_replayed(&self, key_id: [u8; KEY_ID_SIZE], value: u128) -> bool {
         match self.map.get(&key_id) {
             Some(v) => v >= &value,
             None => true,
@@ -65,13 +65,12 @@ impl Blocklist {
         self.map.get(&key_id)
     }
 
-    /// returns a reference to the blocklists list
     pub fn get(&self) -> &HashMap<[u8; KEY_ID_SIZE], u128> {
         &self.map
     }
 
     /// adds a new entry to the blocklist
-    pub fn add(&mut self, key_id: [u8; KEY_ID_SIZE], entry: u128) {
+    pub(crate) fn add(&mut self, key_id: [u8; KEY_ID_SIZE], entry: u128) {
         self.map.insert(key_id, entry);
     }
 
