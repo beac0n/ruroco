@@ -89,7 +89,7 @@ jobs:
       - name: Run Check
         uses: workflow/nix-shell-action@v3
         with:
-          script: nix-shell nix/linux.nix --pure --run 'cargo nextest run --retries 2'
+          script: nix-shell nix/linux.nix --pure --run 'cargo nextest run --features with-client,with-server --retries 2'
 
   coverage:
     name: Coverage
@@ -101,7 +101,7 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: Generate code coverage
-        run: nix-shell nix/linux.nix --pure --run 'cargo tarpaulin --timeout 360 --out xml -- --test-threads 1'
+        run: nix-shell nix/linux.nix --pure --run 'cargo tarpaulin --timeout 360 --out xml --features with-client,with-server -- --test-threads 1'
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v2
         env:
@@ -119,7 +119,7 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: Check formatting
-        run: nix-shell nix/linux.nix --pure --run 'cargo fmt && cargo clippy --tests --verbose -- -D warnings'
+        run: nix-shell nix/linux.nix --pure --run 'cargo fmt && cargo clippy --tests --features with-client,with-server --verbose -- -D warnings'
 
   release:
     name: Create Release
