@@ -5,28 +5,28 @@ edition = "2021"
 repository = "https://github.com/beac0n/ruroco"
 
 [dependencies]
-rmp-serde = "1.3"
-anyhow = "1.0"
-base64 = "0.22"
-blake2 = "0.10.6"
-zeroize = { version = "1", features = ["derive"] }
-chrono = { version = "0.4", features = ["clock"] }
-clap = { version = "4.6", features = ["derive", "string"] }
-openssl = { version = "0.10" }
-nix = { version = "0.30", features = ["user"] }
-ureq = { version = "2", features = ["json"], optional = true }
-tempfile = { version = "3.27", optional = true }
-serde = { version = "1.0", features = ["derive"] }
-slint = { version = "1.15", optional = true }
-toml = { version = "1.1", optional = true }
+rmp-serde = "=1.3.1"
+anyhow = "=1.0.102"
+base64 = "=0.22.1"
+blake2 = "=0.10.6"
+zeroize = { version = "=1.8.2", features = ["derive"] }
+chrono = { version = "=0.4.44", features = ["clock"] }
+clap = { version = "=4.6.1", features = ["derive", "string"] }
+openssl = { version = "=0.10.79" }
+nix = { version = "=0.30.1", features = ["user"] }
+ureq = { version = "=2.12.1", features = ["json"], optional = true }
+tempfile = { version = "=3.27.0", optional = true }
+serde = { version = "=1.0.228", features = ["derive"] }
+slint = { version = "=1.16.0", optional = true }
+toml = { version = "=1.1.2", optional = true }
 
 # android dependencies
-jni = { version = "0.22", optional = true }
-ndk-context = { version = "0.1", optional = true }
+jni = { version = "=0.22.4", optional = true }
+ndk-context = { version = "=0.1.1", optional = true }
 
 [dev-dependencies]
-test-with = { version = "0.16", default-features = false, features = [] }
-tempfile = "3.27.0"
+test-with = { version = "=0.16.1", default-features = false, features = [] }
+tempfile = "=3.27.0"
 
 [lib]
 crate-type = ["lib", "cdylib"]
@@ -40,7 +40,7 @@ with-gui = ["dep:slint", "dep:slint-build", "dep:toml", "with-client"]
 with-client = ["dep:ureq", "dep:tempfile"]
 
 [build-dependencies]
-slint-build = { version = "1.15", optional = true }
+slint-build = { version = "=1.16.0", optional = true }
 
 [[bin]]
 name = "client"
