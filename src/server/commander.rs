@@ -53,7 +53,6 @@ impl Commander {
             }
         }
 
-        let _ = fs::remove_file(&self.socket_path);
         Ok(())
     }
 
