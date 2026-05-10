@@ -1,10 +1,9 @@
 use crate::common::get_random_range;
 use crate::common::logging::error;
-use anyhow::{bail, Context};
+use anyhow::{anyhow, Context};
 use std::io::Write;
 use std::os::unix::fs::chown;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::{env, fs};
 
 pub(crate) fn write_atomic(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
@@ -61,16 +60,16 @@ pub(crate) fn change_file_ownership(
     user_name: &str,
     group_name: &str,
 ) -> anyhow::Result<()> {
-    let user_id = match get_id_by_name_and_flag(user_name, "-u") {
-        Some(id) => Some(id),
-        None if user_name.is_empty() => None,
-        None => bail!("Could not find user {user_name}"),
+    let user_id = if user_name.is_empty() {
+        None
+    } else {
+        Some(get_uid_by_name(user_name)?)
     };
 
-    let group_id = match get_id_by_name_and_flag(group_name, "-g") {
-        Some(id) => Some(id),
-        None if group_name.is_empty() => None,
-        None => bail!("Could not find group {group_name}"),
+    let group_id = if group_name.is_empty() {
+        None
+    } else {
+        Some(get_gid_by_name(group_name)?)
     };
 
     chown(path, user_id, group_id).with_context(|| {
@@ -79,33 +78,25 @@ pub(crate) fn change_file_ownership(
     Ok(())
 }
 
-fn get_id_by_name_and_flag(name: &str, flag: &str) -> Option<u32> {
-    if name.is_empty() {
-        return None;
-    }
+fn get_uid_by_name(name: &str) -> anyhow::Result<u32> {
+    let user = nix::unistd::User::from_name(name)
+        .with_context(|| format!("Could not find user {name}"))?
+        .ok_or_else(|| anyhow!("Could not find user {name}"))?;
+    Ok(user.uid.as_raw())
+}
 
-    match Command::new("id").arg(flag).arg(name).output() {
-        Ok(output) => match String::from_utf8_lossy(&output.stdout).trim().parse::<u32>() {
-            Ok(uid) => Some(uid),
-            Err(e) => {
-                error(format!(
-                    "Error parsing id from id command output: {} {} {e}",
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                ));
-                None
-            }
-        },
-        Err(e) => {
-            error(format!("Error getting id via id command: {e}"));
-            None
-        }
-    }
+fn get_gid_by_name(name: &str) -> anyhow::Result<u32> {
+    let group = nix::unistd::Group::from_name(name)
+        .with_context(|| format!("Could not find group {name}"))?
+        .ok_or_else(|| anyhow!("Could not find group {name}"))?;
+    Ok(group.gid.as_raw())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::common::fs::{change_file_ownership, get_id_by_name_and_flag, resolve_path};
+    use crate::common::fs::{
+        change_file_ownership, get_gid_by_name, get_uid_by_name, resolve_path,
+    };
     use std::path::PathBuf;
     use std::{env, fs};
 
@@ -137,21 +128,29 @@ mod tests {
     }
 
     #[test]
-    fn test_get_id_by_name_and_flag() {
-        assert_eq!(get_id_by_name_and_flag("root", "-u"), Some(0));
-        assert_eq!(get_id_by_name_and_flag("root", "-g"), Some(0));
+    fn test_get_uid_by_name_root() {
+        assert_eq!(get_uid_by_name("root").unwrap(), 0);
     }
 
     #[test]
-    fn test_get_id_by_name_and_flag_unknown_user() {
-        assert_eq!(get_id_by_name_and_flag("barfoobaz", "-u"), None);
-        assert_eq!(get_id_by_name_and_flag("barfoobaz", "-g"), None);
+    fn test_get_gid_by_name_root() {
+        assert_eq!(get_gid_by_name("root").unwrap(), 0);
     }
 
     #[test]
-    fn test_get_id_by_name_and_flag_empty_name() {
-        assert_eq!(get_id_by_name_and_flag("", "-u"), None);
-        assert_eq!(get_id_by_name_and_flag("", "-g"), None);
+    fn test_get_uid_by_name_unknown() {
+        assert!(get_uid_by_name("barfoobaz")
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find user"));
+    }
+
+    #[test]
+    fn test_get_gid_by_name_unknown() {
+        assert!(get_gid_by_name("barfoobaz")
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find group"));
     }
 
     #[test]
