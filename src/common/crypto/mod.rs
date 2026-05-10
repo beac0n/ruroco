@@ -17,10 +17,8 @@ pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
 }
 
 pub fn get_random_range(from: u16, to: u16) -> anyhow::Result<u16> {
-    let mut buf = [0u8; 2];
+    let mut buf = [0u8; 4];
     rand_bytes(&mut buf).with_context(|| "Could not generate number")?;
-
-    let span = to - from;
-    let v = u16::from_be_bytes(buf) % span;
-    Ok(from + v)
+    let span = (to - from) as u32;
+    Ok(from + (u32::from_be_bytes(buf) % span) as u16)
 }
