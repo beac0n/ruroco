@@ -4255,6 +4255,7 @@ dependencies = [
  "clap",
  "jni 0.22.4",
  "ndk-context",
+ "nix",
  "openssl",
  "rmp-serde",
  "serde",
