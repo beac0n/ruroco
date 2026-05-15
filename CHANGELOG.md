@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.4] - 2026-05-15
+
+### Added
+
+- Server: rate limiting
+
+### Changed
+
+- Crypto: simplified AES key generation by removing PBKDF2 and salt handling
+- Dependencies: replace `reqwest` with `ureq`, use `nix` crate instead of shelling out to `id`
+- Server: blocklist now uses binary atomic writes; removed `blocklist_serialization` module
+- Protocol: consolidate client/server data and parser modules
+- Common: add `write_atomic` / `write_atomic_text` helpers for safe atomic file writes
+- Client: extract `Counter` struct into `Sender`; replace sequential counter with nanosecond timestamp
+
+### Fixed
+
+- Security: sanitize `$RUROCO_IP` env var passed to shell commands
+- Security: normalize IPv6-mapped IPv4 addresses during deserialization for consistent comparison
+- Client: add sleep delay between packets sent to multiple IPs to avoid race conditions
+- Crypto: prevent counter overflow at boundary conditions
+- Server: ensure AES key is not kept in memory when not needed
+
+### Removed
+
+- Dead code and unused modules across protocol and crypto layers
+
+## [0.12.3] - 2026-04-06
+
+### Fixed
+
+- Android: fix opening browser window
+- Dependencies: rollback reqwest (0.13 not compatible with Android)
+
 ## [0.12.2] - 2026-06-05
 
 ### Fixed
@@ -526,7 +560,11 @@ Refactored User Interface
 
 - Initial Release
 
-[0.12.1]: https://github.com/beac0n/ruroco/compare/v0.12.1..v0.12.2
+[0.12.4]: https://github.com/beac0n/ruroco/compare/v0.12.3..v0.12.4
+
+[0.12.3]: https://github.com/beac0n/ruroco/compare/v0.12.2..v0.12.3
+
+[0.12.2]: https://github.com/beac0n/ruroco/compare/v0.12.1..v0.12.2
 
 [0.12.1]: https://github.com/beac0n/ruroco/compare/v0.12.0..v0.12.1
 
