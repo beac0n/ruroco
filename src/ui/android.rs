@@ -1,9 +1,14 @@
 #![cfg(target_os = "android")]
 
-use crate::ui::run_ui;
+use android_activity::AndroidApp;
 
 #[no_mangle]
-unsafe fn android_main(app: slint::android::AndroidApp) {
-    slint::android::init(app).expect("Could not init slint");
-    run_ui().expect("Could not run UI")
+fn android_main(app: AndroidApp) {
+    let status_bar_dp = crate::common::android_util::status_bar_height_dp().unwrap_or(0.0);
+    let opts = eframe::NativeOptions {
+        android_app: Some(app),
+        renderer: eframe::Renderer::Wgpu,
+        ..Default::default()
+    };
+    let _ = crate::ui::run_ui_with_options(opts, status_bar_dp);
 }

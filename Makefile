@@ -2,7 +2,7 @@ print_commits:
 	git --no-pager log $$(git tag --sort=-version:refname | head -n 2 | tail -1)..$$(git tag --sort=-version:refname | head -n 1) --oneline
 
 dev_ui_local:
-	cargo run --bin client_ui
+	cargo run --bin client_ui --features="with-gui"
 
 dev_ui_android:
 	nix-shell nix/android.nix --pure --run ./scripts/dev_ui_android.sh

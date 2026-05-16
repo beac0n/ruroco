@@ -1,12 +1,9 @@
 use crate::common::fs::write_atomic;
 use crate::common::logging::error;
 use crate::common::resolve_path;
-use crate::ui::command_data::{command_to_data, data_to_command};
-use crate::ui::rust_slint_bridge::CommandData;
+use crate::ui::command_data::{command_to_data, data_to_command, CommandData};
 use serde::{Deserialize, Serialize};
-use slint::{ModelRc, SharedString, VecModel};
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
 use std::{fmt, fs};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -18,18 +15,6 @@ pub(crate) struct CommandsList {
 impl fmt::Display for CommandsList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", &self.list.join("\n"))
-    }
-}
-
-impl From<&CommandsList> for SharedString {
-    fn from(cl: &CommandsList) -> Self {
-        SharedString::from(cl.to_string())
-    }
-}
-
-impl From<&CommandsList> for ModelRc<CommandData> {
-    fn from(cl: &CommandsList) -> Self {
-        ModelRc::from(Rc::new(VecModel::from(cl.get())))
     }
 }
 
@@ -65,7 +50,7 @@ impl CommandsList {
     }
 
     fn read_raw_from_path(path: &Path) -> String {
-        fs::read_to_string(path).unwrap_or_else(|_| "".to_string())
+        fs::read_to_string(path).unwrap_or_else(|_| String::new())
     }
 
     fn save(&self) {
@@ -88,13 +73,13 @@ mod tests {
 
     fn make_cmd(address: &str, command: &str) -> CommandData {
         CommandData {
-            address: address.into(),
-            command: command.into(),
-            ip: "".into(),
+            address: address.to_string(),
+            command: command.to_string(),
+            ip: String::new(),
             ipv4: false,
             ipv6: false,
             permissive: false,
-            name: "".into(),
+            name: String::new(),
             color: GRAY,
         }
     }
@@ -115,8 +100,8 @@ mod tests {
         cl.add(cmd);
         let cmds = cl.get();
         assert_eq!(cmds.len(), 1);
-        assert_eq!(cmds[0].address.as_str(), "host:80");
-        assert_eq!(cmds[0].command.as_str(), "restart");
+        assert_eq!(cmds[0].address, "host:80");
+        assert_eq!(cmds[0].command, "restart");
     }
 
     #[test]
@@ -130,7 +115,7 @@ mod tests {
         assert_eq!(cl.get().len(), 2);
         cl.remove(cmd2);
         assert_eq!(cl.get().len(), 1);
-        assert_eq!(cl.get()[0].address.as_str(), "host:80");
+        assert_eq!(cl.get()[0].address, "host:80");
     }
 
     #[test]
@@ -168,33 +153,14 @@ mod tests {
     }
 
     #[test]
-    fn test_into_shared_string() {
-        let dir = tempfile::tempdir().unwrap();
-        let cl = CommandsList::create(dir.path());
-        let s: SharedString = (&cl).into();
-        assert_eq!(s.as_str(), "");
-    }
-
-    #[test]
-    fn test_into_model_rc() {
-        use slint::Model;
-        let dir = tempfile::tempdir().unwrap();
-        let mut cl = CommandsList::create(dir.path());
-        cl.add(make_cmd("host:80", "restart"));
-        let model: ModelRc<CommandData> = (&cl).into();
-        assert_eq!(model.row_count(), 1);
-    }
-
-    #[test]
     fn test_sorted_order() {
         let dir = tempfile::tempdir().unwrap();
         let mut cl = CommandsList::create(dir.path());
         cl.add(make_cmd("z:80", "zzz"));
         cl.add(make_cmd("a:80", "aaa"));
         let cmds = cl.get();
-        // Commands should be sorted
-        let first_addr = cmds[0].address.to_string();
-        let second_addr = cmds[1].address.to_string();
+        let first_addr = cmds[0].address.clone();
+        let second_addr = cmds[1].address.clone();
         assert!(first_addr <= second_addr, "{first_addr} should be <= {second_addr}");
     }
 

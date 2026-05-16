@@ -22,7 +22,8 @@ impl Sender {
     /// Create a new Sender instance
     ///
     /// * `send_command` - data holding information how to send the command - see SendCommand
-    pub fn create(cmd: SendCommand) -> anyhow::Result<Self> {
+    pub fn create(mut cmd: SendCommand) -> anyhow::Result<Self> {
+        cmd.address = Self::ensure_port(cmd.address, 80);
         let counter_path = Self::get_counter_path()?;
         info(format!("Loading counter from {counter_path:?} ..."));
         Ok(Self {
@@ -30,6 +31,23 @@ impl Sender {
             cmd,
             counter: Counter::create_and_init(counter_path, now_nanos()?)?,
         })
+    }
+
+    fn ensure_port(address: String, default_port: u16) -> String {
+        if address.starts_with('[') {
+            // IPv6 literal: [::1] or [::1]:port
+            if address.contains("]:") {
+                address
+            } else {
+                format!("{address}:{default_port}")
+            }
+        } else if address.contains(':') {
+            // IPv4 with port (1.2.3.4:port) or bare IPv6 — keep as-is
+            address
+        } else {
+            // hostname or IPv4 without port
+            format!("{address}:{default_port}")
+        }
     }
 
     pub fn get_counter_path() -> anyhow::Result<PathBuf> {

@@ -1,5 +1,16 @@
-use crate::ui::colors::GRAY;
-use crate::ui::rust_slint_bridge::CommandData;
+use eframe::egui::Color32;
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct CommandData {
+    pub(crate) address: String,
+    pub(crate) command: String,
+    pub(crate) permissive: bool,
+    pub(crate) ip: String,
+    pub(crate) ipv4: bool,
+    pub(crate) ipv6: bool,
+    pub(crate) name: String,
+    pub(crate) color: Color32,
+}
 
 pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String {
     let mut command = String::new();
@@ -35,6 +46,8 @@ pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String
 }
 
 pub(crate) fn command_to_data(input: &str) -> CommandData {
+    use crate::ui::colors::GRAY;
+
     let mut address = "";
     let mut command = "";
     let mut ip = "";
@@ -68,13 +81,13 @@ pub(crate) fn command_to_data(input: &str) -> CommandData {
     }
 
     add_command_name(CommandData {
-        address: address.into(),
-        command: command.into(),
+        address: address.to_string(),
+        command: command.to_string(),
         permissive,
-        ip: ip.into(),
+        ip: ip.to_string(),
         ipv4,
         ipv6,
-        name: "".into(),
+        name: String::new(),
         color: GRAY,
     })
 }
@@ -88,13 +101,14 @@ pub(crate) fn add_command_name(mut data: CommandData) -> CommandData {
         if data.ipv4 { " ipv4" } else { "" },
         if data.ipv6 { " ipv6" } else { "" }
     );
-    data.name = name.into();
+    data.name = name;
     data
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::colors::GRAY;
 
     fn make_cmd(
         address: &str,
@@ -105,13 +119,13 @@ mod tests {
         permissive: bool,
     ) -> CommandData {
         CommandData {
-            address: address.into(),
-            command: command.into(),
-            ip: ip.into(),
+            address: address.to_string(),
+            command: command.to_string(),
+            ip: ip.to_string(),
             ipv4,
             ipv6,
             permissive,
-            name: "".into(),
+            name: String::new(),
             color: GRAY,
         }
     }
@@ -160,9 +174,9 @@ mod tests {
     fn test_command_to_data_full() {
         let input = "send --address 127.0.0.1:80 --command restart --ip 10.0.0.1 --ipv4 --ipv6 --permissive";
         let data = command_to_data(input);
-        assert_eq!(data.address.as_str(), "127.0.0.1:80");
-        assert_eq!(data.command.as_str(), "restart");
-        assert_eq!(data.ip.as_str(), "10.0.0.1");
+        assert_eq!(data.address, "127.0.0.1:80");
+        assert_eq!(data.command, "restart");
+        assert_eq!(data.ip, "10.0.0.1");
         assert!(data.ipv4);
         assert!(data.ipv6);
         assert!(data.permissive);
@@ -172,9 +186,9 @@ mod tests {
     fn test_command_to_data_minimal() {
         let input = "send";
         let data = command_to_data(input);
-        assert_eq!(data.address.as_str(), "");
-        assert_eq!(data.command.as_str(), "");
-        assert_eq!(data.ip.as_str(), "");
+        assert_eq!(data.address, "");
+        assert_eq!(data.command, "");
+        assert_eq!(data.ip, "");
         assert!(!data.ipv4);
         assert!(!data.ipv6);
         assert!(!data.permissive);
@@ -184,15 +198,15 @@ mod tests {
     fn test_command_to_data_unknown_flags() {
         let input = "send --unknown flag --address host:80";
         let data = command_to_data(input);
-        assert_eq!(data.address.as_str(), "host:80");
+        assert_eq!(data.address, "host:80");
     }
 
     #[test]
     fn test_command_to_data_address_at_end() {
         let input = "--command cmd --address host:80";
         let data = command_to_data(input);
-        assert_eq!(data.address.as_str(), "host:80");
-        assert_eq!(data.command.as_str(), "cmd");
+        assert_eq!(data.address, "host:80");
+        assert_eq!(data.command, "cmd");
     }
 
     #[test]
@@ -200,9 +214,9 @@ mod tests {
         let original = make_cmd("host:8080", "deploy", "192.168.1.1", true, false, true);
         let cmd_str = data_to_command(&original, None);
         let parsed = command_to_data(&cmd_str);
-        assert_eq!(parsed.address.as_str(), "host:8080");
-        assert_eq!(parsed.command.as_str(), "deploy");
-        assert_eq!(parsed.ip.as_str(), "192.168.1.1");
+        assert_eq!(parsed.address, "host:8080");
+        assert_eq!(parsed.command, "deploy");
+        assert_eq!(parsed.ip, "192.168.1.1");
         assert!(parsed.ipv4);
         assert!(!parsed.ipv6);
         assert!(parsed.permissive);
@@ -212,20 +226,20 @@ mod tests {
     fn test_add_command_name_basic() {
         let data = make_cmd("host:80", "restart", "", false, false, false);
         let result = add_command_name(data);
-        assert_eq!(result.name.as_str(), "restart@host:80");
+        assert_eq!(result.name, "restart@host:80");
     }
 
     #[test]
     fn test_add_command_name_with_flags() {
         let data = make_cmd("host:80", "cmd", "", true, true, true);
         let result = add_command_name(data);
-        assert_eq!(result.name.as_str(), "cmd@host:80 permissive ipv4 ipv6");
+        assert_eq!(result.name, "cmd@host:80 permissive ipv4 ipv6");
     }
 
     #[test]
     fn test_add_command_name_permissive_only() {
         let data = make_cmd("h:80", "c", "", false, false, true);
         let result = add_command_name(data);
-        assert_eq!(result.name.as_str(), "c@h:80 permissive");
+        assert_eq!(result.name, "c@h:80 permissive");
     }
 }
