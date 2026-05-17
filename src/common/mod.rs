@@ -20,6 +20,7 @@ pub(crate) use logging::info;
 pub(crate) use protocol::client_data;
 pub(crate) use protocol::parser as data_parser;
 
+#[cfg(feature = "with-server")]
 pub(crate) fn normalize_ip(ip: std::net::IpAddr) -> std::net::IpAddr {
     match ip {
         std::net::IpAddr::V6(v6) => {
