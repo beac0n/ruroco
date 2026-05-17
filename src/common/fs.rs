@@ -1,11 +1,14 @@
+#[cfg(any(feature = "with-server", feature = "with-gui"))]
 use crate::common::get_random_range;
 use crate::common::logging::error;
 use anyhow::{anyhow, Context};
+#[cfg(any(feature = "with-server", feature = "with-gui"))]
 use std::io::Write;
 use std::os::unix::fs::chown;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
+#[cfg(any(feature = "with-server", feature = "with-gui"))]
 pub(crate) fn write_atomic(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
     let tmp_path = path.with_extension(format!(".{:?}.tmp", get_random_range(0, u16::MAX)));
 
