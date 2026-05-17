@@ -26,7 +26,7 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui, config_height: f32)
         if ui.add_sized([btn_w, 50.0], egui::Button::new("💾")).clicked() {
             let cmds: Vec<_> = app.commands_config_text.lines().map(command_to_data).collect();
             app.commands_list.set(cmds);
-            app.refresh_cache();
+            app.sync_config_text();
         }
         if ui.add_sized([btn_w, 50.0], egui::Button::new("📋")).clicked() {
             ui.ctx().copy_text(app.commands_config_text.clone());

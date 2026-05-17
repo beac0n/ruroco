@@ -28,7 +28,7 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
                 color: GRAY,
             });
             app.commands_list.add(cmd);
-            app.refresh_cache();
+            app.sync_config_text();
             app.create_address.clear();
             app.create_ip.clear();
             app.create_permissive = false;
