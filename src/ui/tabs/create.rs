@@ -1,5 +1,4 @@
 use crate::ui::app::RurocoApp;
-use crate::ui::colors::GRAY;
 use crate::ui::command_data::{add_command_name, CommandData};
 use eframe::egui;
 
@@ -25,7 +24,6 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
                 ipv4: app.create_ipv4,
                 ipv6: app.create_ipv6,
                 name: String::new(),
-                color: GRAY,
             });
             app.commands_list.add(cmd);
             app.sync_config_text();

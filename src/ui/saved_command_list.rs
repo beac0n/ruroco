@@ -97,7 +97,6 @@ impl CommandsList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::colors::GRAY;
 
     fn make_cmd(address: &str, command: &str) -> CommandData {
         CommandData {
@@ -108,7 +107,6 @@ mod tests {
             ipv6: false,
             permissive: false,
             name: String::new(),
-            color: GRAY,
         }
     }
 

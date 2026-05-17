@@ -1,9 +1,4 @@
-use eframe::egui::Color32;
 use serde::{Deserialize, Serialize};
-
-fn default_color() -> Color32 {
-    crate::ui::colors::GRAY
-}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct CommandData {
@@ -15,8 +10,6 @@ pub(crate) struct CommandData {
     pub(crate) ipv6: bool,
     #[serde(skip)]
     pub(crate) name: String,
-    #[serde(skip, default = "default_color")]
-    pub(crate) color: Color32,
 }
 
 pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String {
@@ -53,8 +46,6 @@ pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String
 }
 
 pub(crate) fn command_to_data(input: &str) -> CommandData {
-    use crate::ui::colors::GRAY;
-
     let mut address = "";
     let mut command = "";
     let mut ip = "";
@@ -95,7 +86,6 @@ pub(crate) fn command_to_data(input: &str) -> CommandData {
         ipv4,
         ipv6,
         name: String::new(),
-        color: GRAY,
     })
 }
 
@@ -115,7 +105,6 @@ pub(crate) fn add_command_name(mut data: CommandData) -> CommandData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::colors::GRAY;
 
     fn make_cmd(
         address: &str,
@@ -133,7 +122,6 @@ mod tests {
             ipv6,
             permissive,
             name: String::new(),
-            color: GRAY,
         }
     }
 
