@@ -1,4 +1,3 @@
-use crate::common::logging::error;
 use crate::ui::app::{PasteTarget, RurocoApp};
 use crate::ui::command_data::command_to_data;
 use eframe::egui;
