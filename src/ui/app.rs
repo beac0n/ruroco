@@ -24,6 +24,29 @@ pub(crate) enum Status {
     Err,
 }
 
+#[derive(Hash, Eq, PartialEq, Clone)]
+pub(crate) struct StatusKey {
+    command: String,
+    address: String,
+    ip: String,
+    ipv4: bool,
+    ipv6: bool,
+    permissive: bool,
+}
+
+impl From<&CommandData> for StatusKey {
+    fn from(c: &CommandData) -> Self {
+        Self {
+            command: c.command.clone(),
+            address: c.address.clone(),
+            ip: c.ip.clone(),
+            ipv4: c.ipv4,
+            ipv6: c.ipv6,
+            permissive: c.permissive,
+        }
+    }
+}
+
 pub(crate) struct RurocoApp {
     pub(crate) commands_list: CommandsList,
     pub(crate) commands_config_text: String,
@@ -37,7 +60,7 @@ pub(crate) struct RurocoApp {
     pub(crate) create_permissive: bool,
     pub(crate) create_ipv4: bool,
     pub(crate) create_ipv6: bool,
-    pub(crate) command_status: HashMap<String, Status>,
+    pub(crate) command_status: HashMap<StatusKey, Status>,
     pub(crate) cached_commands: Vec<CommandData>,
     pub(crate) status_bar_dp: f32,
 }
@@ -51,7 +74,7 @@ impl RurocoApp {
         use crate::client::config::DEFAULT_COMMAND;
         let commands_list = CommandsList::create(conf_dir);
         let commands_config_text = commands_list.to_string();
-        let cached_commands = commands_list.get();
+        let cached_commands = commands_list.get().to_vec();
         Ok(Self {
             commands_list,
             commands_config_text,
@@ -72,14 +95,13 @@ impl RurocoApp {
     }
 
     pub(crate) fn refresh_cache(&mut self) {
-        self.cached_commands = self.commands_list.get();
+        self.cached_commands = self.commands_list.get().to_vec();
         self.commands_config_text = self.commands_list.to_string();
     }
 
     pub(crate) fn status_color(&self, cmd: &CommandData) -> egui::Color32 {
         use crate::ui::colors::{GREEN, RED};
-        let key = crate::ui::command_data::data_to_command(cmd, None);
-        match self.command_status.get(&key) {
+        match self.command_status.get(&StatusKey::from(cmd)) {
             Some(Status::Ok) => GREEN,
             Some(Status::Err) => RED,
             _ => GRAY,
@@ -87,7 +109,6 @@ impl RurocoApp {
     }
 
     pub(crate) fn set_status(&mut self, cmd: &CommandData, status: Status) {
-        let key = crate::ui::command_data::data_to_command(cmd, None);
-        self.command_status.insert(key, status);
+        self.command_status.insert(StatusKey::from(cmd), status);
     }
 }

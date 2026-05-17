@@ -8,45 +8,73 @@ use std::{fmt, fs};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct CommandsList {
-    list: Vec<String>,
+    list: Vec<CommandData>,
+    #[serde(skip)]
     path: PathBuf,
 }
 
 impl fmt::Display for CommandsList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.list.join("\n"))
+        for (i, c) in self.list.iter().enumerate() {
+            if i > 0 {
+                writeln!(f)?;
+            }
+            write!(f, "{}", data_to_command(c, None))?;
+        }
+        Ok(())
     }
 }
 
 impl CommandsList {
     pub(crate) fn create(cfg_dir: &Path) -> CommandsList {
         let path = resolve_path(cfg_dir).join("commands_list.toml");
-        let mut cmd_list = toml::from_str(&CommandsList::read_raw_from_path(&path))
-            .unwrap_or_else(|_| CommandsList { list: vec![], path });
-        cmd_list.list.sort();
+        let raw = CommandsList::read_raw_from_path(&path);
+
+        let mut cmd_list = toml::from_str::<CommandsList>(&raw)
+            .or_else(|_| {
+                // Legacy format: list was Vec<String> of CLI invocations
+                #[derive(Deserialize)]
+                struct Legacy {
+                    list: Vec<String>,
+                }
+                toml::from_str::<Legacy>(&raw).map(|l| CommandsList {
+                    list: l.list.into_iter().map(|s| command_to_data(&s)).collect(),
+                    path: PathBuf::new(),
+                })
+            })
+            .unwrap_or_else(|_| CommandsList {
+                list: vec![],
+                path: PathBuf::new(),
+            });
+
+        cmd_list.path = path;
+        cmd_list.sort();
         cmd_list
     }
 
-    pub(crate) fn set(&mut self, cmd_list: Vec<CommandData>) {
-        self.list = cmd_list.into_iter().map(|c| data_to_command(&c, None)).collect();
-        self.list.sort();
-        self.save()
-    }
-
-    pub(crate) fn get(&self) -> Vec<CommandData> {
-        self.list.clone().into_iter().map(|c| command_to_data(&c)).collect()
+    pub(crate) fn get(&self) -> &[CommandData] {
+        &self.list
     }
 
     pub(crate) fn add(&mut self, cmd: CommandData) {
-        self.list.push(data_to_command(&cmd, None));
-        self.list.sort();
-        self.save()
+        self.list.push(cmd);
+        self.sort();
+        self.save();
     }
 
-    pub(crate) fn remove(&mut self, cmd: CommandData) {
-        let cmd_str = data_to_command(&cmd, None);
-        self.list.retain(|value| value.clone() != cmd_str.clone());
-        self.save()
+    pub(crate) fn set(&mut self, list: Vec<CommandData>) {
+        self.list = list;
+        self.sort();
+        self.save();
+    }
+
+    pub(crate) fn remove(&mut self, cmd: &CommandData) {
+        self.list.retain(|c| c != cmd);
+        self.save();
+    }
+
+    fn sort(&mut self) {
+        self.list.sort_by(|a, b| (&a.command, &a.address).cmp(&(&b.command, &b.address)));
     }
 
     fn read_raw_from_path(path: &Path) -> String {
@@ -113,7 +141,7 @@ mod tests {
         cl.add(cmd1);
         cl.add(cmd2.clone());
         assert_eq!(cl.get().len(), 2);
-        cl.remove(cmd2);
+        cl.remove(&cmd2);
         assert_eq!(cl.get().len(), 1);
         assert_eq!(cl.get()[0].address, "host:80");
     }
@@ -171,5 +199,22 @@ mod tests {
         fs::write(&path, "this is {{invalid}} toml").unwrap();
         let cl = CommandsList::create(dir.path());
         assert!(cl.list.is_empty());
+    }
+
+    #[test]
+    fn test_legacy_format_migration() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("commands_list.toml");
+        // Write old-format file (list of CLI strings)
+        fs::write(
+            &path,
+            "list = [\"send --address host:80 --command restart\", \"send --address host:81 --command stop\"]\n",
+        )
+        .unwrap();
+        let cl = CommandsList::create(dir.path());
+        assert_eq!(cl.get().len(), 2);
+        let addrs: Vec<&str> = cl.get().iter().map(|c| c.address.as_str()).collect();
+        assert!(addrs.contains(&"host:80"));
+        assert!(addrs.contains(&"host:81"));
     }
 }
