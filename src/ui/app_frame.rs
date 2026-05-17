@@ -9,13 +9,10 @@ impl eframe::App for RurocoApp {
         }
 
         #[cfg(all(target_os = "android", feature = "android-build"))]
-        if ui.ctx().wants_keyboard_input() {
-            let _ = crate::common::android_keyboard::show_soft_keyboard()
-                .inspect_err(|e| crate::common::logging::error(format!("{e}")));
-        } else {
-            let _ = crate::common::android_keyboard::hide_soft_keyboard()
-                .inspect_err(|e| crate::common::logging::error(format!("{e}")));
-        }
+        let _ = crate::common::android::AndroidKeyboard::ensure_visible(
+            ui.ctx().egui_wants_keyboard_input(),
+        )
+        .inspect_err(|e| crate::common::logging::error(format!("{e}")));
 
         egui::Panel::top("tabs").show_inside(ui, |ui| {
             ui.horizontal(|ui| {

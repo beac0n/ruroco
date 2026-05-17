@@ -33,7 +33,7 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
         }
         if ui.add_sized([btn_w, 50.0], egui::Button::new("📥")).clicked() {
             #[cfg(target_os = "android")]
-            match crate::common::android_clipboard::get_clipboard_text() {
+            match crate::common::android::AndroidClipboard::get_text() {
                 Ok(text) => app.key = text,
                 Err(e) => error(format!("Failed to paste: {e}")),
             }
