@@ -7,7 +7,7 @@ use clap::Parser;
 use eframe::egui;
 
 pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
-    let cmds: Vec<CommandData> = app.cached_commands.clone();
+    let cmds = app.commands_list.get().to_vec();
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         let mut to_delete: Option<CommandData> = None;
@@ -65,7 +65,6 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
         if let Some(cmd) = to_delete {
             app.command_status.remove(&StatusKey::from(&cmd));
             app.commands_list.remove(&cmd);
-            app.refresh_cache();
         }
 
         if let Some(cmd) = to_exec {

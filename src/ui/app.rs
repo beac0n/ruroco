@@ -61,7 +61,6 @@ pub(crate) struct RurocoApp {
     pub(crate) create_ipv4: bool,
     pub(crate) create_ipv6: bool,
     pub(crate) command_status: HashMap<StatusKey, Status>,
-    pub(crate) cached_commands: Vec<CommandData>,
     pub(crate) status_bar_dp: f32,
 }
 
@@ -74,7 +73,6 @@ impl RurocoApp {
         use crate::client::config::DEFAULT_COMMAND;
         let commands_list = CommandsList::create(conf_dir);
         let commands_config_text = commands_list.to_string();
-        let cached_commands = commands_list.get().to_vec();
         Ok(Self {
             commands_list,
             commands_config_text,
@@ -89,13 +87,11 @@ impl RurocoApp {
             create_ipv4: false,
             create_ipv6: false,
             command_status: HashMap::new(),
-            cached_commands,
             status_bar_dp,
         })
     }
 
-    pub(crate) fn refresh_cache(&mut self) {
-        self.cached_commands = self.commands_list.get().to_vec();
+    pub(crate) fn sync_config_text(&mut self) {
         self.commands_config_text = self.commands_list.to_string();
     }
 
