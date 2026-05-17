@@ -1,3 +1,5 @@
+#[cfg(target_os = "android")]
+use crate::common::logging::error;
 use crate::ui::app::{PasteTarget, RurocoApp};
 use crate::ui::command_data::command_to_data;
 use eframe::egui;
@@ -33,7 +35,7 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui, config_height: f32)
         }
         if ui.add_sized([btn_w, 50.0], egui::Button::new("📥")).clicked() {
             #[cfg(target_os = "android")]
-            match crate::common::android_clipboard::get_clipboard_text() {
+            match crate::common::android::AndroidClipboard::get_text() {
                 Ok(text) => app.commands_config_text = text,
                 Err(e) => error(format!("Failed to paste: {e}")),
             }

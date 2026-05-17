@@ -131,7 +131,7 @@ fn get_conf_dir_linux() -> anyhow::Result<PathBuf> {
 
 #[cfg(target_os = "android")]
 fn get_conf_dir_android() -> anyhow::Result<PathBuf> {
-    use crate::common::android_util::AndroidUtil;
+    use crate::common::android::AndroidUtil;
     AndroidUtil::create()?.get_conf_dir()
 }
 

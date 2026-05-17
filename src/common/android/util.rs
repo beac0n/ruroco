@@ -1,5 +1,3 @@
-#![cfg(target_os = "android")]
-
 use anyhow::Context;
 use jni::objects::{Global, JObject, JString, JValue, JValueOwned};
 use jni::signature::RuntimeMethodSignature;

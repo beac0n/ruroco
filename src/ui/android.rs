@@ -4,7 +4,7 @@ use android_activity::AndroidApp;
 
 #[no_mangle]
 fn android_main(app: AndroidApp) {
-    let status_bar_dp = crate::common::android_status_bar::status_bar_height_dp().unwrap_or(0.0);
+    let status_bar_dp = crate::common::android::AndroidStatusBar::height_dp().unwrap_or(0.0);
     let opts = eframe::NativeOptions {
         android_app: Some(app),
         renderer: eframe::Renderer::Wgpu,
