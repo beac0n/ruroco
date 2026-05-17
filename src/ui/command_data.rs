@@ -1,6 +1,11 @@
 use eframe::egui::Color32;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq)]
+fn default_color() -> Color32 {
+    crate::ui::colors::GRAY
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct CommandData {
     pub(crate) address: String,
     pub(crate) command: String,
@@ -8,7 +13,9 @@ pub(crate) struct CommandData {
     pub(crate) ip: String,
     pub(crate) ipv4: bool,
     pub(crate) ipv6: bool,
+    #[serde(skip)]
     pub(crate) name: String,
+    #[serde(skip, default = "default_color")]
     pub(crate) color: Color32,
 }
 

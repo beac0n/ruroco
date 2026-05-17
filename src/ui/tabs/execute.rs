@@ -1,7 +1,7 @@
 use crate::client::config::CliClient;
 use crate::client::run_client_send;
 use crate::common::logging::error;
-use crate::ui::app::{RurocoApp, Status};
+use crate::ui::app::{RurocoApp, Status, StatusKey};
 use crate::ui::command_data::{data_to_command, CommandData};
 use clap::Parser;
 use eframe::egui;
@@ -63,9 +63,8 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
         }
 
         if let Some(cmd) = to_delete {
-            let key = data_to_command(&cmd, None);
-            app.commands_list.remove(cmd);
-            app.command_status.remove(&key);
+            app.command_status.remove(&StatusKey::from(&cmd));
+            app.commands_list.remove(&cmd);
             app.refresh_cache();
         }
 
