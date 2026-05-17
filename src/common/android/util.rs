@@ -106,7 +106,7 @@ impl AndroidUtil {
         env.new_global_ref(&obj).context("Failed to create global ref")
     }
 
-    fn call_static_method_impl(
+    pub(crate) fn call_static_method_impl(
         env: &mut Env<'_>,
         class: &str,
         name: &str,
