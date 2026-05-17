@@ -1,4 +1,10 @@
 #[cfg(target_os = "android")]
+pub(crate) mod android_clipboard;
+#[cfg(target_os = "android")]
+pub(crate) mod android_keyboard;
+#[cfg(target_os = "android")]
+pub(crate) mod android_status_bar;
+#[cfg(target_os = "android")]
 pub mod android_util;
 pub(crate) mod crypto;
 pub(crate) mod fs;

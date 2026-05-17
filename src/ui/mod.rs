@@ -4,6 +4,7 @@ mod android;
 mod android_update;
 
 mod app;
+mod app_frame;
 mod colors;
 mod command_data;
 mod saved_command_list;
