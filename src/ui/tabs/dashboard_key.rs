@@ -18,7 +18,7 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
     ui.add_space(6.0);
 
     let lock_label = if app.show_key { "🔒" } else { "🔓" };
-    let r = widgets::equal_buttons(ui, &["Generate", lock_label, "📋", "📥"]);
+    let r = widgets::Widgets::new(ui).equal_buttons(&["Generate", lock_label, "📋", "📥"]);
     if r[0] {
         match CryptoHandler::gen_key() {
             Ok(k) => app.key = k,
@@ -29,9 +29,9 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
         app.show_key = !app.show_key;
     }
     if r[2] {
-        widgets::copy_text(ui, &app.key);
+        widgets::Widgets::new(ui).copy_text(&app.key);
     }
     if r[3] {
-        widgets::paste_button(app, ui, PasteTarget::Key);
+        widgets::Widgets::new(ui).paste_button(app, PasteTarget::Key);
     }
 }
