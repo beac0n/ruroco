@@ -1,7 +1,7 @@
 use crate::common::fs::write_atomic;
 use crate::common::logging::error;
 use crate::common::resolve_path;
-use crate::ui::command_data::{command_to_data, data_to_command, CommandData};
+use crate::ui::command_data::{add_command_name, command_to_data, data_to_command, CommandData};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
@@ -55,6 +55,7 @@ impl CommandsList {
             });
 
         cmd_list.path = path;
+        cmd_list.list = cmd_list.list.into_iter().map(add_command_name).collect();
         cmd_list.sort();
         cmd_list
     }
