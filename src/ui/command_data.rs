@@ -46,43 +46,43 @@ pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String
 }
 
 pub(crate) fn command_to_data(input: &str) -> CommandData {
-    let mut address = "";
-    let mut command = "";
-    let mut ip = "";
+    let mut address = String::new();
+    let mut command = String::new();
+    let mut ip = String::new();
     let mut ipv4 = false;
     let mut ipv6 = false;
     let mut permissive = false;
 
-    let parts: Vec<&str> = input.split_whitespace().collect();
-    let parts_len = parts.len();
-    let mut i = 0;
-    while i < parts_len {
-        match parts[i] {
-            "--address" if i + 1 < parts_len => {
-                i += 1;
-                address = parts[i];
+    let mut it = input.split_whitespace();
+    while let Some(tok) = it.next() {
+        match tok {
+            "--address" => {
+                if let Some(v) = it.next() {
+                    address = v.to_string();
+                }
             }
-            "--command" if i + 1 < parts_len => {
-                i += 1;
-                command = parts[i];
+            "--command" => {
+                if let Some(v) = it.next() {
+                    command = v.to_string();
+                }
             }
-            "--ip" if i + 1 < parts_len => {
-                i += 1;
-                ip = parts[i];
+            "--ip" => {
+                if let Some(v) = it.next() {
+                    ip = v.to_string();
+                }
             }
             "--ipv4" => ipv4 = true,
             "--ipv6" => ipv6 = true,
             "--permissive" => permissive = true,
             _ => {}
         }
-        i += 1;
     }
 
     add_command_name(CommandData {
-        address: address.to_string(),
-        command: command.to_string(),
+        address,
+        command,
         permissive,
-        ip: ip.to_string(),
+        ip,
         ipv4,
         ipv6,
         name: String::new(),
