@@ -5,20 +5,20 @@ use eframe::egui;
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) enum PasteTarget {
     Key,
     Config,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) enum Tab {
     Dashboard,
     Create,
     Execute,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) enum Status {
     Ok,
     Err,
