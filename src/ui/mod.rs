@@ -15,11 +15,11 @@ use crate::client::lock::ClientLock;
 use std::error::Error;
 
 fn set_font_size(ctx: &eframe::egui::Context, size: f32) {
-    let mut style = (*ctx.style()).clone();
+    let mut style = (*ctx.global_style()).clone();
     for font_id in style.text_styles.values_mut() {
         font_id.size = size;
     }
-    ctx.set_style(style);
+    ctx.set_global_style(style);
 }
 
 pub fn run_ui() -> Result<(), Box<dyn Error>> {
