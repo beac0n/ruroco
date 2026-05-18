@@ -2,7 +2,9 @@ use crate::client::config::CliClient;
 use crate::client::run_client_send;
 use crate::common::logging::error;
 use crate::ui::app::{RurocoApp, Status, StatusKey};
+use crate::ui::colors;
 use crate::ui::command_data::{data_to_command, CommandData};
+use crate::ui::tabs::widgets;
 use clap::Parser;
 use eframe::egui;
 
@@ -18,35 +20,18 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
             ui.add_space(10.0);
 
             ui.horizontal(|ui| {
-                // Play button — fixed left
-                let play_frame = egui::Frame::default()
-                    .stroke(egui::Stroke::new(2.0, egui::Color32::from_rgb(25, 118, 210)))
-                    .corner_radius(5.0)
-                    .inner_margin(1.0);
-                play_frame.show(ui, |ui| {
-                    if ui.add_sized([46.0, 46.0], egui::Button::new("▶")).clicked() {
-                        to_exec = Some(cmd.clone());
-                    }
-                });
+                if widgets::icon_button(ui, colors::BLUE, "▶").clicked() {
+                    to_exec = Some(cmd.clone());
+                }
 
-                // Right-to-left sub-layout: delete first (anchored right), then name fills middle
+                // Right-to-left: delete anchored right, name fills middle
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let del_frame = egui::Frame::default()
-                        .stroke(egui::Stroke::new(2.0, egui::Color32::from_rgb(211, 47, 47)))
-                        .corner_radius(5.0)
-                        .inner_margin(1.0);
-                    del_frame.show(ui, |ui| {
-                        if ui.add_sized([46.0, 46.0], egui::Button::new("🗑")).clicked() {
-                            to_delete = Some(cmd.clone());
-                        }
-                    });
+                    if widgets::icon_button(ui, colors::RED, "🗑").clicked() {
+                        to_delete = Some(cmd.clone());
+                    }
 
-                    let name_frame = egui::Frame::default()
-                        .stroke(egui::Stroke::new(2.0, status_color))
-                        .corner_radius(5.0)
-                        .inner_margin(4.0);
-                    name_frame.show(ui, |ui| {
-                        // inner_margin(4.0) adds 8px; buttons outer = 48px → inner = 40px
+                    // inner_margin(4.0) adds 8px; buttons outer = 48px → inner = 40px
+                    widgets::bordered(status_color, 4.0).show(ui, |ui| {
                         ui.set_min_height(40.0);
                         ui.set_max_height(40.0);
                         ui.with_layout(
