@@ -14,6 +14,14 @@ use crate::client::config;
 use crate::client::lock::ClientLock;
 use std::error::Error;
 
+fn set_font_size(ctx: &eframe::egui::Context, size: f32) {
+    let mut style = (*ctx.style()).clone();
+    for font_id in style.text_styles.values_mut() {
+        font_id.size = size;
+    }
+    ctx.set_style(style);
+}
+
 pub fn run_ui() -> Result<(), Box<dyn Error>> {
     let conf_dir = config::get_conf_dir()?;
     let _lock = ClientLock::acquire(conf_dir.join("client.lock"))?;
@@ -26,7 +34,10 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     eframe::run_native(
         "ruroco",
         opts,
-        Box::new(move |_cc| Ok(Box::new(app::RurocoApp::new(&conf_dir)?))),
+        Box::new(move |cc| {
+            set_font_size(&cc.egui_ctx, 14.0);
+            Ok(Box::new(app::RurocoApp::new(&conf_dir)?))
+        }),
     )?;
     Ok(())
 }
@@ -41,7 +52,8 @@ pub fn run_ui_with_options(
     eframe::run_native(
         "ruroco",
         opts,
-        Box::new(move |_cc| {
+        Box::new(move |cc| {
+            set_font_size(&cc.egui_ctx, 14.0);
             Ok(Box::new(app::RurocoApp::new_with_status_bar(&conf_dir, status_bar_dp)?))
         }),
     )?;
