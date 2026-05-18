@@ -17,14 +17,20 @@ pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String
 
     command.push_str("send ");
     if !data.address.trim().is_empty() {
-        command.push_str(&format!("--address {} ", data.address));
+        command.push_str("--address ");
+        command.push_str(&data.address);
+        command.push(' ');
     }
     if !data.command.trim().is_empty() {
-        command.push_str(&format!("--command {} ", data.command));
+        command.push_str("--command ");
+        command.push_str(&data.command);
+        command.push(' ');
     }
 
     if !data.ip.trim().is_empty() {
-        command.push_str(&format!("--ip {} ", data.ip));
+        command.push_str("--ip ");
+        command.push_str(&data.ip);
+        command.push(' ');
     }
 
     if data.ipv4 {

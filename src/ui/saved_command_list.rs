@@ -42,9 +42,16 @@ impl CommandsList {
                     path: PathBuf::new(),
                 })
             })
-            .unwrap_or_else(|_| CommandsList {
-                list: vec![],
-                path: PathBuf::new(),
+            .unwrap_or_else(|e| {
+                if !raw.is_empty() {
+                    error(format!(
+                        "commands_list.toml parse failed, starting empty (file preserved): {e}"
+                    ));
+                }
+                CommandsList {
+                    list: vec![],
+                    path: PathBuf::new(),
+                }
             });
 
         cmd_list.path = path;

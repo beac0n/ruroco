@@ -26,10 +26,7 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     eframe::run_native(
         "ruroco",
         opts,
-        Box::new(move |cc| {
-            cc.egui_ctx.set_pixels_per_point(1.5);
-            Ok(Box::new(app::RurocoApp::new(&conf_dir)?))
-        }),
+        Box::new(move |_cc| Ok(Box::new(app::RurocoApp::new(&conf_dir)?))),
     )?;
     Ok(())
 }
