@@ -9,9 +9,11 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
         arg_row_text(ui, "server", &mut app.create_address);
         arg_row_text(ui, "command", &mut app.command);
         arg_row_text(ui, "ip sent to server", &mut app.create_ip);
-        arg_row_bool(ui, "source IP doesn't have to match provided IP", &mut app.create_permissive);
-        arg_row_bool(ui, "use ipv4 only", &mut app.create_ipv4);
-        arg_row_bool(ui, "use ipv6 only", &mut app.create_ipv6);
+        arg_row(ui, "source IP doesn't have to match provided IP", |ui| {
+            ui.checkbox(&mut app.create_permissive, "")
+        });
+        arg_row(ui, "use ipv4 only", |ui| ui.checkbox(&mut app.create_ipv4, ""));
+        arg_row(ui, "use ipv6 only", |ui| ui.checkbox(&mut app.create_ipv6, ""));
 
         ui.add_space(10.0);
 
@@ -36,26 +38,23 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
     });
 }
 
-fn arg_row_text(ui: &mut egui::Ui, label: &str, value: &mut String) {
-    ui.horizontal(|ui| {
-        let w = ui.available_width() * 0.5;
-        ui.vertical(|ui| {
-            ui.set_width(w);
-            ui.add(egui::Label::new(label).wrap());
-        });
-        ui.add_sized([ui.available_width(), 50.0], egui::TextEdit::singleline(value));
-    });
+fn arg_row<R>(ui: &mut egui::Ui, label: &str, widget: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    let r = ui
+        .horizontal(|ui| {
+            let w = ui.available_width() * 0.5;
+            ui.vertical(|ui| {
+                ui.set_width(w);
+                ui.add(egui::Label::new(label).wrap());
+            });
+            widget(ui)
+        })
+        .inner;
     ui.add_space(6.0);
+    r
 }
 
-fn arg_row_bool(ui: &mut egui::Ui, label: &str, value: &mut bool) {
-    ui.horizontal(|ui| {
-        let w = ui.available_width() * 0.5;
-        ui.vertical(|ui| {
-            ui.set_width(w);
-            ui.add(egui::Label::new(label).wrap());
-        });
-        ui.checkbox(value, "");
+fn arg_row_text(ui: &mut egui::Ui, label: &str, value: &mut String) {
+    arg_row(ui, label, |ui| {
+        ui.add_sized([ui.available_width(), 50.0], egui::TextEdit::singleline(value))
     });
-    ui.add_space(6.0);
 }
