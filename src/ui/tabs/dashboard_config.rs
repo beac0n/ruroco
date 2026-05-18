@@ -19,7 +19,8 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui, config_height: f32)
 
     ui.add_space(6.0);
 
-    let r = widgets::equal_buttons(ui, &["Reset", "💾", "📋", "📥"]);
+    let mut w = widgets::Widgets::new(ui);
+    let r = w.equal_buttons(&["Reset", "💾", "📋", "📥"]);
     if r[0] {
         app.commands_config_text = app.commands_list.to_string();
     }
@@ -29,9 +30,9 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui, config_height: f32)
         app.sync_config_text();
     }
     if r[2] {
-        widgets::copy_text(ui, &app.commands_config_text);
+        w.copy_text(&app.commands_config_text);
     }
     if r[3] {
-        widgets::paste_button(app, ui, PasteTarget::Config);
+        w.paste_button(app, PasteTarget::Config);
     }
 }

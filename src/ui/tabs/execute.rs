@@ -20,18 +20,18 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
             ui.add_space(10.0);
 
             ui.horizontal(|ui| {
-                if widgets::icon_button(ui, colors::BLUE, "▶").clicked() {
+                if widgets::Widgets::new(ui).icon_button(colors::BLUE, "▶").clicked() {
                     to_exec = Some(cmd.clone());
                 }
 
                 // Right-to-left: delete anchored right, name fills middle
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if widgets::icon_button(ui, colors::RED, "🗑").clicked() {
+                    if widgets::Widgets::new(ui).icon_button(colors::RED, "🗑").clicked() {
                         to_delete = Some(cmd.clone());
                     }
 
                     // inner_margin(4.0) adds 8px; buttons outer = 48px → inner = 40px
-                    widgets::bordered(status_color, 4.0).show(ui, |ui| {
+                    widgets::Widgets::bordered(status_color, 4.0).show(ui, |ui| {
                         ui.set_min_height(40.0);
                         ui.set_max_height(40.0);
                         ui.with_layout(
