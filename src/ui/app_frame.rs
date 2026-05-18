@@ -23,9 +23,21 @@ impl eframe::App for RurocoApp {
         });
 
         egui::CentralPanel::default().show_inside(ui, |ui| match self.active_tab {
-            Tab::Dashboard => tabs::dashboard::render(self, ui),
-            Tab::Create => tabs::create::render(self, ui),
-            Tab::Execute => tabs::execute::render(self, ui),
+            Tab::Dashboard => {
+                tabs::dashboard::render(&mut self.dashboard, &mut self.commands_list, ui)
+            }
+            Tab::Create => tabs::create::render(
+                &mut self.create,
+                &mut self.commands_list,
+                &mut self.dashboard.config_text,
+                ui,
+            ),
+            Tab::Execute => tabs::execute::render(
+                &mut self.execute,
+                &mut self.commands_list,
+                &self.dashboard.key,
+                ui,
+            ),
         });
     }
 }

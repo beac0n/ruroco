@@ -1,37 +1,37 @@
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::logging::error;
-use crate::ui::app::{PasteTarget, RurocoApp};
+use crate::ui::app::{DashboardState, PasteTarget};
 use crate::ui::tabs::widgets;
 use eframe::egui;
 
-pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
+pub(crate) fn render(dashboard: &mut DashboardState, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         ui.label("AES Key:");
         ui.add(
-            egui::TextEdit::singleline(&mut app.key)
+            egui::TextEdit::singleline(&mut dashboard.key)
                 .hint_text("Generate or paste your key here")
-                .password(!app.show_key)
+                .password(!dashboard.show_key)
                 .desired_width(f32::INFINITY),
         );
     });
 
     ui.add_space(6.0);
 
-    let lock_label = if app.show_key { "🔒" } else { "🔓" };
+    let lock_label = if dashboard.show_key { "🔒" } else { "🔓" };
     let r = widgets::Widgets::new(ui).equal_buttons(&["Generate", lock_label, "📋", "📥"]);
     if r[0] {
         match CryptoHandler::gen_key() {
-            Ok(k) => app.key = k,
+            Ok(k) => dashboard.key = k,
             Err(e) => error(format!("Failed to generate key: {e}")),
         }
     }
     if r[1] {
-        app.show_key = !app.show_key;
+        dashboard.show_key = !dashboard.show_key;
     }
     if r[2] {
-        widgets::Widgets::new(ui).copy_text(&app.key);
+        widgets::Widgets::new(ui).copy_text(&dashboard.key);
     }
     if r[3] {
-        widgets::Widgets::new(ui).paste_button(app, PasteTarget::Key);
+        widgets::Widgets::new(ui).paste_button(dashboard, PasteTarget::Key);
     }
 }

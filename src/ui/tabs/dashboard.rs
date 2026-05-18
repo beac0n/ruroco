@@ -3,10 +3,15 @@ use crate::client::update::Updater;
 use crate::common::logging::error;
 #[cfg(target_os = "android")]
 use crate::ui::android_update::update_android;
-use crate::ui::app::{PasteTarget, RurocoApp};
+use crate::ui::app::{DashboardState, PasteTarget};
+use crate::ui::saved_command_list::CommandsList;
 use eframe::egui;
 
-pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
+pub(crate) fn render(
+    dashboard: &mut DashboardState,
+    commands_list: &mut CommandsList,
+    ui: &mut egui::Ui,
+) {
     if let Some(text) = ui.ctx().input(|i| {
         i.events.iter().find_map(|e| {
             if let egui::Event::Paste(t) = e {
@@ -16,21 +21,21 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
             }
         })
     }) {
-        if let Some(target) = app.paste_target.take() {
+        if let Some(target) = dashboard.paste_target.take() {
             match target {
-                PasteTarget::Key => app.key = text,
-                PasteTarget::Config => app.commands_config_text = text,
+                PasteTarget::Key => dashboard.key = text,
+                PasteTarget::Config => dashboard.config_text = text,
             }
         }
     }
 
     let config_height = ui.available_height() * 0.45;
-    super::dashboard_config::render(app, ui, config_height);
+    super::dashboard_config::render(dashboard, commands_list, ui, config_height);
 
     ui.separator();
     ui.add_space(6.0);
 
-    super::dashboard_key::render(app, ui);
+    super::dashboard_key::render(dashboard, ui);
 
     ui.add_space(10.0);
 

@@ -1,22 +1,28 @@
 use crate::client::config::CliClient;
 use crate::client::run_client_send;
 use crate::common::logging::error;
-use crate::ui::app::{RurocoApp, Status, StatusKey};
+use crate::ui::app::{ExecuteState, Status, StatusKey};
 use crate::ui::colors;
 use crate::ui::command_data::{data_to_command, CommandData};
+use crate::ui::saved_command_list::CommandsList;
 use crate::ui::tabs::widgets;
 use clap::Parser;
 use eframe::egui;
 
-pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
-    let cmds = app.commands_list.get().to_vec();
+pub(crate) fn render(
+    state: &mut ExecuteState,
+    commands_list: &mut CommandsList,
+    key: &str,
+    ui: &mut egui::Ui,
+) {
+    let cmds = commands_list.get().to_vec();
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         let mut to_delete: Option<CommandData> = None;
         let mut to_exec: Option<CommandData> = None;
 
         for cmd in &cmds {
-            let status_color = app.status_color(cmd);
+            let status_color = state.color_for(cmd);
             ui.add_space(10.0);
 
             ui.horizontal(|ui| {
@@ -48,21 +54,21 @@ pub(crate) fn render(app: &mut RurocoApp, ui: &mut egui::Ui) {
         }
 
         if let Some(cmd) = to_delete {
-            app.command_status.remove(&StatusKey::from(&cmd));
-            app.commands_list.remove(&cmd);
+            state.status.remove(&StatusKey::from(&cmd));
+            commands_list.remove(&cmd);
         }
 
         if let Some(cmd) = to_exec {
-            exec_command(app, cmd);
+            exec_command(state, key, cmd);
         }
     });
 }
 
-fn exec_command(app: &mut RurocoApp, cmd: CommandData) {
+fn exec_command(state: &mut ExecuteState, key: &str, cmd: CommandData) {
     use crate::common::logging::info;
     info(format!("Executing command: {}", cmd.name));
 
-    let key = app.key.trim().to_string();
+    let key = key.trim().to_string();
     let cmd_str = data_to_command(&cmd, if key.is_empty() { None } else { Some(key) });
     let mut cmd_vec: Vec<&str> = cmd_str.split_whitespace().collect();
     cmd_vec.insert(0, "ruroco");
@@ -72,11 +78,11 @@ fn exec_command(app: &mut RurocoApp, cmd: CommandData) {
 
     match result {
         Ok(_) => {
-            app.set_status(&cmd, Status::Ok);
+            state.set(&cmd, Status::Ok);
         }
         Err(e) => {
             error(format!("Error executing command '{}': {e}", cmd.name));
-            app.set_status(&cmd, Status::Err);
+            state.set(&cmd, Status::Err);
         }
     }
 }

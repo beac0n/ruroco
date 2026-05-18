@@ -47,21 +47,48 @@ impl From<&CommandData> for StatusKey {
     }
 }
 
-pub(crate) struct RurocoApp {
-    pub(crate) commands_list: CommandsList,
-    pub(crate) commands_config_text: String,
+pub(crate) struct DashboardState {
+    pub(crate) config_text: String,
     pub(crate) key: String,
-    pub(crate) command: String,
     pub(crate) show_key: bool,
     pub(crate) paste_target: Option<PasteTarget>,
+}
+
+pub(crate) struct CreateForm {
+    pub(crate) address: String,
+    pub(crate) command: String,
+    pub(crate) ip: String,
+    pub(crate) permissive: bool,
+    pub(crate) ipv4: bool,
+    pub(crate) ipv6: bool,
+}
+
+pub(crate) struct ExecuteState {
+    pub(crate) status: HashMap<StatusKey, Status>,
+}
+
+impl ExecuteState {
+    pub(crate) fn color_for(&self, cmd: &CommandData) -> egui::Color32 {
+        use crate::ui::colors::{GREEN, RED};
+        match self.status.get(&StatusKey::from(cmd)) {
+            Some(Status::Ok) => GREEN,
+            Some(Status::Err) => RED,
+            _ => GRAY,
+        }
+    }
+
+    pub(crate) fn set(&mut self, cmd: &CommandData, status: Status) {
+        self.status.insert(StatusKey::from(cmd), status);
+    }
+}
+
+pub(crate) struct RurocoApp {
+    pub(crate) commands_list: CommandsList,
     pub(crate) active_tab: Tab,
-    pub(crate) create_address: String,
-    pub(crate) create_ip: String,
-    pub(crate) create_permissive: bool,
-    pub(crate) create_ipv4: bool,
-    pub(crate) create_ipv6: bool,
-    pub(crate) command_status: HashMap<StatusKey, Status>,
     pub(crate) status_bar_dp: f32,
+    pub(crate) dashboard: DashboardState,
+    pub(crate) create: CreateForm,
+    pub(crate) execute: ExecuteState,
 }
 
 impl RurocoApp {
@@ -72,39 +99,28 @@ impl RurocoApp {
     pub(crate) fn new_with_status_bar(conf_dir: &Path, status_bar_dp: f32) -> anyhow::Result<Self> {
         use crate::client::config::DEFAULT_COMMAND;
         let commands_list = CommandsList::create(conf_dir);
-        let commands_config_text = commands_list.to_string();
+        let config_text = commands_list.to_string();
         Ok(Self {
             commands_list,
-            commands_config_text,
-            key: String::new(),
-            command: DEFAULT_COMMAND.to_string(),
-            show_key: false,
-            paste_target: None,
             active_tab: Tab::Dashboard,
-            create_address: String::new(),
-            create_ip: String::new(),
-            create_permissive: false,
-            create_ipv4: false,
-            create_ipv6: false,
-            command_status: HashMap::new(),
             status_bar_dp,
+            dashboard: DashboardState {
+                config_text,
+                key: String::new(),
+                show_key: false,
+                paste_target: None,
+            },
+            create: CreateForm {
+                address: String::new(),
+                command: DEFAULT_COMMAND.to_string(),
+                ip: String::new(),
+                permissive: false,
+                ipv4: false,
+                ipv6: false,
+            },
+            execute: ExecuteState {
+                status: HashMap::new(),
+            },
         })
-    }
-
-    pub(crate) fn sync_config_text(&mut self) {
-        self.commands_config_text = self.commands_list.to_string();
-    }
-
-    pub(crate) fn status_color(&self, cmd: &CommandData) -> egui::Color32 {
-        use crate::ui::colors::{GREEN, RED};
-        match self.command_status.get(&StatusKey::from(cmd)) {
-            Some(Status::Ok) => GREEN,
-            Some(Status::Err) => RED,
-            _ => GRAY,
-        }
-    }
-
-    pub(crate) fn set_status(&mut self, cmd: &CommandData, status: Status) {
-        self.command_status.insert(StatusKey::from(cmd), status);
     }
 }

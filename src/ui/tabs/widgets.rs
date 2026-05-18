@@ -1,4 +1,4 @@
-use crate::ui::app::{PasteTarget, RurocoApp};
+use crate::ui::app::{DashboardState, PasteTarget};
 use eframe::egui;
 
 pub(crate) struct Widgets<'a> {
@@ -48,21 +48,21 @@ impl<'a> Widgets<'a> {
         self.ui.ctx().copy_text(text.to_owned());
     }
 
-    pub(crate) fn paste_button(&mut self, app: &mut RurocoApp, target: PasteTarget) {
+    pub(crate) fn paste_button(&mut self, dashboard: &mut DashboardState, target: PasteTarget) {
         #[cfg(target_os = "android")]
         {
             let _ = &self.ui;
             match crate::common::android::AndroidClipboard::get_text() {
                 Ok(text) => match target {
-                    PasteTarget::Key => app.key = text,
-                    PasteTarget::Config => app.commands_config_text = text,
+                    PasteTarget::Key => dashboard.key = text,
+                    PasteTarget::Config => dashboard.config_text = text,
                 },
                 Err(e) => crate::common::logging::error(format!("Failed to paste: {e}")),
             }
         }
         #[cfg(not(target_os = "android"))]
         {
-            app.paste_target = Some(target);
+            dashboard.paste_target = Some(target);
             self.ui.ctx().send_viewport_cmd(egui::ViewportCommand::RequestPaste);
         }
     }
