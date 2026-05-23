@@ -54,7 +54,10 @@ impl<'a> Widgets<'a> {
             let _ = &self.ui;
             match crate::common::android::AndroidClipboard::get_text() {
                 Ok(text) => match target {
-                    PasteTarget::Key => dashboard.key = text,
+                    PasteTarget::Key => {
+                        dashboard.key = text;
+                        dashboard.save_key();
+                    }
                     PasteTarget::Config => dashboard.config_text = text,
                 },
                 Err(e) => crate::common::logging::error(format!("Failed to paste: {e}")),
