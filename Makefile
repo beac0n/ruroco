@@ -41,7 +41,7 @@ test_unit:
 	cargo nextest run --retries 2 --filter-expr 'not binary(integration_test)'
 
 test_integration:
-	export TEST_UPDATER=1; cargo nextest run --retries 2 --filter-expr 'binary(integration_test)'
+	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server --filter-expr 'binary(integration_test)'
 
 check:
 	cargo check --locked --verbose
