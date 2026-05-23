@@ -23,7 +23,7 @@ pub(crate) fn render(
     }) {
         if let Some(target) = dashboard.paste_target.take() {
             match target {
-                PasteTarget::Key => dashboard.key = text,
+                PasteTarget::Key => dashboard.save_key(text),
                 PasteTarget::Config => dashboard.config_text = text,
             }
         }

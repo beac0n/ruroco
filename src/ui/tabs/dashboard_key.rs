@@ -21,7 +21,7 @@ pub(crate) fn render(dashboard: &mut DashboardState, ui: &mut egui::Ui) {
     let r = widgets::Widgets::new(ui).equal_buttons(&["Generate", lock_label, "📋", "📥"]);
     if r[0] {
         match CryptoHandler::gen_key() {
-            Ok(k) => dashboard.key = k,
+            Ok(k) => dashboard.save_key(k),
             Err(e) => error(format!("Failed to generate key: {e}")),
         }
     }
