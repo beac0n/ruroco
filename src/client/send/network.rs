@@ -1,4 +1,4 @@
-use crate::client::send::Sender;
+use crate::client::send::core::Sender;
 use crate::common::info;
 use anyhow::{bail, Context};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs, UdpSocket};
