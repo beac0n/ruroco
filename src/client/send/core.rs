@@ -314,4 +314,30 @@ mod tests {
         let path = Sender::get_counter_path().unwrap();
         assert!(path.to_str().unwrap().ends_with("counter"));
     }
+
+    #[test]
+    fn test_ensure_port_ipv6_without_port() {
+        let _conf_dir = set_test_conf_dir();
+        let sender = Sender::create(SendCommand {
+            address: "[::1]".to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(sender.cmd.address, "[::1]:80");
+    }
+
+    #[test]
+    fn test_ensure_port_ipv4_without_port() {
+        let _conf_dir = set_test_conf_dir();
+        let sender = Sender::create(SendCommand {
+            address: "127.0.0.1".to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(sender.cmd.address, "127.0.0.1:80");
+    }
 }

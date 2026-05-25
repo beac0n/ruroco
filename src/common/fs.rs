@@ -97,6 +97,7 @@ fn get_gid_by_name(name: &str) -> anyhow::Result<u32> {
 
 #[cfg(test)]
 mod tests {
+    use crate::common::fs::write_atomic;
     use crate::common::fs::{
         change_file_ownership, get_gid_by_name, get_uid_by_name, resolve_path,
     };
@@ -188,6 +189,23 @@ mod tests {
         if let Err(e) = change_file_ownership(&path, "root", "root") {
             assert!(e.to_string().contains("Could not change ownership"), "unexpected: {e}");
         }
+    }
+
+    #[test]
+    fn test_write_atomic_creates_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("atomic_test");
+        write_atomic(&path, b"hello atomic").unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"hello atomic");
+    }
+
+    #[test]
+    fn test_write_atomic_overwrites_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("atomic_test");
+        fs::write(&path, b"old content").unwrap();
+        write_atomic(&path, b"new content").unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"new content");
     }
 
     #[test]

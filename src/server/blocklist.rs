@@ -182,4 +182,18 @@ mod tests {
         assert!(blocklist.get().is_empty());
         assert!(Blocklist::get_blocklist_path(dir.path()).exists());
     }
+
+    #[test]
+    fn test_seed_if_absent() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut blocklist = Blocklist::create(dir.path()).unwrap();
+        let key_id = [1u8; 8];
+
+        blocklist.seed_if_absent(key_id, 50);
+        assert_eq!(blocklist.get_counter(key_id), Some(&50));
+
+        // Second call with different floor must not overwrite
+        blocklist.seed_if_absent(key_id, 999);
+        assert_eq!(blocklist.get_counter(key_id), Some(&50));
+    }
 }
