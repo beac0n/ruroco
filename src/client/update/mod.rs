@@ -386,6 +386,22 @@ mod tests {
     }
 
     #[test]
+    fn test_download_and_save_bin_with_empty_user_group() {
+        let (port, handle) = serve_payload(b"binary-with-ownership");
+        let dir = tempfile::tempdir().unwrap();
+        let updater = create_updater(dir.path());
+        let result = updater.download_and_save_bin(
+            format!("http://127.0.0.1:{port}/bin"),
+            "tb",
+            0o755,
+            Some(""),
+        );
+        handle.join().unwrap();
+        assert!(result.is_ok(), "download_and_save_bin with ownership failed: {result:?}");
+        assert_eq!(fs::read(dir.path().join("tb")).unwrap(), b"binary-with-ownership");
+    }
+
+    #[test]
     fn test_create_no_bin_path_client() {
         let dir = tempfile::tempdir().unwrap();
         let bin_dir = dir.path().join(".local").join("bin");

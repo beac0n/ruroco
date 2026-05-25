@@ -196,4 +196,17 @@ mod tests {
         blocklist.seed_if_absent(key_id, 999);
         assert_eq!(blocklist.get_counter(key_id), Some(&50));
     }
+
+    #[test]
+    fn test_create_with_corrupted_blocklist_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = Blocklist::get_blocklist_path(dir.path());
+        fs::write(&path, b"this is not valid msgpack data").unwrap();
+        let result = Blocklist::create(dir.path());
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().to_string().contains("Could not create blocklist from vec"),
+            "unexpected error"
+        );
+    }
 }
