@@ -2,7 +2,7 @@
 use crate::client::update::Updater;
 use crate::common::logging::error;
 #[cfg(target_os = "android")]
-use crate::ui::android_update::update_android;
+use crate::ui::android::update_android;
 use crate::ui::app::{DashboardState, PasteTarget};
 use crate::ui::saved_command_list::CommandsList;
 use eframe::egui;
