@@ -394,4 +394,14 @@ mod tests {
         assert_eq!(updater.bin_path, bin_dir);
         assert!(bin_dir.exists());
     }
+
+    #[test]
+    fn test_update_no_force_version_matches_skips_network() {
+        let dir = tempfile::tempdir().unwrap();
+        let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        let updater =
+            Updater::create(false, Some(current_version), Some(dir.path().to_path_buf()), false)
+                .unwrap();
+        assert!(updater.update().is_ok());
+    }
 }

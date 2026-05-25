@@ -83,4 +83,17 @@ mod tests {
         c.inc().unwrap();
         assert_eq!(c.count(), u128::MAX);
     }
+
+    #[test]
+    fn test_create_and_init_reads_existing_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.keep().join("counter");
+        let mut c1 = Counter::create_and_init(path.clone(), 10).unwrap();
+        c1.inc().unwrap(); // persists count=11
+        drop(c1);
+
+        // Re-init on existing file should read 11, not reset to 99
+        let c2 = Counter::create_and_init(path, 99).unwrap();
+        assert_eq!(c2.count(), 11);
+    }
 }
