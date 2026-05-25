@@ -86,20 +86,56 @@ Send a command to a specific address
 Usage: ruroco-client send [OPTIONS] --address <ADDRESS> --key <KEY>
 
 Options:
-  -a, --address <ADDRESS>  Address to send the command to
-  -k, --key <KEY>          Base64 key with id (output of `ruroco-client gen` or the UI)
-  -c, --command <COMMAND>  Command to send [default: default]
-  -e, --permissive         Allow permissive IP validation - source IP does not have to match provided IP
-  -i, --ip <IP>            Optional IP address from which the command was sent. Use -6ei "dead:beef:dead:beef::/64" to allow you whole current IPv6 network. To do this automatically, use -6ei $(curl -s6 https://api64.ipify.org | awk -F: '{print $1":"$2":"$3":"$4"::/64"}')
-  -4, --ipv4               Connect via IPv4
-  -6, --ipv6               Connect via IPv6
-  -h, --help               Print help
+  -a, --address <ADDRESS>          Address to send the command to
+  -k, --key <KEY>                  Base64 key with id (output of `ruroco-client gen` or the UI)
+  -c, --command <COMMAND>          Command to send [default: default]
+  -e, --permissive                 Allow permissive IP validation - source IP does not have to match provided IP
+  -i, --ip <IP>                    Optional IP address from which the command was sent. Use -6ei "dead:beef:dead:beef::/64" to allow you whole current IPv6 network. To do this automatically, use -6ei $(curl -s6 https://api64.ipify.org | awk -F: '{print $1":"$2":"$3":"$4"::/64"}')
+  -4, --ipv4                       Connect via IPv4
+  -6, --ipv6                       Connect via IPv6
+  -d, --send-delay-ms <DELAY_MS>   Delay in milliseconds between sending to multiple destinations (IPv4 + IPv6) [default: 50]
+  -h, --help                       Print help
 ```
 
 Pass the same base64 key string that you placed on the server. Example:
 
 ```shell
 ruroco-client send -a 127.0.0.1:34020 -k "$(secret-tool lookup token ruroco)" -c default
+```
+
+### update
+
+```shell
+ruroco-client update --help
+```
+
+```text
+Update the client binary
+
+Usage: ruroco-client update [OPTIONS]
+
+Options:
+  -f, --force                  Force update even if already on the latest version
+  -v, --version <VERSION>      Target version to install (default: latest)
+  -b, --bin-path <BIN_PATH>    Directory where the binary is saved (default: same as current binary)
+  -s, --server                 Update server-side binaries instead of the client
+  -h, --help                   Print help
+```
+
+### wizard
+
+```shell
+ruroco-client wizard --help
+```
+
+```text
+Run the wizard to set up the server side
+
+Usage: ruroco-client wizard [OPTIONS]
+
+Options:
+  -f, --force   Overwrite existing configuration files
+  -h, --help    Print help
 ```
 
 ## server usage
