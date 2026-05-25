@@ -4,6 +4,7 @@ use blake2::Blake2bVar;
 use openssl::rand::rand_bytes;
 
 pub(crate) mod handler;
+mod handler_ops;
 
 pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     let mut hasher = Blake2bVar::new(8)

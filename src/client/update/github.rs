@@ -1,0 +1,46 @@
+use crate::client::update::Updater;
+use anyhow::{anyhow, Context};
+use serde::{Deserialize, Serialize};
+
+pub(super) const GH_RELEASES_URL: &str = "https://api.github.com/repos/beac0n/ruroco/releases";
+pub(super) const SERVER_BIN_DIR: &str = "/usr/local/bin";
+pub(super) const COMMANDER_BIN_NAME: &str = "ruroco-commander";
+pub(super) const SERVER_BIN_NAME: &str = "ruroco-server";
+pub(super) const CLIENT_BIN_NAME: &str = "ruroco-client";
+pub(super) const CLIENT_UI_BIN_NAME: &str = "ruroco-client-ui";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub(crate) struct GithubApiAsset {
+    pub(crate) name: String,
+    pub(crate) browser_download_url: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub(crate) struct GithubApiData {
+    pub(crate) tag_name: String,
+    pub(crate) assets: Vec<GithubApiAsset>,
+}
+
+impl Updater {
+    pub(crate) fn get_github_api_data(
+        version_to_download: Option<&String>,
+    ) -> anyhow::Result<GithubApiData> {
+        let agent = ureq::AgentBuilder::new().user_agent("rust-client").build();
+        let response_data: Vec<GithubApiData> = agent
+            .get(GH_RELEASES_URL)
+            .call()
+            .map_err(|e| anyhow!("Could not get API response: {e}"))?
+            .into_json()
+            .with_context(|| "Could not parse json")?;
+
+        let data = match version_to_download {
+            None => response_data.first().cloned(),
+            Some(v) => response_data.into_iter().find(|d| d.tag_name == *v),
+        };
+
+        match data {
+            None => Err(anyhow!("Could not find version {version_to_download:?}")),
+            Some(d) => Ok(d),
+        }
+    }
+}

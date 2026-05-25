@@ -9,13 +9,16 @@ use crate::client::wizard::Wizard;
 
 /// data structures for using CLI arguments for the client binary
 pub mod config;
+mod config_commands;
 pub mod counter;
 pub mod gen;
 pub(crate) mod lock;
 pub mod send;
+mod send_network;
 pub(crate) mod update;
 pub(crate) mod util;
 mod wizard;
+mod wizard_systemd;
 
 pub fn run_client_send(client: CliClient) -> anyhow::Result<()> {
     match client.command {

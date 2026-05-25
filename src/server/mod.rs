@@ -3,28 +3,32 @@ pub mod blocklist;
 /// responsible for executing the commands that are defined in the config file
 pub mod commander;
 mod commander_data;
+mod commander_exec;
+pub use commander_exec::run_commander;
 /// data structures for loading configuration files and using CLI arguments for server services
 pub mod config;
+mod handler;
+mod keys;
+mod rate_limiter;
 mod signal;
+mod socket;
 pub mod util;
 
-use crate::common::client_data::ClientData;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::logging::{error, info};
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
 use crate::common::{data_parser, normalize_ip, now_nanos};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
+use crate::server::rate_limiter::RateLimiter;
 use crate::server::signal::{install_signal_handlers, shutdown_requested};
 use anyhow::{anyhow, bail, Context};
-use commander_data::{CommanderData, CMDR_DATA_SIZE};
 use std::collections::HashMap;
 use std::fs;
-use std::io::{ErrorKind, Write};
+use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
-use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Server {
@@ -34,7 +38,7 @@ pub struct Server {
     client_recv_data: [u8; MSG_SIZE],
     socket_path: PathBuf,
     blocklist: Blocklist,
-    rate_limiter: HashMap<IpAddr, (Instant, u32)>,
+    rate_limiter: RateLimiter,
 }
 
 impl Server {
@@ -59,7 +63,7 @@ impl Server {
             client_recv_data: [0u8; MSG_SIZE],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist,
-            rate_limiter: HashMap::new(),
+            rate_limiter: RateLimiter::new(),
             config,
         })
     }
@@ -107,6 +111,10 @@ impl Server {
         }
     }
 
+    fn check_rate_limit(&mut self, src_ip: IpAddr) -> anyhow::Result<()> {
+        self.rate_limiter.check(src_ip, self.config.max_requests_per_second)
+    }
+
     fn decrypt(&mut self) -> anyhow::Result<([u8; KEY_ID_SIZE], [u8; PLAINTEXT_SIZE])> {
         let (key_id, encrypted_data) = data_parser::decode(&self.client_recv_data)?;
         let plaintext = self
@@ -115,87 +123,6 @@ impl Server {
             .map(|crypto_handler| crypto_handler.decrypt(encrypted_data))
             .unwrap_or_else(|| Err(anyhow!("Could not find key for id {key_id:X?}")))?;
         Ok((*key_id, plaintext))
-    }
-
-    fn check_rate_limit(&mut self, src_ip: IpAddr) -> anyhow::Result<()> {
-        let max = self.config.max_requests_per_second;
-        let entry = self.rate_limiter.entry(src_ip).or_insert_with(|| (Instant::now(), 0));
-        if entry.0.elapsed() >= Duration::from_secs(1) {
-            entry.0 = Instant::now();
-            entry.1 = 1;
-        } else if entry.1 >= max {
-            bail!("Rate limit exceeded for {src_ip}: more than {max} requests per second");
-        } else {
-            entry.1 += 1;
-        }
-        Ok(())
-    }
-
-    fn validate_and_send_command(
-        &mut self,
-        key_id: [u8; KEY_ID_SIZE],
-        plaintext_data: [u8; PLAINTEXT_SIZE],
-        src_ip: IpAddr,
-    ) -> anyhow::Result<()> {
-        match ClientData::deserialize(plaintext_data) {
-            Ok(client_data) if self.blocklist.is_counter_replayed(key_id, client_data.counter) => {
-                Err(anyhow!("Invalid counter - {} is on blocklist", client_data.counter))
-            }
-            Ok(client_data) if !self.config.ips.contains(&client_data.dst_ip) => {
-                let destination_ip = &client_data.dst_ip;
-                let ips = &self.config.ips;
-                Err(anyhow!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
-            }
-            Ok(client_data) if client_data.is_source_ip_invalid(src_ip) => {
-                let client_src_ip_str =
-                    client_data.src_ip.map(|i| i.to_string()).unwrap_or("none".to_string());
-                Err(anyhow!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
-            }
-            Ok(client_data) => {
-                let cmd = client_data.cmd_hash;
-                let server_counter = self.blocklist.get_counter(key_id);
-                let client_counter = client_data.counter;
-                let ip = client_data.src_ip.unwrap_or(src_ip);
-                info(format!("Valid data - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
-
-                self.send_command(CommanderData { cmd_hash: cmd, ip });
-                self.update_block_list(key_id, client_data.counter);
-                Ok(())
-            }
-            Err(e) => Err(anyhow!("Could not decode data: {e}")),
-        }
-    }
-
-    fn update_block_list(&mut self, key_id: [u8; KEY_ID_SIZE], counter: u128) {
-        self.blocklist.add(key_id, counter);
-        if let Err(e) = self.blocklist.save() {
-            error(format!("Could not update block list: {e}"))
-        }
-    }
-
-    fn send_command(&self, data: CommanderData) {
-        match self.write_to_socket(data) {
-            Ok(_) => info("Successfully sent data to commander"),
-            Err(e) => error(format!(
-                "Could not send data to commander via socket {:?}: {e}",
-                &self.socket_path
-            )),
-        }
-    }
-
-    fn write_to_socket(&self, data: CommanderData) -> anyhow::Result<()> {
-        let mut stream = UnixStream::connect(&self.socket_path)
-            .with_context(|| format!("Could not connect to socket {:?}", self.socket_path))?;
-
-        let data_to_send: [u8; CMDR_DATA_SIZE] = data.into();
-        stream.write_all(&data_to_send).with_context(|| {
-            format!("Could not write {data_to_send:?} to socket {:?}", self.socket_path)
-        })?;
-
-        stream
-            .flush()
-            .with_context(|| format!("Could not flush stream for {:?}", self.socket_path))?;
-        Ok(())
     }
 }
 
@@ -238,7 +165,7 @@ mod tests {
         env::remove_var("RUROCO_LISTEN_ADDRESS");
         let socket = ConfigServer::default().create_server_udp_socket(None).unwrap();
         let result = socket.local_addr().unwrap();
-        assert_eq!(result.port(), crate::server::config::DEFAULT_PORT);
+        assert_eq!(result.port(), crate::server::socket::DEFAULT_PORT);
     }
 
     #[test]

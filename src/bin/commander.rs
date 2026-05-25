@@ -1,6 +1,6 @@
 use clap::Parser;
-use ruroco::server::commander::run_commander;
 use ruroco::server::config::CliServer;
+use ruroco::server::run_commander;
 
 fn main() -> anyhow::Result<()> {
     run_commander(CliServer::parse())
