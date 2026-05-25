@@ -34,11 +34,11 @@ Each binary needs different features: `with-client`, `with-gui`, `with-server`.
 ## Architecture
 
 ```
-src/bin/           4 binaries: client, client_ui (Slint GUI), server, commander
+src/bin/           4 binaries: client, client_ui (egui GUI), server, commander
 src/client/        CLI parsing, key gen, UDP send, counter, lock, self-update, wizard
 src/server/        UDP listener, config, commander IPC, blocklist (replay protection)
 src/common/        Shared: crypto/, protocol/, logging.rs, fs.rs
-src/ui/            Slint GUI + Android JNI bridge
+src/ui/            egui (eframe) GUI + Android JNI bridge
 ```
 
 - Server and Commander are separate processes (privilege separation via Unix socket).
@@ -69,9 +69,9 @@ Defined in `src/common/protocol/constants.rs`:
 ```
 default       = []                           # empty; all builds use --no-default-features
 release-build = ["openssl/vendored"]
-android-build = ["dep:ndk-context", "dep:jni"]
+android-build = ["dep:ndk-context", "dep:jni", "dep:android-activity", "dep:wgpu", "eframe/android-native-activity", "eframe/wgpu", "with-gui"]
 with-server   = ["dep:toml"]
-with-gui      = ["dep:slint", "dep:slint-build", "dep:toml", "with-client"]
+with-gui      = ["dep:eframe", "dep:toml", "with-client"]
 with-client   = ["dep:ureq", "dep:tempfile"]
 ```
 
@@ -80,7 +80,6 @@ with-client   = ["dep:ureq", "dep:tempfile"]
 - `config/config.toml` — example server config (commands receive `$RUROCO_IP` env var)
 - `systemd/` — service files (socket activation on `[::]:80`)
 - `.github/workflows/rust.yml` — CI pipeline
-- `build.rs` — Slint compilation (only when `with-gui` enabled)
 
 ## After Code Changes
 
