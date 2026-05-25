@@ -1,7 +1,5 @@
 #[cfg(target_os = "android")]
 mod android;
-#[cfg(target_os = "android")]
-mod android_update;
 
 mod app;
 mod app_frame;
