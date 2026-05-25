@@ -2,8 +2,10 @@
 //! The data that these structs and enums represent are used for invoking the client binary with CLI
 //! (default) arguments.
 
-pub use crate::client::config_commands::SendCommand;
-pub(crate) use crate::client::config_commands::{GenCommand, UpdateCommand, WizardCommand};
+pub(crate) mod commands;
+
+pub use commands::SendCommand;
+pub(crate) use commands::{GenCommand, UpdateCommand, WizardCommand};
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 use anyhow::anyhow;
