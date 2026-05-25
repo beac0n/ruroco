@@ -1,5 +1,5 @@
 use crate::client::update::Updater;
-use crate::client::wizard::wizard::Wizard;
+use crate::client::wizard::Wizard;
 use crate::common::info;
 use anyhow::Context;
 use std::process::Command;

@@ -5,7 +5,7 @@ use crate::client::gen::Generator;
 use crate::client::lock::ClientLock;
 use crate::client::send::Sender;
 use crate::client::update::Updater;
-use crate::client::wizard::wizard::Wizard;
+use crate::client::wizard::Wizard;
 
 /// data structures for using CLI arguments for the client binary
 pub mod config;
