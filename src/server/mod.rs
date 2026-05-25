@@ -473,6 +473,20 @@ mod tests {
     }
 
     #[test]
+    fn test_send_command_logs_error_on_missing_socket() {
+        use crate::server::commander_data::CommanderData;
+
+        let dir = tempfile::tempdir().unwrap();
+        let (mut server, _key) = create_server_with_key().unwrap();
+        server.socket_path = dir.path().join("nonexistent.socket");
+        // send_command swallows the error and logs it — must not panic
+        server.send_command(CommanderData {
+            cmd_hash: 42,
+            ip: "127.0.0.1".parse().unwrap(),
+        });
+    }
+
+    #[test]
     fn test_validate_ipv6_mapped_ipv4() {
         let (mut server, key) = create_server_with_key().unwrap();
         let localhost = "127.0.0.1".parse().unwrap();

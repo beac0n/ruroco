@@ -183,6 +183,20 @@ mod tests {
     }
 
     #[test]
+    fn test_create_crypto_handlers_duplicate_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let content = "duplicate_key_content";
+        std::fs::write(dir.path().join("a.key"), content).unwrap();
+        std::fs::write(dir.path().join("b.key"), content).unwrap();
+        let config = ConfigServer {
+            config_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let err = config.create_crypto_handlers().unwrap_err().to_string();
+        assert!(err.contains("Duplicate key files detected"), "unexpected: {err}");
+    }
+
+    #[test]
     fn test_create_server_udp_socket_with_address_arg() {
         std::env::remove_var("LISTEN_FDS");
         std::env::remove_var("LISTEN_PID");

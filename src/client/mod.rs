@@ -123,4 +123,20 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "Invalid command for run_client_send");
     }
+
+    #[test]
+    fn test_run_client_update_matching_version_skips_network() {
+        let _conf_dir = set_test_conf_dir();
+        let bin_dir = tempfile::tempdir().unwrap();
+        let current_version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        let result = run_client(CliClient::parse_from(vec![
+            "ruroco",
+            "update",
+            "--version",
+            &current_version,
+            "--bin-path",
+            bin_dir.path().to_str().unwrap(),
+        ]));
+        assert!(result.is_ok());
+    }
 }
