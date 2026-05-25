@@ -209,6 +209,14 @@ mod tests {
     }
 
     #[test]
+    fn test_write_atomic_fails_on_nonexistent_parent() {
+        let path = PathBuf::from("/nonexistent_ruroco_dir_xyz/file.txt");
+        let result = write_atomic(&path, b"content");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("open "));
+    }
+
+    #[test]
     fn test_change_file_ownership_nonexistent_path() {
         assert!(change_file_ownership(
             &PathBuf::from("/tmp/no_such_file_ruroco_xyz"),

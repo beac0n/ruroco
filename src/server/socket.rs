@@ -61,3 +61,54 @@ impl ConfigServer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::server::config::ConfigServer;
+    use std::env;
+
+    #[test]
+    fn test_create_udp_socket_with_explicit_address() {
+        env::remove_var("LISTEN_FDS");
+        env::remove_var("LISTEN_PID");
+        env::remove_var("RUROCO_LISTEN_ADDRESS");
+        let config = ConfigServer::default();
+        let socket = config.create_server_udp_socket(Some("127.0.0.1:0".to_string())).unwrap();
+        assert!(socket.local_addr().is_ok());
+    }
+
+    #[test]
+    fn test_create_udp_socket_listen_fds_not_1() {
+        let pid = std::process::id().to_string();
+        env::set_var("LISTEN_PID", &pid);
+        env::set_var("LISTEN_FDS", "2");
+        env::remove_var("RUROCO_LISTEN_ADDRESS");
+        let config = ConfigServer::default();
+        let result = config.create_server_udp_socket(None);
+        env::remove_var("LISTEN_PID");
+        env::remove_var("LISTEN_FDS");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("LISTEN_FDS was set to 2, expected 1"));
+    }
+
+    #[test]
+    fn test_create_udp_socket_explicit_invalid_address() {
+        env::remove_var("LISTEN_FDS");
+        env::remove_var("LISTEN_PID");
+        env::remove_var("RUROCO_LISTEN_ADDRESS");
+        let config = ConfigServer::default();
+        let result = config.create_server_udp_socket(Some("not-a-valid-host:99999".to_string()));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_udp_socket_ruroco_listen_address_invalid() {
+        env::remove_var("LISTEN_PID");
+        env::remove_var("LISTEN_FDS");
+        env::set_var("RUROCO_LISTEN_ADDRESS", "invalid-address-xyz");
+        let config = ConfigServer::default();
+        let result = config.create_server_udp_socket(None);
+        env::remove_var("RUROCO_LISTEN_ADDRESS");
+        assert!(result.is_err());
+    }
+}

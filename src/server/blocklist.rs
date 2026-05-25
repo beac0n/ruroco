@@ -209,4 +209,33 @@ mod tests {
             "unexpected error"
         );
     }
+
+    #[test]
+    fn test_create_with_unreadable_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let _blocklist = Blocklist::create(dir.path()).unwrap();
+        let path = Blocklist::get_blocklist_path(dir.path());
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o000)).unwrap();
+        let result = Blocklist::create(dir.path());
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+        if !nix::unistd::getuid().is_root() {
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("Could not read blocklist"));
+        }
+    }
+
+    #[test]
+    fn test_save_fails_on_readonly_dir() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let blocklist = Blocklist::create(dir.path()).unwrap();
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o500)).unwrap();
+        let result = blocklist.save();
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        if !nix::unistd::getuid().is_root() {
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("Error persisting blacklist"));
+        }
+    }
 }
