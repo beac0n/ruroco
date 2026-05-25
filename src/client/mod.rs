@@ -9,7 +9,6 @@ use crate::client::wizard::wizard::Wizard;
 
 /// data structures for using CLI arguments for the client binary
 pub mod config;
-mod config_commands;
 pub mod counter;
 pub mod gen;
 pub(crate) mod lock;
