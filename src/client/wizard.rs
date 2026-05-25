@@ -1,21 +1,14 @@
-use crate::client::update::Updater;
 use crate::client::util::set_permissions;
+use crate::client::wizard_systemd::{
+    COMMANDER_SERVICE_FILE_DATA, COMMANDER_SERVICE_FILE_PATH, CONFIG_TOML_FILE_DATA,
+    CONFIG_TOML_PATH, RUROCO_SERVICE_FILE_DATA, RUROCO_SERVICE_FILE_PATH, SOCKET_FILE_DATA,
+    SOCKET_FILE_PATH,
+};
 use crate::common::info;
 use anyhow::Context;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
-
-const CONFIG_TOML_PATH: &str = "/etc/ruroco/config.toml";
-const RUROCO_SERVICE_FILE_PATH: &str = "/etc/systemd/system/ruroco.service";
-const COMMANDER_SERVICE_FILE_PATH: &str = "/etc/systemd/system/ruroco-commander.service";
-const SOCKET_FILE_PATH: &str = "/etc/systemd/system/ruroco.socket";
-
-const CONFIG_TOML_FILE_DATA: &[u8] = include_bytes!("../../config/config.toml");
-const RUROCO_SERVICE_FILE_DATA: &[u8] = include_bytes!("../../systemd/ruroco.service");
-const COMMANDER_SERVICE_FILE_DATA: &[u8] = include_bytes!("../../systemd/ruroco-commander.service");
-const SOCKET_FILE_DATA: &[u8] = include_bytes!("../../systemd/ruroco.socket");
 
 #[derive(Debug)]
 pub(crate) struct Wizard {}
@@ -51,11 +44,6 @@ impl Wizard {
         Ok(())
     }
 
-    fn update() -> anyhow::Result<()> {
-        info("Updating/Installing ruroco server binaries");
-        Updater::create(true, None, None, true)?.update()
-    }
-
     fn init_config_file() -> anyhow::Result<()> {
         info(format!("Initializing config file {CONFIG_TOML_PATH}"));
         if !Path::new(CONFIG_TOML_PATH).exists() {
@@ -63,51 +51,6 @@ impl Wizard {
         }
 
         set_permissions(CONFIG_TOML_PATH, 0o600)?; // owner read|write
-        Ok(())
-    }
-
-    fn start_systemd_services() -> anyhow::Result<()> {
-        info("Starting systemd services ...");
-        Command::new("systemctl")
-            .arg("start")
-            .arg("ruroco.service")
-            .arg("ruroco-commander.service")
-            .arg("ruroco.socket")
-            .status()
-            .with_context(|| "Failed to start ruroco systemd services")?;
-        Ok(())
-    }
-
-    fn enable_systemd_services() -> anyhow::Result<()> {
-        info("Enabling systemd services ...");
-        Command::new("systemctl")
-            .arg("enable")
-            .arg("ruroco.service")
-            .arg("ruroco-commander.service")
-            .arg("ruroco.socket")
-            .status()
-            .with_context(|| "Failed to enable ruroco systemd services")?;
-        Ok(())
-    }
-
-    fn reload_systemd_daemon() -> anyhow::Result<()> {
-        info("Reloading systemd daemon ...");
-        Command::new("systemctl")
-            .arg("daemon-reload")
-            .status()
-            .with_context(|| "Failed to reload systemd")?;
-        Ok(())
-    }
-
-    fn create_ruroco_user() -> anyhow::Result<()> {
-        info("Creating user 'ruroco' ...");
-        Command::new("useradd")
-            .arg("--system")
-            .arg("ruroco")
-            .arg("--shell")
-            .arg("/bin/false")
-            .status()
-            .with_context(|| "Failed to create ruroco user")?;
         Ok(())
     }
 

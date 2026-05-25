@@ -1,38 +1,23 @@
-use crate::client::util::set_permissions;
-use crate::common::{change_file_ownership, info};
-use anyhow::{anyhow, bail, Context};
-use serde::{Deserialize, Serialize};
+mod filesystem;
+mod github;
+
+pub(crate) use github::GithubApiAsset;
+use github::{
+    CLIENT_BIN_NAME, CLIENT_UI_BIN_NAME, COMMANDER_BIN_NAME, SERVER_BIN_DIR, SERVER_BIN_NAME,
+};
+
+use crate::common::info;
+use anyhow::{bail, Context};
+use std::env;
 use std::env::consts::{ARCH, OS};
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::{env, fs};
-use tempfile::NamedTempFile;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub(crate) struct GithubApiAsset {
-    pub(crate) name: String,
-    pub(crate) browser_download_url: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub(crate) struct GithubApiData {
-    pub(crate) tag_name: String,
-    pub(crate) assets: Vec<GithubApiAsset>,
-}
-
-const GH_RELEASES_URL: &str = "https://api.github.com/repos/beac0n/ruroco/releases";
-const SERVER_BIN_DIR: &str = "/usr/local/bin";
-const COMMANDER_BIN_NAME: &str = "ruroco-commander";
-const SERVER_BIN_NAME: &str = "ruroco-server";
-const CLIENT_BIN_NAME: &str = "ruroco-client";
-const CLIENT_UI_BIN_NAME: &str = "ruroco-client-ui";
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub(crate) struct Updater {
-    force: bool,
-    version: Option<String>,
-    bin_path: PathBuf,
-    server: bool,
+    pub(super) force: bool,
+    pub(super) version: Option<String>,
+    pub(super) bin_path: PathBuf,
+    pub(super) server: bool,
 }
 
 impl Updater {
@@ -125,44 +110,6 @@ impl Updater {
         Ok(())
     }
 
-    pub(crate) fn get_github_api_data(
-        version_to_download: Option<&String>,
-    ) -> anyhow::Result<GithubApiData> {
-        let agent = ureq::AgentBuilder::new().user_agent("rust-client").build();
-        let response_data: Vec<GithubApiData> = agent
-            .get(GH_RELEASES_URL)
-            .call()
-            .map_err(|e| anyhow!("Could not get API response: {e}"))?
-            .into_json()
-            .with_context(|| "Could not parse json")?;
-
-        let data = match version_to_download {
-            None => response_data.first().cloned(),
-            Some(v) => response_data.into_iter().find(|d| d.tag_name == *v),
-        };
-
-        match data {
-            None => Err(anyhow!("Could not find version {version_to_download:?}")),
-            Some(d) => Ok(d),
-        }
-    }
-
-    fn check_if_writable(path: &Path) -> anyhow::Result<bool> {
-        Ok(NamedTempFile::new_in(path).is_ok())
-    }
-
-    fn validate_dir_path(dir_path: PathBuf) -> anyhow::Result<PathBuf> {
-        match dir_path {
-            p if !p.exists() => {
-                fs::create_dir_all(&p).with_context(|| "Could not create .bin directory")?;
-                Ok(p)
-            }
-            p if !p.is_dir() => Err(anyhow!("{p:?} exists but is not a directory")),
-            p if !Self::check_if_writable(&p)? => Err(anyhow!("can't write to {p:?}")),
-            p => Ok(p),
-        }
-    }
-
     fn get_download_url(
         &self,
         assets: &[GithubApiAsset],
@@ -177,56 +124,7 @@ impl Updater {
                     None
                 }
             })
-            .ok_or_else(|| anyhow!("Could not find {client_bin_name}"))
-    }
-
-    fn download_and_save_bin(
-        &self,
-        bin_url: String,
-        bin_name: &str,
-        permissions_mode: u32,
-        user_and_group: Option<&str>,
-    ) -> anyhow::Result<()> {
-        //TODO: Verify release signatures or checksums before swapping binaries to prevent
-        // MITM/upstream compromise.
-        info(format!("downloading from {bin_url}"));
-
-        let target_bin_path = &self.bin_path.join(bin_name);
-
-        let mut reader = ureq::get(&bin_url)
-            .call()
-            .map_err(|e| anyhow!("Could not get binary: {e}"))?
-            .into_reader();
-        let mut bin_resp_bytes = Vec::new();
-        reader.read_to_end(&mut bin_resp_bytes).with_context(|| "Could not get bytes")?;
-
-        let target_bin_path_str = target_bin_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Could not convert {target_bin_path:?} to str"))?;
-
-        if target_bin_path.exists() {
-            fs::rename(target_bin_path_str, format!("{target_bin_path_str}.old"))
-                .with_context(|| "Could not rename existing binary")?;
-        }
-
-        match fs::write(target_bin_path_str, bin_resp_bytes) {
-            Ok(_) => {}
-            Err(_) => {
-                fs::rename(format!("{target_bin_path_str}.old"), target_bin_path_str)
-                    .with_context(|| "Could not recover old binary")?;
-
-                bail!("Could not write new binary to {target_bin_path_str}");
-            }
-        }
-
-        #[cfg(unix)]
-        {
-            set_permissions(target_bin_path_str, permissions_mode)?;
-            if let Some(ug) = user_and_group {
-                change_file_ownership(target_bin_path, ug, ug)?
-            }
-        }
-        Ok(())
+            .ok_or_else(|| anyhow::anyhow!("Could not find {client_bin_name}"))
     }
 }
 

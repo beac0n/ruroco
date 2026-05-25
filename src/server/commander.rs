@@ -1,31 +1,25 @@
+use crate::common::info;
 use crate::common::logging::error;
-use crate::common::{change_file_ownership, info};
 use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
-use crate::server::config::{CliServer, ConfigServer};
+use crate::server::config::ConfigServer;
 use crate::server::util::get_commander_unix_socket_path;
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, Context};
 use std::collections::HashMap;
-use std::fs::Permissions;
+use std::fs;
 use std::io::Read;
-use std::net::IpAddr;
-use std::os::unix::fs::PermissionsExt;
-use std::os::unix::net::{UnixListener, UnixStream};
+use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::{fs, str};
-
-const ENV_PREFIX: &str = "RUROCO_";
 
 #[derive(Debug, PartialEq)]
 pub struct Commander {
-    socket_path: PathBuf,
-    cmds: HashMap<u64, String>,
-    socket_user: String,
-    socket_group: String,
+    pub(super) socket_path: PathBuf,
+    pub(super) cmds: HashMap<u64, String>,
+    pub(super) socket_user: String,
+    pub(super) socket_group: String,
 }
 
 impl Commander {
-    fn create_from_path(path: &Path) -> anyhow::Result<Commander> {
+    pub(super) fn create_from_path(path: &Path) -> anyhow::Result<Commander> {
         match fs::read_to_string(path) {
             Ok(config) => Commander::create(ConfigServer::deserialize(&config)?),
             Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
@@ -56,33 +50,6 @@ impl Commander {
         Ok(())
     }
 
-    fn create_listener(&self) -> anyhow::Result<UnixListener> {
-        let socket_dir = match self.socket_path.parent() {
-            Some(socket_dir) => socket_dir,
-            None => bail!("Could not get parent dir for {:?}", &self.socket_path),
-        };
-        fs::create_dir_all(socket_dir)
-            .with_context(|| format!("Could not create parents for {socket_dir:?}"))?;
-
-        let _ = fs::remove_file(&self.socket_path);
-
-        let mode = 0o204; // only server should be able to write, everyone else can read
-        info(format!("Binding Unix Listener on {:?} with permissions {mode:o}", &self.socket_path));
-        let listener = UnixListener::bind(&self.socket_path)
-            .with_context(|| format!("Could not bind to socket {:?}", self.socket_path))?;
-
-        fs::set_permissions(&self.socket_path, Permissions::from_mode(mode)).with_context(
-            || format!("Could not set permissions {mode:o} for {:?}", self.socket_path),
-        )?;
-        self.change_socket_ownership()?;
-
-        Ok(listener)
-    }
-
-    fn change_socket_ownership(&self) -> anyhow::Result<()> {
-        change_file_ownership(&self.socket_path, self.socket_user.trim(), self.socket_group.trim())
-    }
-
     fn run_cycle(&self, stream: &mut UnixStream) -> anyhow::Result<()> {
         let msg = Commander::read(stream)?;
         let cmdr_data: CommanderData = msg.into();
@@ -95,43 +62,6 @@ impl Commander {
         Ok(())
     }
 
-    fn run_command(&self, command: &str, ip: IpAddr) {
-        if Self::sanitize_ip(ip) {
-            return;
-        }
-
-        match Command::new("sh")
-            .arg("-c")
-            .arg(command)
-            .env(format!("{ENV_PREFIX}IP"), ip.to_string())
-            .output()
-        {
-            Ok(result) => {
-                let stdout = String::from_utf8_lossy(&result.stdout);
-                let stderr = String::from_utf8_lossy(&result.stderr);
-                let msg = format!("{command}\nstdout: {stdout}\nstderr: {stderr}");
-                if result.status.success() {
-                    info(format!("Execution was successful: {msg}"))
-                } else {
-                    error(format!("Execution was not successful: {msg}"))
-                }
-            }
-            Err(e) => error(format!("Error executing {command}: {e}")),
-        };
-    }
-
-    fn sanitize_ip(ip: IpAddr) -> bool {
-        let ip_str = ip.to_string();
-        if ip_str.parse::<IpAddr>().is_err()
-            || !ip_str.chars().all(|c| c.is_ascii_hexdigit() || c == '.' || c == ':')
-        {
-            error(format!("refusing to execute with suspicious IP: {:?}", ip_str));
-            true
-        } else {
-            false
-        }
-    }
-
     fn read(stream: &mut UnixStream) -> anyhow::Result<[u8; CMDR_DATA_SIZE]> {
         let mut buffer = [0u8; CMDR_DATA_SIZE];
         stream
@@ -139,10 +69,6 @@ impl Commander {
             .with_context(|| "Could not read command from Unix Stream to string")?;
         Ok(buffer)
     }
-}
-
-pub fn run_commander(server: CliServer) -> anyhow::Result<()> {
-    Commander::create_from_path(&server.config)?.run()
 }
 
 #[cfg(test)]

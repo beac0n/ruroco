@@ -1,7 +1,10 @@
 #![cfg(target_os = "android")]
 
 mod clipboard;
+mod clipboard_read;
+mod jni_util;
 mod keyboard;
+mod keyboard_hide;
 mod prefs;
 mod status_bar;
 mod util;
