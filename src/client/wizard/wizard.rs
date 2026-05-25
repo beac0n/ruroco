@@ -1,5 +1,5 @@
 use crate::client::util::set_permissions;
-use crate::client::wizard_systemd::{
+use crate::client::wizard::wizard_systemd::{
     COMMANDER_SERVICE_FILE_DATA, COMMANDER_SERVICE_FILE_PATH, CONFIG_TOML_FILE_DATA,
     CONFIG_TOML_PATH, RUROCO_SERVICE_FILE_DATA, RUROCO_SERVICE_FILE_PATH, SOCKET_FILE_DATA,
     SOCKET_FILE_PATH,

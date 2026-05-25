@@ -1,5 +1,5 @@
 use crate::client::update::Updater;
-use crate::client::wizard::Wizard;
+use crate::client::wizard::wizard::Wizard;
 use crate::common::info;
 use anyhow::Context;
 use std::process::Command;
@@ -9,11 +9,12 @@ pub(super) const RUROCO_SERVICE_FILE_PATH: &str = "/etc/systemd/system/ruroco.se
 pub(super) const COMMANDER_SERVICE_FILE_PATH: &str = "/etc/systemd/system/ruroco-commander.service";
 pub(super) const SOCKET_FILE_PATH: &str = "/etc/systemd/system/ruroco.socket";
 
-pub(super) const CONFIG_TOML_FILE_DATA: &[u8] = include_bytes!("../../config/config.toml");
-pub(super) const RUROCO_SERVICE_FILE_DATA: &[u8] = include_bytes!("../../systemd/ruroco.service");
+pub(super) const CONFIG_TOML_FILE_DATA: &[u8] = include_bytes!("../../../config/config.toml");
+pub(super) const RUROCO_SERVICE_FILE_DATA: &[u8] =
+    include_bytes!("../../../systemd/ruroco.service");
 pub(super) const COMMANDER_SERVICE_FILE_DATA: &[u8] =
-    include_bytes!("../../systemd/ruroco-commander.service");
-pub(super) const SOCKET_FILE_DATA: &[u8] = include_bytes!("../../systemd/ruroco.socket");
+    include_bytes!("../../../systemd/ruroco-commander.service");
+pub(super) const SOCKET_FILE_DATA: &[u8] = include_bytes!("../../../systemd/ruroco.socket");
 
 impl Wizard {
     pub(super) fn update() -> anyhow::Result<()> {
