@@ -35,3 +35,23 @@ pub(crate) fn render(dashboard: &mut DashboardState, ui: &mut egui::Ui) {
         widgets::Widgets::new(ui).paste_button(dashboard, PasteTarget::Key);
     }
 }
+
+#[cfg(all(test, feature = "with-gui"))]
+mod tests {
+    use super::*;
+    use egui_kittest::Harness;
+
+    #[test]
+    fn test_render_runs() {
+        let mut dashboard = DashboardState {
+            config_text: String::new(),
+            key: String::new(),
+            show_key: false,
+            paste_target: None,
+        };
+        let mut harness = Harness::new_ui(move |ui| {
+            render(&mut dashboard, ui);
+        });
+        harness.run();
+    }
+}

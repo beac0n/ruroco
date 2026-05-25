@@ -67,3 +67,54 @@ impl<'a> Widgets<'a> {
         }
     }
 }
+
+#[cfg(all(test, feature = "with-gui"))]
+mod tests {
+    use super::*;
+    use crate::ui::app::{DashboardState, PasteTarget};
+    use egui_kittest::Harness;
+
+    #[test]
+    fn test_bordered_constructs() {
+        let _ = Widgets::bordered(egui::Color32::RED, 4.0);
+    }
+
+    #[test]
+    fn test_icon_button_renders() {
+        let mut harness = Harness::new_ui(|ui| {
+            Widgets::new(ui).icon_button(egui::Color32::BLUE, "▶");
+        });
+        harness.run();
+    }
+
+    #[test]
+    fn test_equal_buttons_renders() {
+        let mut harness = Harness::new_ui(|ui| {
+            let clicked = Widgets::new(ui).equal_buttons(&["A", "B", "C"]);
+            assert_eq!(clicked.len(), 3);
+        });
+        harness.run();
+    }
+
+    #[test]
+    fn test_copy_text_runs() {
+        let mut harness = Harness::new_ui(|ui| {
+            Widgets::new(ui).copy_text("hello");
+        });
+        harness.run();
+    }
+
+    #[test]
+    fn test_paste_button_sets_target() {
+        let mut dashboard = DashboardState {
+            config_text: String::new(),
+            key: String::new(),
+            show_key: false,
+            paste_target: None,
+        };
+        let mut harness = Harness::new_ui(move |ui| {
+            Widgets::new(ui).paste_button(&mut dashboard, PasteTarget::Key);
+        });
+        harness.step();
+    }
+}

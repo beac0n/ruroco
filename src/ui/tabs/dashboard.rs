@@ -55,3 +55,26 @@ pub(crate) fn render(
         }
     });
 }
+
+#[cfg(all(test, feature = "with-gui"))]
+mod tests {
+    use super::*;
+    use crate::ui::saved_command_list::CommandsList;
+    use egui_kittest::Harness;
+
+    #[test]
+    fn test_render_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut dashboard = DashboardState {
+            config_text: String::new(),
+            key: String::new(),
+            show_key: false,
+            paste_target: None,
+        };
+        let mut commands_list = CommandsList::create(dir.path());
+        let mut harness = Harness::new_ui(move |ui| {
+            render(&mut dashboard, &mut commands_list, ui);
+        });
+        harness.run();
+    }
+}

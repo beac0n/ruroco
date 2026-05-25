@@ -86,3 +86,63 @@ fn exec_command(state: &mut ExecuteState, key: &str, cmd: CommandData) {
         }
     }
 }
+
+#[cfg(all(test, feature = "with-gui"))]
+mod tests {
+    use super::*;
+    use crate::ui::app::ExecuteState;
+    use crate::ui::colors;
+    use crate::ui::saved_command_list::CommandsList;
+    use egui_kittest::Harness;
+    use std::collections::HashMap;
+
+    fn make_cmd() -> CommandData {
+        CommandData {
+            address: "127.0.0.1:1234".into(),
+            command: "default".into(),
+            permissive: false,
+            ip: String::new(),
+            ipv4: false,
+            ipv6: false,
+            name: "default@127.0.0.1:1234".into(),
+        }
+    }
+
+    #[test]
+    fn test_render_empty_list() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut state = ExecuteState {
+            status: HashMap::new(),
+        };
+        let mut commands_list = CommandsList::create(dir.path());
+        let mut harness = Harness::new_ui(move |ui| {
+            render(&mut state, &mut commands_list, "", ui);
+        });
+        harness.run();
+    }
+
+    #[test]
+    fn test_exec_command_empty_key_sets_err() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("RUROCO_CONF_DIR", dir.path());
+        let mut state = ExecuteState {
+            status: HashMap::new(),
+        };
+        let cmd = make_cmd();
+        super::exec_command(&mut state, "", cmd.clone());
+        assert_eq!(state.color_for(&cmd), colors::RED);
+    }
+
+    #[test]
+    fn test_exec_command_with_valid_key_sets_ok() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("RUROCO_CONF_DIR", dir.path());
+        let key = crate::client::gen::Generator::create().unwrap().gen().unwrap();
+        let mut state = ExecuteState {
+            status: HashMap::new(),
+        };
+        let cmd = make_cmd();
+        super::exec_command(&mut state, &key, cmd.clone());
+        assert_eq!(state.color_for(&cmd), colors::GREEN);
+    }
+}

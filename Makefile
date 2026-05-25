@@ -35,7 +35,7 @@ release_android:
 	nix-shell nix/android.nix --pure --run ./scripts/release_android.sh
 
 coverage:
-	cargo tarpaulin --features with-client,with-server,with-gui --timeout 360 --engine llvm --out xml --out html -- --test-threads 1
+	export TEST_UPDATER=1; cargo tarpaulin --features with-client,with-server,with-gui --timeout 360 --engine llvm --out xml --out html -- --test-threads 1
 
 test:
 	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui
