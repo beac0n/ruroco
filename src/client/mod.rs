@@ -5,7 +5,7 @@ use crate::client::gen::Generator;
 use crate::client::lock::ClientLock;
 use crate::client::send::Sender;
 use crate::client::update::Updater;
-use crate::client::wizard::Wizard;
+use crate::client::wizard::wizard::Wizard;
 
 /// data structures for using CLI arguments for the client binary
 pub mod config;
@@ -18,7 +18,6 @@ mod send_network;
 pub(crate) mod update;
 pub(crate) mod util;
 mod wizard;
-mod wizard_systemd;
 
 pub fn run_client_send(client: CliClient) -> anyhow::Result<()> {
     match client.command {
