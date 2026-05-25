@@ -52,7 +52,7 @@ impl ClientData {
 
 #[cfg(feature = "with-server")]
 impl ClientData {
-    pub(crate) fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> anyhow::Result<Self> {
+    pub(crate) fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> Self {
         let mut command_hash_bytes = [0u8; 8];
         command_hash_bytes.copy_from_slice(&data[0..8]);
 
@@ -65,13 +65,13 @@ impl ClientData {
         let mut host_ip_bytes = [0u8; 16];
         host_ip_bytes.copy_from_slice(&data[41..]);
 
-        Ok(Self {
+        Self {
             cmd_hash: u64::from_be_bytes(command_hash_bytes),
             counter: u128::from_be_bytes(counter_bytes),
             strict: data[24] != 0,
             src_ip: (source_ip_bytes != [0u8; 16]).then(|| deserialize_ip(source_ip_bytes)),
             dst_ip: deserialize_ip(host_ip_bytes),
-        })
+        }
     }
 
     pub(crate) fn is_source_ip_invalid(&self, source_ip: IpAddr) -> bool {
@@ -140,7 +140,7 @@ mod roundtrip_tests {
         assert_eq!(data.len(), PLAINTEXT_SIZE);
 
         assert_eq!(
-            ClientData::deserialize(data).unwrap(),
+            ClientData::deserialize(data),
             ClientData {
                 cmd_hash: blake2b_u64("some_kind_of_long_but_not_really_that_long_command")
                     .unwrap(),

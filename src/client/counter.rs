@@ -85,6 +85,14 @@ mod tests {
     }
 
     #[test]
+    fn test_write_to_invalid_dir_returns_error() {
+        let path = std::path::PathBuf::from("/tmp/no_such_dir_ruroco_xyz/counter");
+        let result = Counter::create_and_init(path, 0);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not create counter file"));
+    }
+
+    #[test]
     fn test_create_and_init_reads_existing_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.keep().join("counter");

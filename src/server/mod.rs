@@ -15,9 +15,10 @@ mod socket;
 pub mod util;
 
 use crate::common::crypto_handler::CryptoHandler;
+use crate::common::data_parser::DataParser;
 use crate::common::logging::{error, info};
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
-use crate::common::{data_parser, normalize_ip, now_nanos};
+use crate::common::{normalize_ip, now_nanos};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::rate_limiter::RateLimiter;
@@ -116,7 +117,7 @@ impl Server {
     }
 
     fn decrypt(&mut self) -> anyhow::Result<([u8; KEY_ID_SIZE], [u8; PLAINTEXT_SIZE])> {
-        let (key_id, encrypted_data) = data_parser::decode(&self.client_recv_data)?;
+        let (key_id, encrypted_data) = DataParser::decode(&self.client_recv_data)?;
         let plaintext = self
             .crypto_handlers
             .get(key_id)
@@ -133,6 +134,7 @@ pub fn run_server(server: CliServer) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use crate::client::gen::Generator;
+    use crate::common::data_parser::DataParser;
     use crate::common::get_random_range;
     use crate::common::protocol::MSG_SIZE;
     use crate::server::config::{CliServer, ConfigServer};
@@ -310,6 +312,14 @@ mod tests {
         Ok((server, key))
     }
 
+    #[test]
+    fn test_run_server_invalid_path() {
+        let server = CliServer {
+            config: PathBuf::from("/nonexistent/ruroco_test_path.toml"),
+        };
+        assert!(super::run_server(server).is_err());
+    }
+
     fn create_server_with_key() -> anyhow::Result<(Server, String)> {
         let temp_dir = tempfile::tempdir()?;
         create_server_with_key_in_dir(temp_dir.keep())
@@ -330,7 +340,6 @@ mod tests {
         counter: u128,
     ) -> [u8; MSG_SIZE] {
         use crate::common::client_data::ClientData;
-        use crate::common::data_parser::DataParser;
 
         let parser = DataParser::create(key).unwrap();
         let plaintext =

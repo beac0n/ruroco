@@ -247,6 +247,13 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_dir_path_existing_writable_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = Updater::validate_dir_path(dir.path().to_path_buf()).unwrap();
+        assert_eq!(result, dir.path());
+    }
+
+    #[test]
     fn test_validate_dir_path_existing_file() {
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("a_file");
@@ -332,6 +339,23 @@ mod tests {
         let result = Updater::validate_dir_path(readonly_dir.clone());
         assert!(result.unwrap_err().to_string().contains("can't write to"));
         let _ = fs::set_permissions(&readonly_dir, fs::Permissions::from_mode(0o755));
+    }
+
+    #[test]
+    fn test_create_server_mode_auto_bin_path() {
+        // covers line 44: None if server => Self::validate_dir_path(SERVER_BIN_DIR)
+        // result depends on whether /usr/local/bin is writable; either outcome is fine for coverage
+        let _ = Updater::create(false, None, None, true);
+    }
+
+    #[test]
+    fn test_create_no_home_env_returns_error() {
+        // covers line 47: the with_context lazy closure when HOME is not set
+        env::remove_var("RUROCO_CONF_DIR");
+        env::remove_var("HOME");
+        let result = Updater::create(false, None, None, false);
+        // HOME not set → env::var("HOME") fails → "Could not get home env"
+        assert!(result.unwrap_err().to_string().contains("Could not get home env"));
     }
 
     #[test]

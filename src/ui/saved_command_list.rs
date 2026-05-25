@@ -187,6 +187,16 @@ mod tests {
     }
 
     #[test]
+    fn test_display_multiple_commands_inserts_newline() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cl = CommandsList::create(dir.path());
+        cl.add(make_cmd("host:80", "restart"));
+        cl.add(make_cmd("host:81", "stop"));
+        let display = format!("{cl}");
+        assert!(display.contains('\n'), "multiple commands should be separated by newlines");
+    }
+
+    #[test]
     fn test_sorted_order() {
         let dir = tempfile::tempdir().unwrap();
         let mut cl = CommandsList::create(dir.path());
@@ -205,6 +215,17 @@ mod tests {
         fs::write(&path, "this is {{invalid}} toml").unwrap();
         let cl = CommandsList::create(dir.path());
         assert!(cl.list.is_empty());
+    }
+
+    #[test]
+    fn test_save_with_invalid_path_logs_and_does_not_panic() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cl = CommandsList::create(dir.path());
+        // Override path to a nonexistent directory so write_atomic fails
+        cl.path = std::path::PathBuf::from("/nonexistent_ruroco_dir_xyz/commands_list.toml");
+        let cmd = make_cmd("host:80", "restart");
+        cl.add(cmd); // triggers save() which should log the error but not panic
+        assert_eq!(cl.get().len(), 1);
     }
 
     #[test]

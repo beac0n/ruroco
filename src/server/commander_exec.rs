@@ -67,9 +67,7 @@ impl Commander {
 
     fn sanitize_ip(ip: IpAddr) -> bool {
         let ip_str = ip.to_string();
-        if ip_str.parse::<IpAddr>().is_err()
-            || !ip_str.chars().all(|c| c.is_ascii_hexdigit() || c == '.' || c == ':')
-        {
+        if !ip_str.chars().all(|c| c.is_ascii_hexdigit() || c == '.' || c == ':') {
             error(format!("refusing to execute with suspicious IP: {:?}", ip_str));
             true
         } else {
@@ -80,4 +78,19 @@ impl Commander {
 
 pub fn run_commander(server: CliServer) -> anyhow::Result<()> {
     Commander::create_from_path(&server.config)?.run()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run_commander;
+    use crate::server::config::CliServer;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_run_commander_invalid_path() {
+        let server = CliServer {
+            config: PathBuf::from("/nonexistent/ruroco_test_path.toml"),
+        };
+        assert!(run_commander(server).is_err());
+    }
 }

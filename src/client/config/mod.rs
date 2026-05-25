@@ -99,6 +99,24 @@ mod tests {
     }
 
     #[test]
+    fn test_get_conf_dir_no_home_env() {
+        std::env::remove_var("RUROCO_CONF_DIR");
+        std::env::remove_var("HOME");
+        let result = get_conf_dir();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_get_conf_dir_create_fails() {
+        // /etc/hostname is a file, not a dir — create_dir_all inside it always fails
+        std::env::set_var("RUROCO_CONF_DIR", "/etc/hostname/ruroco_xyz");
+        let result = get_conf_dir();
+        std::env::remove_var("RUROCO_CONF_DIR");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not create config dir"));
+    }
+
+    #[test]
     fn test_send_command_default() {
         let cmd = SendCommand::default();
         assert_eq!(cmd.command, DEFAULT_COMMAND);

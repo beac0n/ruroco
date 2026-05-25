@@ -62,6 +62,19 @@ mod tests {
     use crate::ui::saved_command_list::CommandsList;
     use egui_kittest::Harness;
 
+    fn make_state(paste_target: Option<PasteTarget>) -> (DashboardState, CommandsList) {
+        let dir = tempfile::tempdir().unwrap();
+        (
+            DashboardState {
+                config_text: String::new(),
+                key: String::new(),
+                show_key: false,
+                paste_target,
+            },
+            CommandsList::create(dir.path()),
+        )
+    }
+
     #[test]
     fn test_render_runs() {
         let dir = tempfile::tempdir().unwrap();
@@ -76,5 +89,48 @@ mod tests {
             render(&mut dashboard, &mut commands_list, ui);
         });
         harness.run();
+    }
+
+    #[test]
+    fn test_paste_event_sets_key() {
+        let state = make_state(Some(PasteTarget::Key));
+        let mut harness = Harness::new_ui_state(
+            |ui, (dashboard, cl): &mut (DashboardState, CommandsList)| {
+                render(dashboard, cl, ui);
+            },
+            state,
+        );
+        harness.input_mut().events.push(eframe::egui::Event::Paste("pasted-key".to_string()));
+        harness.step();
+        assert_eq!(harness.state().0.key, "pasted-key");
+    }
+
+    #[test]
+    fn test_paste_event_sets_config() {
+        let state = make_state(Some(PasteTarget::Config));
+        let mut harness = Harness::new_ui_state(
+            |ui, (dashboard, cl): &mut (DashboardState, CommandsList)| {
+                render(dashboard, cl, ui);
+            },
+            state,
+        );
+        harness.input_mut().events.push(eframe::egui::Event::Paste("pasted-config".to_string()));
+        harness.step();
+        assert_eq!(harness.state().0.config_text, "pasted-config");
+    }
+
+    #[test]
+    fn test_non_paste_event_is_ignored() {
+        let state = make_state(None);
+        let mut harness = Harness::new_ui_state(
+            |ui, (dashboard, cl): &mut (DashboardState, CommandsList)| {
+                render(dashboard, cl, ui);
+            },
+            state,
+        );
+        harness.input_mut().events.push(eframe::egui::Event::PointerGone);
+        harness.step();
+        assert!(harness.state().0.paste_target.is_none());
+        assert!(harness.state().0.key.is_empty());
     }
 }

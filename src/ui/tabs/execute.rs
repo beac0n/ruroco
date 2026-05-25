@@ -93,6 +93,7 @@ mod tests {
     use crate::ui::app::ExecuteState;
     use crate::ui::colors;
     use crate::ui::saved_command_list::CommandsList;
+    use egui_kittest::kittest::Queryable;
     use egui_kittest::Harness;
     use std::collections::HashMap;
 
@@ -119,6 +120,66 @@ mod tests {
             render(&mut state, &mut commands_list, "", ui);
         });
         harness.run();
+    }
+
+    #[test]
+    fn test_render_with_commands_covers_loop_body() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut commands_list = CommandsList::create(dir.path());
+        commands_list.add(make_cmd());
+        let mut state = ExecuteState {
+            status: HashMap::new(),
+        };
+        let mut harness = Harness::new_ui(move |ui| {
+            render(&mut state, &mut commands_list, "", ui);
+        });
+        harness.run();
+    }
+
+    #[test]
+    fn test_render_delete_command() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut commands_list = CommandsList::create(dir.path());
+        commands_list.add(make_cmd());
+        let state: (ExecuteState, CommandsList) = (
+            ExecuteState {
+                status: HashMap::new(),
+            },
+            commands_list,
+        );
+        let mut harness = Harness::new_ui_state(
+            |ui, (st, cl): &mut (ExecuteState, CommandsList)| {
+                render(st, cl, "", ui);
+            },
+            state,
+        );
+        harness.get_by_label("🗑").click();
+        harness.run();
+        assert!(harness.state().1.get().is_empty());
+    }
+
+    #[test]
+    fn test_play_button_triggers_exec() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("RUROCO_CONF_DIR", dir.path());
+        let mut commands_list = CommandsList::create(dir.path());
+        commands_list.add(make_cmd());
+        let state: (ExecuteState, CommandsList) = (
+            ExecuteState {
+                status: HashMap::new(),
+            },
+            commands_list,
+        );
+        let mut harness = Harness::new_ui_state(
+            |ui, (st, cl): &mut (ExecuteState, CommandsList)| {
+                render(st, cl, "", ui);
+            },
+            state,
+        );
+        harness.get_by_label("▶").click();
+        harness.run();
+        let cmd = make_cmd();
+        assert_eq!(harness.state().0.color_for(&cmd), colors::RED);
     }
 
     #[test]

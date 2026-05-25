@@ -46,21 +46,86 @@ pub(crate) fn render(
 #[cfg(all(test, feature = "with-gui"))]
 mod tests {
     use super::*;
+    use egui_kittest::kittest::Queryable;
     use egui_kittest::Harness;
+
+    fn make_state(config: &str) -> DashboardState {
+        DashboardState {
+            config_text: config.to_string(),
+            key: String::new(),
+            show_key: false,
+            paste_target: None,
+        }
+    }
 
     #[test]
     fn test_render_runs() {
         let dir = tempfile::tempdir().unwrap();
-        let mut dashboard = DashboardState {
-            config_text: String::new(),
-            key: String::new(),
-            show_key: false,
-            paste_target: None,
-        };
+        let mut dashboard = make_state("");
         let mut commands_list = CommandsList::create(dir.path());
         let mut harness = Harness::new_ui(move |ui| {
             render(&mut dashboard, &mut commands_list, ui, 200.0);
         });
         harness.run();
+    }
+
+    #[test]
+    fn test_reset_button_restores_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = (make_state("edited text"), CommandsList::create(dir.path()));
+        let mut harness = Harness::new_ui_state(
+            |ui, (dashboard, cl): &mut (DashboardState, CommandsList)| {
+                render(dashboard, cl, ui, 200.0);
+            },
+            state,
+        );
+        harness.get_by_label("Reset").click();
+        harness.run();
+        // After reset, config_text should match commands_list.to_string() (empty list → "")
+        assert_eq!(harness.state().0.config_text, "");
+    }
+
+    #[test]
+    fn test_save_button_updates_commands() {
+        let dir = tempfile::tempdir().unwrap();
+        let config_line = "send --address 127.0.0.1:80 --command default";
+        let state = (make_state(config_line), CommandsList::create(dir.path()));
+        let mut harness = Harness::new_ui_state(
+            |ui, (dashboard, cl): &mut (DashboardState, CommandsList)| {
+                render(dashboard, cl, ui, 200.0);
+            },
+            state,
+        );
+        harness.get_by_label("💾").click();
+        harness.run();
+        assert_eq!(harness.state().1.get().len(), 1);
+    }
+
+    #[test]
+    fn test_copy_config_button() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = (make_state("some config"), CommandsList::create(dir.path()));
+        let mut harness = Harness::new_ui_state(
+            |ui, (dashboard, cl): &mut (DashboardState, CommandsList)| {
+                render(dashboard, cl, ui, 200.0);
+            },
+            state,
+        );
+        harness.get_by_label("📋").click();
+        harness.run();
+    }
+
+    #[test]
+    fn test_paste_config_button() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = (make_state(""), CommandsList::create(dir.path()));
+        let mut harness = Harness::new_ui_state(
+            |ui, (dashboard, cl): &mut (DashboardState, CommandsList)| {
+                render(dashboard, cl, ui, 200.0);
+            },
+            state,
+        );
+        harness.get_by_label("📥").click();
+        harness.step();
     }
 }

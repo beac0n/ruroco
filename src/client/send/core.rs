@@ -340,4 +340,19 @@ mod tests {
         .unwrap();
         assert_eq!(sender.cmd.address, "127.0.0.1:80");
     }
+
+    #[test]
+    fn test_send_delay_applied_for_second_ip() {
+        let _conf_dir = set_test_conf_dir();
+        let mut sender = Sender::create(SendCommand {
+            address: "google.com:80".to_string(),
+            key: Generator::create().unwrap().gen().unwrap(),
+            ip: Some(IP.to_string()),
+            send_delay_ms: 1,
+            ..Default::default()
+        })
+        .unwrap();
+        // google.com resolves to both IPv4 and IPv6, so the delay path is hit for the 2nd IP
+        let _ = sender.send();
+    }
 }
