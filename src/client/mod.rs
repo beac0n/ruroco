@@ -13,7 +13,6 @@ pub mod counter;
 pub mod gen;
 pub(crate) mod lock;
 pub mod send;
-mod send_network;
 pub(crate) mod update;
 pub(crate) mod util;
 mod wizard;
