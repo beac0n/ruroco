@@ -66,3 +66,24 @@ impl RurocoApp {
         })
     }
 }
+
+#[cfg(all(test, feature = "with-gui"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_creates_app_with_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let app = RurocoApp::new(dir.path()).unwrap();
+        assert_eq!(app.active_tab, Tab::Dashboard);
+        assert_eq!(app.status_bar_dp, 0.0);
+        assert!(app.execute.status.is_empty());
+    }
+
+    #[test]
+    fn test_new_with_status_bar_sets_dp() {
+        let dir = tempfile::tempdir().unwrap();
+        let app = RurocoApp::new_with_status_bar(dir.path(), 24.0).unwrap();
+        assert_eq!(app.status_bar_dp, 24.0);
+    }
+}

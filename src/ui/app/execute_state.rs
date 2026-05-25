@@ -49,3 +49,49 @@ impl ExecuteState {
         self.status.insert(StatusKey::from(cmd), status);
     }
 }
+
+#[cfg(all(test, feature = "with-gui"))]
+mod tests {
+    use super::*;
+    use crate::ui::colors::{GRAY, GREEN, RED};
+
+    fn sample() -> CommandData {
+        CommandData {
+            name: "t".into(),
+            address: "127.0.0.1:80".into(),
+            command: "default".into(),
+            ip: String::new(),
+            permissive: false,
+            ipv4: false,
+            ipv6: false,
+        }
+    }
+
+    #[test]
+    fn test_color_gray_when_absent() {
+        let state = ExecuteState {
+            status: HashMap::new(),
+        };
+        assert_eq!(state.color_for(&sample()), GRAY);
+    }
+
+    #[test]
+    fn test_color_green_on_ok() {
+        let mut state = ExecuteState {
+            status: HashMap::new(),
+        };
+        let cmd = sample();
+        state.set(&cmd, Status::Ok);
+        assert_eq!(state.color_for(&cmd), GREEN);
+    }
+
+    #[test]
+    fn test_color_red_on_err() {
+        let mut state = ExecuteState {
+            status: HashMap::new(),
+        };
+        let cmd = sample();
+        state.set(&cmd, Status::Err);
+        assert_eq!(state.color_for(&cmd), RED);
+    }
+}

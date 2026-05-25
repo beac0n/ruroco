@@ -40,6 +40,20 @@ pub fn run_ui() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(all(test, feature = "with-gui"))]
+mod tests {
+    use super::set_font_size;
+    use egui_kittest::Harness;
+
+    #[test]
+    fn test_set_font_size() {
+        let mut harness = Harness::new_ui(|ui| {
+            set_font_size(ui.ctx(), 18.0);
+        });
+        harness.run();
+    }
+}
+
 #[cfg(target_os = "android")]
 pub fn run_ui_with_options(
     opts: eframe::NativeOptions,

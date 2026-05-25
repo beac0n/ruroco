@@ -43,3 +43,29 @@ impl DashboardState {
         }
     }
 }
+
+#[cfg(all(test, feature = "with-gui"))]
+mod tests {
+    use super::*;
+
+    fn make_state() -> DashboardState {
+        DashboardState {
+            config_text: String::new(),
+            key: String::new(),
+            show_key: false,
+            paste_target: None,
+        }
+    }
+
+    #[test]
+    fn test_load_persisted_key_empty_on_non_android() {
+        assert_eq!(DashboardState::load_persisted_key(), String::new());
+    }
+
+    #[test]
+    fn test_save_key_sets_key() {
+        let mut state = make_state();
+        state.save_key("my-key".to_string());
+        assert_eq!(state.key, "my-key");
+    }
+}

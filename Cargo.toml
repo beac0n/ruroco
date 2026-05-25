@@ -29,6 +29,7 @@ wgpu = { version = "=29.0.3", default-features = false, features = ["gles"], opt
 [dev-dependencies]
 test-with = { version = "=0.16.1", default-features = false, features = [] }
 tempfile = "=3.27.0"
+egui_kittest = { version = "0.34", default-features = false }
 
 [lib]
 crate-type = ["lib", "cdylib"]
