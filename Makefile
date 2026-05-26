@@ -1,6 +1,3 @@
-export RUSTFLAGS := -D warnings
-
-
 print_commits:
 	git --no-pager log $$(git tag --sort=-version:refname | head -n 2 | tail -1)..$$(git tag --sort=-version:refname | head -n 1) --oneline
 
@@ -47,10 +44,10 @@ test_integration:
 	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui --filter-expr 'binary(integration_test)'
 
 check:
-	cargo check --locked --verbose
+	cargo check --locked --verbose && cargo check --locked --no-default-features --verbose
 
 format:
-	cargo fix --allow-dirty --features with-client,with-server && cargo fmt && cargo clippy --tests --features with-client,with-server --verbose -- -D warnings
+	cargo fmt && cargo clippy --tests --features with-client,with-server,with-gui --verbose -- -D warnings && cargo fix --allow-dirty --features with-client,with-server,with-gui
 
 install_client: release
 	mkdir -p ~/.local/bin/

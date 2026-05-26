@@ -27,7 +27,7 @@ jobs:
       - name: Run Check
         uses: workflow/nix-shell-action@v3
         with:
-          script: nix-shell nix/linux.nix --pure --run 'cargo check --locked --verbose && cargo check --locked --no-default-features --verbose'
+          script: nix-shell nix/linux.nix --pure --run 'make check'
 
   typos:
     name: Typos
@@ -89,7 +89,7 @@ jobs:
       - name: Run Check
         uses: workflow/nix-shell-action@v3
         with:
-          script: nix-shell nix/linux.nix --pure --run 'cargo nextest run --features with-client,with-server --retries 2'
+          script: nix-shell nix/linux.nix --pure --run 'make test'
 
   coverage:
     name: Coverage
@@ -101,7 +101,7 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: Generate code coverage
-        run: nix-shell nix/linux.nix --pure --run 'cargo tarpaulin --timeout 360 --out xml --features with-client,with-server -- --test-threads 1'
+        run: nix-shell nix/linux.nix --pure --run 'make coverage'
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v2
         env:
@@ -119,7 +119,7 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: Check formatting
-        run: nix-shell nix/linux.nix --pure --run 'cargo fmt && cargo clippy --tests --features with-client,with-server --verbose -- -D warnings'
+        run: nix-shell nix/linux.nix --pure --run 'make format'
 
   release:
     name: Create Release
