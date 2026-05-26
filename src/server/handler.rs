@@ -35,8 +35,8 @@ impl Server {
                 let ip = client_data.src_ip.unwrap_or(src_ip);
                 info(format!("Valid data - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
 
-                self.send_command(CommanderData { cmd_hash: cmd, ip });
                 self.update_block_list(key_id, client_data.counter);
+                self.send_command(CommanderData { cmd_hash: cmd, ip });
                 Ok(())
             }
         }
