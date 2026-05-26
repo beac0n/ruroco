@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-05-26
+
+### Added
+
+- Android: persistent AES key storage using shared preferences
+- Client: add `-d` shortcut flag
+
+### Changed
+
+- UI: migrate from Slint to egui (major rewrite of GUI layer)
+- UI: extract widget helpers (equal-button row, clipboard) into widgets module
+- UI: read commands directly from commands list; remove cached_commands
+- UI: stop round-trpping CommandData through CLI strings
+- Server: update blocklist before executing command for improved safety
+- Build: gate server-only features behind `with-server` feature flag
+- Build: coverage now produces branch coverage and HTML output
+
+### Fixed
+
+- Security: blocklist is now updated before command execution, preventing potential replay in edge cases
+- UI: fix Android interaction issues and safe-area rendering
+- UI: set font size globally
+
+### Removed
+
+- UI: remove dead `CommandData::color` field
+- Slint UI files and Slint/Rust bridge code
+
 ## [0.12.4] - 2026-05-15
 
 ### Added
