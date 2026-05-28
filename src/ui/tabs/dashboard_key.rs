@@ -1,5 +1,8 @@
+use crate::client::counter::Counter;
+use crate::client::send::Sender;
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::logging::error;
+use crate::common::{info, now_nanos};
 use crate::ui::app::{DashboardState, PasteTarget};
 use crate::ui::tabs::widgets;
 use eframe::egui;
@@ -33,6 +36,19 @@ pub(crate) fn render(dashboard: &mut DashboardState, ui: &mut egui::Ui) {
     }
     if r[3] {
         widgets::Widgets::new(ui).paste_button(dashboard, PasteTarget::Key);
+    }
+
+    ui.add_space(6.0);
+    ui.separator();
+    ui.add_space(6.0);
+
+    if widgets::Widgets::new(ui).equal_buttons(&["Reseed Counter"])[0] {
+        match Sender::get_counter_path()
+            .and_then(|p| now_nanos().and_then(|v| Counter::reseed(p, v)))
+        {
+            Ok(()) => info("Counter reseeded"),
+            Err(e) => error(format!("Failed to reseed counter: {e}")),
+        }
     }
 }
 
@@ -111,5 +127,21 @@ mod tests {
         );
         harness.get_by_label("📥").click();
         harness.step();
+    }
+
+    #[test]
+    fn test_reseed_counter_button() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("RUROCO_CONF_DIR", dir.path());
+        let mut harness = Harness::new_ui_state(
+            |ui, dashboard: &mut DashboardState| {
+                render(dashboard, ui);
+            },
+            make_state(),
+        );
+        harness.get_by_label("Reseed Counter").click();
+        harness.run();
+        std::env::remove_var("RUROCO_CONF_DIR");
+        assert!(dir.path().join("counter").exists(), "counter file should exist after reseed");
     }
 }

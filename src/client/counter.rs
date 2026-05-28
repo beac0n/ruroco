@@ -34,6 +34,10 @@ impl Counter {
         Ok(())
     }
 
+    pub fn reseed(path: PathBuf, value: u128) -> anyhow::Result<()> {
+        Self { path, count: value }.write()
+    }
+
     fn write(&self) -> anyhow::Result<()> {
         File::create(&self.path)
             .with_context(|| format!("Could not create counter file {:?}", self.path))?
@@ -85,8 +89,21 @@ mod tests {
     }
 
     #[test]
+    fn test_reseed_overwrites_existing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.keep().join("counter");
+        let mut c = Counter::create_and_init(path.clone(), 100).unwrap();
+        c.inc().unwrap(); // persists 101
+        drop(c);
+
+        Counter::reseed(path.clone(), 9999).unwrap();
+        let c2 = Counter::create_and_init(path, 0).unwrap();
+        assert_eq!(c2.count(), 9999);
+    }
+
+    #[test]
     fn test_write_to_invalid_dir_returns_error() {
-        let path = std::path::PathBuf::from("/tmp/no_such_dir_ruroco_xyz/counter");
+        let path = PathBuf::from("/tmp/no_such_dir_ruroco_xyz/counter");
         let result = Counter::create_and_init(path, 0);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Could not create counter file"));

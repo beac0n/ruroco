@@ -1,11 +1,13 @@
 //! This module is responsible for sending data to the server and for generating key file
 
 use crate::client::config::{CliClient, CommandsClient};
+use crate::client::counter::Counter;
 use crate::client::gen::Generator;
 use crate::client::lock::ClientLock;
 use crate::client::send::Sender;
 use crate::client::update::Updater;
 use crate::client::wizard::Wizard;
+use crate::common::{info, now_nanos};
 
 /// data structures for using CLI arguments for the client binary
 pub mod config;
@@ -42,6 +44,11 @@ pub fn run_client(client: CliClient) -> anyhow::Result<()> {
         )?
         .update(),
         CommandsClient::Wizard(_) => Wizard::create().run(),
+        CommandsClient::Reseed(_) => {
+            Counter::reseed(Sender::get_counter_path()?, now_nanos()?)?;
+            info("Counter reseeded");
+            Ok(())
+        }
     }
 }
 
@@ -63,6 +70,13 @@ mod tests {
     fn test_gen() {
         let _conf_dir = set_test_conf_dir();
         let result = run_client(CliClient::parse_from(vec!["ruroco", "gen"]));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_reseed() {
+        let _conf_dir = set_test_conf_dir();
+        let result = run_client(CliClient::parse_from(vec!["ruroco", "reseed"]));
         assert!(result.is_ok());
     }
 

@@ -6,6 +6,9 @@ use std::path::PathBuf;
 pub(crate) struct GenCommand {}
 
 #[derive(Parser, Debug)]
+pub(crate) struct ReseedCommand {}
+
+#[derive(Parser, Debug)]
 pub struct SendCommand {
     /// Address to send the command to.
     #[arg(short, long)]

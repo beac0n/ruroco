@@ -5,7 +5,7 @@
 pub(crate) mod commands;
 
 pub use commands::SendCommand;
-pub(crate) use commands::{GenCommand, UpdateCommand, WizardCommand};
+pub(crate) use commands::{GenCommand, ReseedCommand, UpdateCommand, WizardCommand};
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 use anyhow::anyhow;
@@ -33,6 +33,8 @@ pub(crate) enum CommandsClient {
     Update(UpdateCommand),
     /// Run the wizard to set up the server side.
     Wizard(WizardCommand),
+    /// Reseed the replay-protection counter to the current timestamp.
+    Reseed(ReseedCommand),
 }
 
 pub(crate) fn get_conf_dir() -> anyhow::Result<PathBuf> {
