@@ -51,6 +51,7 @@ Commands:
   send    Send a command to a specific address
   update  Update the client binary
   wizard  Run the wizard to set up the server side
+  reseed  Reseed the replay-protection counter to the current timestamp
   help    Print this message or the help of the given subcommand(s)
 
 Options:
@@ -121,6 +122,17 @@ Options:
   -s, --server                 Update server-side binaries instead of the client
   -h, --help                   Print help
 ```
+
+### reseed
+
+```shell
+ruroco-client reseed
+```
+
+Resets the local replay-protection counter to the current nanosecond timestamp. Use this if the counter
+file is lost or corrupted, or after a system clock jump that would cause the server to reject packets.
+
+The UI equivalent is the **Reseed Counter** button on the dashboard.
 
 ### wizard
 
@@ -305,6 +317,32 @@ ruroco-client send --address host.domain:8080 --command enable_file_browser --ke
 ```
 
 the file browser nginx config will be enabled and nginx reloaded, effectively making the file browser accessible.
+
+# troubleshooting
+
+## server rejects packets from one client
+
+Each client must have its own unique key. If two clients share the same key, they each maintain an
+independent local counter, but the server tracks only one counter per key. Whichever client sends
+a packet last advances the server's counter - the other client's counter now lags behind, and the
+server will reject all its future packets as replays.
+
+To fix this:
+
+1. Generate a new key for each client with `ruroco-client gen` (or the **Generate** button in the UI)
+2. Copy the new key to the server config dir alongside the existing key
+3. Use the new key when calling `ruroco-client send`
+
+If you intentionally share a key (not recommended) and the counter falls out of sync, you can
+recover without generating a new key by running:
+
+```shell
+ruroco-client reseed
+```
+
+This resets the local counter to the current nanosecond timestamp, which will be higher than any
+value the server has seen and allows packets to be accepted again. The UI equivalent is the
+**Reseed Counter** button on the dashboard.
 
 # architecture
 
