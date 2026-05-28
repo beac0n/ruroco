@@ -85,6 +85,10 @@ with-client   = ["dep:ureq", "dep:tempfile"]
 
 After every code change, run `make format && make test` to verify formatting and tests pass.
 
+When adding a CLI subcommand to `ruroco-client`, always update `README.md`:
+- Add the command to the commands table under `### commands`
+- Add a dedicated `### <command>` section under `## client usage`
+
 ## On Compaction
 
 Preserve: project overview, build commands, no-panic rule, protocol sizes, architecture layout,
