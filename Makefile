@@ -17,6 +17,22 @@ clean:
 	rm -rf target
 	rm -rf nix/.nix-*
 
+gen_signing_key:
+	@if [ -f keys/ruroco-release-ed25519.key ]; then \
+		echo "keys/ruroco-release-ed25519.key already exists - refusing to overwrite (remove it manually to regenerate)"; \
+		exit 1; \
+	fi
+	mkdir -p keys
+	openssl genpkey -algorithm ed25519 -out keys/ruroco-release-ed25519.key
+	openssl pkey -in keys/ruroco-release-ed25519.key -pubout -out keys/ruroco-release-ed25519.pub.pem
+	@echo ""
+	@echo "Generated:"
+	@echo "  keys/ruroco-release-ed25519.key      (private, gitignored - keep secret, back up offline)"
+	@echo "  keys/ruroco-release-ed25519.pub.pem  (public, committed - embedded into the client)"
+	@echo ""
+	@echo "Next: add the private key as the RUROCO_SIGNING_KEY GitHub Actions secret:"
+	@echo "  gh secret set RUROCO_SIGNING_KEY < keys/ruroco-release-ed25519.key"
+
 release: release_android release_linux
 
 release_linux:
@@ -32,7 +48,7 @@ release_android:
 	nix-shell nix/android.nix --pure --run ./scripts/release_android.sh
 
 coverage:
-	export TEST_UPDATER=1; cargo tarpaulin --features with-client,with-server,with-gui --timeout 360 --engine llvm --out xml --out html -- --test-threads 1
+	export TEST_UPDATER=1; cargo tarpaulin --features with-client,with-server,with-gui --timeout 360 --engine llvm --out xml --out html
 
 test:
 	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui

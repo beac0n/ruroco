@@ -7,6 +7,10 @@ ruroco*.pem
 tests/conf_dir/blocklist.toml
 tests/conf_dir/blocklist.msgpck
 
+# release signing key: private stays local, public is committed and embedded in the client
+keys/ruroco-release-ed25519.key
+!keys/ruroco-release-ed25519.pub.pem
+
 # Created by https://www.toptal.com/developers/gitignore/api/rust,intellij+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=rust,intellij+all
 

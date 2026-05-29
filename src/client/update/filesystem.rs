@@ -1,5 +1,6 @@
 use crate::client::update::Updater;
 use crate::client::util::set_permissions;
+use crate::common::crypto::verify_ed25519;
 use crate::common::{change_file_ownership, info};
 use anyhow::{anyhow, bail, Context};
 use std::fs;
@@ -10,6 +11,14 @@ use tempfile::NamedTempFile;
 impl Updater {
     pub(super) fn check_if_writable(path: &Path) -> anyhow::Result<bool> {
         Ok(NamedTempFile::new_in(path).is_ok())
+    }
+
+    fn download_bytes(url: &str) -> anyhow::Result<Vec<u8>> {
+        let mut reader =
+            ureq::get(url).call().map_err(|e| anyhow!("Could not get binary: {e}"))?.into_reader();
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).with_context(|| "Could not get bytes")?;
+        Ok(bytes)
     }
 
     pub(super) fn validate_dir_path(dir_path: PathBuf) -> anyhow::Result<PathBuf> {
@@ -27,6 +36,7 @@ impl Updater {
     pub(super) fn download_and_save_bin(
         &self,
         bin_url: String,
+        sig_url: String,
         bin_name: &str,
         permissions_mode: u32,
         user_and_group: Option<&str>,
@@ -35,12 +45,11 @@ impl Updater {
 
         let target_bin_path = &self.bin_path.join(bin_name);
 
-        let mut reader = ureq::get(&bin_url)
-            .call()
-            .map_err(|e| anyhow!("Could not get binary: {e}"))?
-            .into_reader();
-        let mut bin_resp_bytes = Vec::new();
-        reader.read_to_end(&mut bin_resp_bytes).with_context(|| "Could not get bytes")?;
+        let bin_resp_bytes = Self::download_bytes(&bin_url)?;
+        let sig_bytes = Self::download_bytes(&sig_url)?;
+
+        verify_ed25519(&self.public_key_pem, &bin_resp_bytes, &sig_bytes)
+            .with_context(|| format!("Signature verification failed for {bin_name}"))?;
 
         let target_bin_path_str = target_bin_path
             .to_str()

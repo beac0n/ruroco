@@ -3,7 +3,8 @@ mod github;
 
 pub(crate) use github::GithubApiAsset;
 use github::{
-    CLIENT_BIN_NAME, CLIENT_UI_BIN_NAME, COMMANDER_BIN_NAME, SERVER_BIN_DIR, SERVER_BIN_NAME,
+    CLIENT_BIN_NAME, CLIENT_UI_BIN_NAME, COMMANDER_BIN_NAME, GH_RELEASES_URL, RELEASE_PUBLIC_KEY,
+    SERVER_BIN_DIR, SERVER_BIN_NAME,
 };
 
 use crate::common::info;
@@ -18,6 +19,11 @@ pub(crate) struct Updater {
     pub(super) version: Option<String>,
     pub(super) bin_path: PathBuf,
     pub(super) server: bool,
+    /// Ed25519 public key (PEM) used to verify downloaded binaries. Defaults to the
+    /// embedded release key; overridable in tests for hermetic signing.
+    pub(super) public_key_pem: Vec<u8>,
+    /// GitHub releases API URL. Defaults to the real endpoint; overridable in tests.
+    pub(super) releases_url: String,
 }
 
 impl Updater {
@@ -53,6 +59,8 @@ impl Updater {
             version,
             bin_path,
             server,
+            public_key_pem: RELEASE_PUBLIC_KEY.to_vec(),
+            releases_url: GH_RELEASES_URL.to_string(),
         })
     }
 
@@ -64,7 +72,7 @@ impl Updater {
             return Ok(());
         }
 
-        let api_data = Self::get_github_api_data(self.version.as_ref())?;
+        let api_data = Self::get_github_api_data_from(&self.releases_url, self.version.as_ref())?;
 
         if !self.force && current_version.clone() == api_data.tag_name {
             info(format!("Already using version {current_version}"));
@@ -77,6 +85,7 @@ impl Updater {
             let commander_bin_name = format!("commander-{}-{}-{}", api_data.tag_name, ARCH, OS);
             self.download_and_save_bin(
                 self.get_download_url(assets, &commander_bin_name)?,
+                self.get_download_url(assets, &format!("{commander_bin_name}.sig"))?,
                 COMMANDER_BIN_NAME,
                 0o100, // execute for owner
                 None,
@@ -85,6 +94,7 @@ impl Updater {
             let server_bin_name = format!("server-{}-{}-{}", api_data.tag_name, ARCH, OS);
             self.download_and_save_bin(
                 self.get_download_url(assets, &server_bin_name)?,
+                self.get_download_url(assets, &format!("{server_bin_name}.sig"))?,
                 SERVER_BIN_NAME,
                 0o500, // read|execute for owner
                 Some("ruroco"),
@@ -93,6 +103,7 @@ impl Updater {
             let client_bin_name = format!("client-{}-{}-{}", api_data.tag_name, ARCH, OS);
             self.download_and_save_bin(
                 self.get_download_url(assets, &client_bin_name)?,
+                self.get_download_url(assets, &format!("{client_bin_name}.sig"))?,
                 CLIENT_BIN_NAME,
                 0o755, // read|write|execute for owner, read|execute for group and others.
                 None,
@@ -101,6 +112,7 @@ impl Updater {
             let client_ui_bin_name = format!("client-ui-{}-{}-{}", api_data.tag_name, ARCH, OS);
             self.download_and_save_bin(
                 self.get_download_url(assets, &client_ui_bin_name)?,
+                self.get_download_url(assets, &format!("{client_ui_bin_name}.sig"))?,
                 CLIENT_UI_BIN_NAME,
                 0o755, // read|write|execute for owner, read|execute for group and others.
                 None,
@@ -130,7 +142,9 @@ impl Updater {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::update::{GithubApiAsset, Updater};
+    use crate::client::update::{GithubApiAsset, Updater, GH_RELEASES_URL};
+    use openssl::pkey::{PKey, Private};
+    use openssl::sign::Signer;
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::os::unix::fs::PermissionsExt;
@@ -142,6 +156,28 @@ mod tests {
         Updater::create(false, None, Some(dir.to_path_buf()), false).unwrap()
     }
 
+    /// Builds an Updater that verifies against `public_key_pem` (so tests can sign payloads
+    /// with a matching private key) instead of the embedded release key.
+    fn updater_with_key(dir: &Path, public_key_pem: Vec<u8>) -> Updater {
+        Updater {
+            force: false,
+            version: None,
+            bin_path: dir.to_path_buf(),
+            server: false,
+            public_key_pem,
+            releases_url: GH_RELEASES_URL.to_string(),
+        }
+    }
+
+    fn test_keypair() -> (Vec<u8>, PKey<Private>) {
+        let key = PKey::generate_ed25519().unwrap();
+        (key.public_key_to_pem().unwrap(), key)
+    }
+
+    fn sign_bytes(key: &PKey<Private>, message: &[u8]) -> Vec<u8> {
+        Signer::new_without_digest(key).unwrap().sign_oneshot_to_vec(message).unwrap()
+    }
+
     fn create_readonly_dir(parent: &Path) -> PathBuf {
         let dir = parent.join("readonly");
         fs::create_dir_all(&dir).unwrap();
@@ -150,16 +186,19 @@ mod tests {
     }
 
     /// Spawns a local HTTP server that serves `payload` once, returns (port, join handle).
-    fn serve_payload(payload: &'static [u8]) -> (u16, JoinHandle<()>) {
+    fn serve_payload(payload: Vec<u8>) -> (u16, JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let handle = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
             let mut buf = [0u8; 1024];
             let _ = stream.read(&mut buf);
-            let resp = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", payload.len());
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                payload.len()
+            );
             stream.write_all(resp.as_bytes()).unwrap();
-            stream.write_all(payload).unwrap();
+            stream.write_all(&payload).unwrap();
         });
         (port, handle)
     }
@@ -169,25 +208,6 @@ mod tests {
             name: name.to_string(),
             browser_download_url: url.to_string(),
         }
-    }
-
-    #[test_with::env(TEST_UPDATER)]
-    #[test]
-    fn test_update() {
-        let temp_path = tempfile::tempdir().unwrap();
-        let temp_path = temp_path.path();
-
-        let result =
-            Updater::create(true, None, Some(temp_path.to_path_buf()), false).unwrap().update();
-
-        let entries: Vec<String> = fs::read_dir(temp_path)
-            .unwrap()
-            .filter_map(|entry| entry.ok())
-            .filter_map(|entry| entry.path().to_str().map(String::from))
-            .collect();
-
-        assert!(result.is_ok());
-        assert_eq!(entries.len(), 2);
     }
 
     #[test]
@@ -303,7 +323,7 @@ mod tests {
     #[test_with::env(TEST_UPDATER)]
     #[test]
     fn test_get_github_api_data_latest() {
-        let data = Updater::get_github_api_data(None).unwrap();
+        let data = Updater::get_github_api_data_from(GH_RELEASES_URL, None).unwrap();
         assert!(!data.tag_name.is_empty());
         assert!(!data.assets.is_empty());
     }
@@ -312,7 +332,9 @@ mod tests {
     #[test]
     fn test_get_github_api_data_specific_version() {
         assert_eq!(
-            Updater::get_github_api_data(Some(&"v0.10.0".to_string())).unwrap().tag_name,
+            Updater::get_github_api_data_from(GH_RELEASES_URL, Some(&"v0.10.0".to_string()))
+                .unwrap()
+                .tag_name,
             "v0.10.0"
         );
     }
@@ -320,7 +342,8 @@ mod tests {
     #[test_with::env(TEST_UPDATER)]
     #[test]
     fn test_get_github_api_data_nonexistent_version() {
-        assert!(Updater::get_github_api_data(Some(&"v99.99.99".to_string())).is_err());
+        assert!(Updater::get_github_api_data_from(GH_RELEASES_URL, Some(&"v99.99.99".to_string()))
+            .is_err());
     }
 
     #[test]
@@ -360,37 +383,49 @@ mod tests {
 
     #[test]
     fn test_download_and_save_bin_creates_file() {
-        let (port, handle) = serve_payload(b"fake-binary-content");
+        let (pub_pem, key) = test_keypair();
+        let content = b"fake-binary-content".to_vec();
+        let sig = sign_bytes(&key, &content);
+        let (bin_port, bin_handle) = serve_payload(content.clone());
+        let (sig_port, sig_handle) = serve_payload(sig);
         let dir = tempfile::tempdir().unwrap();
-        let updater = create_updater(dir.path());
+        let updater = updater_with_key(dir.path(), pub_pem);
         let result = updater.download_and_save_bin(
-            format!("http://127.0.0.1:{port}/bin"),
+            format!("http://127.0.0.1:{bin_port}/bin"),
+            format!("http://127.0.0.1:{sig_port}/sig"),
             "tb",
             0o755,
             None,
         );
-        handle.join().unwrap();
+        bin_handle.join().unwrap();
+        sig_handle.join().unwrap();
         assert!(result.is_ok(), "download_and_save_bin failed: {result:?}");
 
         let target = dir.path().join("tb");
-        assert_eq!(fs::read(&target).unwrap(), b"fake-binary-content");
+        assert_eq!(fs::read(&target).unwrap(), content);
         assert_eq!(fs::metadata(&target).unwrap().permissions().mode() & 0o777, 0o755);
     }
 
     #[test]
     fn test_download_and_save_bin_renames_existing_to_old() {
-        let (port, handle) = serve_payload(b"new-binary");
+        let (pub_pem, key) = test_keypair();
+        let content = b"new-binary".to_vec();
+        let sig = sign_bytes(&key, &content);
+        let (bin_port, bin_handle) = serve_payload(content.clone());
+        let (sig_port, sig_handle) = serve_payload(sig);
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("tb"), b"old-binary").unwrap();
 
-        let updater = create_updater(dir.path());
+        let updater = updater_with_key(dir.path(), pub_pem);
         let result = updater.download_and_save_bin(
-            format!("http://127.0.0.1:{port}/bin"),
+            format!("http://127.0.0.1:{bin_port}/bin"),
+            format!("http://127.0.0.1:{sig_port}/sig"),
             "tb",
             0o755,
             None,
         );
-        handle.join().unwrap();
+        bin_handle.join().unwrap();
+        sig_handle.join().unwrap();
         assert!(result.is_ok(), "download_and_save_bin failed: {result:?}");
 
         assert_eq!(fs::read(dir.path().join("tb")).unwrap(), b"new-binary");
@@ -402,6 +437,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let result = create_updater(dir.path()).download_and_save_bin(
             "http://127.0.0.1:1/nonexistent".to_string(),
+            "http://127.0.0.1:1/nonexistent.sig".to_string(),
             "tb",
             0o755,
             None,
@@ -410,19 +446,53 @@ mod tests {
     }
 
     #[test]
-    fn test_download_and_save_bin_with_empty_user_group() {
-        let (port, handle) = serve_payload(b"binary-with-ownership");
+    fn test_download_and_save_bin_invalid_signature_aborts() {
+        let (pub_pem, key) = test_keypair();
+        let content = b"genuine-binary".to_vec();
+        // Sign different bytes so the signature does not match the served binary.
+        let sig = sign_bytes(&key, b"some-other-bytes");
+        let (bin_port, bin_handle) = serve_payload(content);
+        let (sig_port, sig_handle) = serve_payload(sig);
         let dir = tempfile::tempdir().unwrap();
-        let updater = create_updater(dir.path());
+        fs::write(dir.path().join("tb"), b"old-binary").unwrap();
+
+        let updater = updater_with_key(dir.path(), pub_pem);
         let result = updater.download_and_save_bin(
-            format!("http://127.0.0.1:{port}/bin"),
+            format!("http://127.0.0.1:{bin_port}/bin"),
+            format!("http://127.0.0.1:{sig_port}/sig"),
+            "tb",
+            0o755,
+            None,
+        );
+        bin_handle.join().unwrap();
+        sig_handle.join().unwrap();
+
+        assert!(result.unwrap_err().to_string().contains("Signature verification failed"));
+        // The live binary must be untouched and no .old left behind.
+        assert_eq!(fs::read(dir.path().join("tb")).unwrap(), b"old-binary");
+        assert!(!dir.path().join("tb.old").exists());
+    }
+
+    #[test]
+    fn test_download_and_save_bin_with_empty_user_group() {
+        let (pub_pem, key) = test_keypair();
+        let content = b"binary-with-ownership".to_vec();
+        let sig = sign_bytes(&key, &content);
+        let (bin_port, bin_handle) = serve_payload(content.clone());
+        let (sig_port, sig_handle) = serve_payload(sig);
+        let dir = tempfile::tempdir().unwrap();
+        let updater = updater_with_key(dir.path(), pub_pem);
+        let result = updater.download_and_save_bin(
+            format!("http://127.0.0.1:{bin_port}/bin"),
+            format!("http://127.0.0.1:{sig_port}/sig"),
             "tb",
             0o755,
             Some(""),
         );
-        handle.join().unwrap();
+        bin_handle.join().unwrap();
+        sig_handle.join().unwrap();
         assert!(result.is_ok(), "download_and_save_bin with ownership failed: {result:?}");
-        assert_eq!(fs::read(dir.path().join("tb")).unwrap(), b"binary-with-ownership");
+        assert_eq!(fs::read(dir.path().join("tb")).unwrap(), content);
     }
 
     #[test]

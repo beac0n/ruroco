@@ -143,13 +143,26 @@ jobs:
           mv target/x86_64-unknown-linux-gnu/release/client_ui client-ui-${{ env.TAG_NAME }}-x86_64-linux
           mv target/x86_64-unknown-linux-gnu/release/commander commander-${{ env.TAG_NAME }}-x86_64-linux
           mv target/x86_64-unknown-linux-gnu/release/server server-${{ env.TAG_NAME }}-x86_64-linux
+      - name: Sign Binaries
+        run: |
+          printf '%s' "${{ secrets.RUROCO_SIGNING_KEY }}" > release_ed25519.key
+          for f in client client-ui commander server; do
+            openssl pkeyutl -sign -inkey release_ed25519.key -rawin \
+              -in "$f-${{ env.TAG_NAME }}-x86_64-linux" \
+              -out "$f-${{ env.TAG_NAME }}-x86_64-linux.sig"
+          done
+          rm -f release_ed25519.key
       - name: Publish Release
-        run: |          
+        run: |
           gh release create ${{ env.TAG_NAME }} \
             client-${{ env.TAG_NAME }}-x86_64-linux \
+            client-${{ env.TAG_NAME }}-x86_64-linux.sig \
             client-ui-${{ env.TAG_NAME }}-x86_64-linux \
+            client-ui-${{ env.TAG_NAME }}-x86_64-linux.sig \
             commander-${{ env.TAG_NAME }}-x86_64-linux \
+            commander-${{ env.TAG_NAME }}-x86_64-linux.sig \
             server-${{ env.TAG_NAME }}-x86_64-linux \
+            server-${{ env.TAG_NAME }}-x86_64-linux.sig \
             --title "Release ${{ env.TAG_NAME }}" \
             --notes "See https://github.com/beac0n/ruroco/blob/master/CHANGELOG.md"
         env:
