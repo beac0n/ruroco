@@ -16,6 +16,85 @@ the tool consist of 4 binaries:
 The commands are configured on the server side, so the client does not define what is going to be executed, it only
 picks from existing commands.
 
+## Table of Contents
+
+- [Installation](#installation)
+  - [Client](#client)
+  - [Server](#server)
+  - [Android](#android)
+- [Security](#security)
+- [Client UI usage](#client-ui-usage)
+- [Client usage](#client-usage)
+  - [gen](#gen)
+  - [send](#send)
+  - [update](#update)
+  - [reseed](#reseed)
+  - [wizard](#wizard)
+- [Server usage](#server-usage)
+- [Commander usage](#commander-usage)
+- [Server config](#server-config)
+- [Use cases](#use-cases)
+  - [Single packet authorization (SPA)](#single-packet-authorization-spa)
+  - [Enabling webservice](#enabling-webservice)
+- [Troubleshooting](#troubleshooting)
+- [Architecture](#architecture)
+
+## Installation
+
+Download binaries from the [releases page](https://github.com/beac0n/ruroco/releases) or build them yourself by running
+
+```shell
+make release
+```
+
+you can find the binaries in `target/release/client`, `target/release/client_ui`, `target/release/server` and
+`target/release/commander`
+
+### Client
+
+#### Self-build
+
+See make goal `install_client`. This builds the project and copies the client binary to `/usr/local/bin/ruroco-client`
+
+#### Pre-build
+
+Run the following script
+
+```shell
+curl -Ls "$(curl -s https://api.github.com/repos/beac0n/ruroco/releases/latest | grep -oE 'https://[^"]*/client-v[0-9]+\.[0-9]+\.[0-9]+-x86_64-linux')" -o ~/.local/bin/ruroco-client 
+chmod +x ~/.local/bin/ruroco-client
+~/.local/bin/ruroco-client update --force
+```
+
+### Server
+
+#### Self-build
+
+See make goal `install_server`, which
+
+- Builds the project
+- Copies the client binary to `~/.local/bin/`
+- Copies the server binaries to `/usr/local/bin/`
+- Runs `ruroco-client wizard`
+- After running the make goal, you have to
+    - generate a shared `.key` file and copy it to the right place
+    - setup the `config.toml`
+
+#### Pre-build
+
+Run the following script
+
+```shell
+curl -Ls "$(curl -s https://api.github.com/repos/beac0n/ruroco/releases/latest | grep -oE 'https://[^"]*/client-v[0-9]+\.[0-9]+\.[0-9]+-x86_64-linux')" -o ~/.local/bin/ruroco-client 
+chmod +x ~/.local/bin/ruroco-client
+~/.local/bin/ruroco-client update --force
+sudo ~/.local/bin/ruroco-client wizard
+```
+
+### Android
+
+See `nix/android.nix`, `scripts/dev_ui_android.sh` and `scripts/release_android.sh`
+
 ## security
 
 - client sends UDP packet to server, server never responds to it -> **port-scanning** does not help an adversary
@@ -31,7 +110,7 @@ ruroco-client-ui
 ```
 
 Use the Generate Key action (or `ruroco-client gen`) to produce a base64-encoded shared key. Copy that key into the
-server’s `.key` files (see server config) and reuse the same string with `ruroco-client send`. You can save your key
+server's `.key` files (see server config) and reuse the same string with `ruroco-client send`. You can save your key
 safely in a password manager or use `secret-tool` to store it in the local keyring, e.g. with
 `secret-tool store --label="ruroco" token ruroco`
 
@@ -187,62 +266,6 @@ Options:
    file there
 3. add server config to `/etc/ruroco/config.toml` -> see [config.toml](config/config.toml)
 4. call `ruroco-client send` with `-k "$(secret-tool lookup token ruroco)"` so client and server share the identical key
-
-# setup
-
-download binaries from the [releases page](https://github.com/beac0n/ruroco/releases) or build them yourself by running
-
-```shell
-make release
-```
-
-you can find the binaries in `target/release/client`, `target/release/client_ui`, `target/release/server` and
-`target/release/commander`
-
-## client
-
-### self-build
-
-See make goal `install_client`. This builds the project and copies the client binary to `/usr/local/bin/ruroco-client`
-
-### pre-build
-
-Run the following script
-
-```shell
-curl -Ls "$(curl -s https://api.github.com/repos/beac0n/ruroco/releases/latest | grep -oE 'https://[^"]*/client-v[0-9]+\.[0-9]+\.[0-9]+-x86_64-linux')" -o ~/.local/bin/ruroco-client 
-chmod +x ~/.local/bin/ruroco-client
-~/.local/bin/ruroco-client update --force
-```
-
-## server
-
-### self-build
-
-See make goal `install_server`, which
-
-- Builds the project
-- Copies the client binary to `~/.local/bin/`
-- Copies the server binaries to `/usr/local/bin/`
-- Runs `ruroco-client wizard`
-- After running the make goal, you have to
-    - generate a shared `.key` file and copy it to the right place
-    - setup the `config.toml`
-
-### pre-build
-
-Run the following script
-
-```shell
-curl -Ls "$(curl -s https://api.github.com/repos/beac0n/ruroco/releases/latest | grep -oE 'https://[^"]*/client-v[0-9]+\.[0-9]+\.[0-9]+-x86_64-linux')" -o ~/.local/bin/ruroco-client 
-chmod +x ~/.local/bin/ruroco-client
-~/.local/bin/ruroco-client update --force
-sudo ~/.local/bin/ruroco-client wizard
-```
-
-## android
-
-See `nix/android.nix`, `scripts/dev_ui_android.sh` and `scripts/release_android.sh`
 
 # use cases
 
