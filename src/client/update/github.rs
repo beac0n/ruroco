@@ -28,6 +28,16 @@ pub(crate) struct GithubApiData {
 }
 
 impl Updater {
+    /// Used by the Android update path, which queries the releases API to locate the `.apk`
+    /// asset and hands it to the OS installer (APK authenticity is enforced by Android's own
+    /// package signing, so no Ed25519 check applies here).
+    #[cfg(target_os = "android")]
+    pub(crate) fn get_github_api_data(
+        version_to_download: Option<&String>,
+    ) -> anyhow::Result<GithubApiData> {
+        Self::get_github_api_data_from(GH_RELEASES_URL, version_to_download)
+    }
+
     pub(super) fn get_github_api_data_from(
         releases_url: &str,
         version_to_download: Option<&String>,
