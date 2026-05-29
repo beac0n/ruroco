@@ -202,6 +202,12 @@ Options:
   -h, --help                   Print help
 ```
 
+Every downloaded binary is verified against an Ed25519 signature before it is written to
+disk. The public key is embedded in the client at build time; releases are signed in CI with
+the matching private key. If the `.sig` asset is missing or the signature does not match, the
+update aborts and the existing binary is left untouched. As a result, the client can only
+update to releases that ship signatures (`v0.14.0` and later).
+
 ### reseed
 
 ```shell

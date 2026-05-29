@@ -9,6 +9,12 @@ pub(super) const SERVER_BIN_NAME: &str = "ruroco-server";
 pub(super) const CLIENT_BIN_NAME: &str = "ruroco-client";
 pub(super) const CLIENT_UI_BIN_NAME: &str = "ruroco-client-ui";
 
+/// Ed25519 public key used to verify release binaries during self-update. The matching
+/// private key is held only as a CI secret (`RUROCO_SIGNING_KEY`) and signs the binaries
+/// at release time. Embedded at build time so a downloaded binary cannot strip it.
+pub(super) const RELEASE_PUBLIC_KEY: &[u8] =
+    include_bytes!("../../../keys/ruroco-release-ed25519.pub.pem");
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct GithubApiAsset {
     pub(crate) name: String,
@@ -22,12 +28,13 @@ pub(crate) struct GithubApiData {
 }
 
 impl Updater {
-    pub(crate) fn get_github_api_data(
+    pub(super) fn get_github_api_data_from(
+        releases_url: &str,
         version_to_download: Option<&String>,
     ) -> anyhow::Result<GithubApiData> {
         let agent = ureq::AgentBuilder::new().user_agent("rust-client").build();
         let response_data: Vec<GithubApiData> = agent
-            .get(GH_RELEASES_URL)
+            .get(releases_url)
             .call()
             .map_err(|e| anyhow!("Could not get API response: {e}"))?
             .into_json()
