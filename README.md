@@ -20,6 +20,7 @@ picks from existing commands.
 
 - [Installation](#installation)
   - [Client](#client)
+  - [Client UI](#client-ui)
   - [Server](#server)
   - [Android](#android)
 - [Security](#security)
@@ -52,6 +53,12 @@ you can find the binaries in `target/release/client`, `target/release/client_ui`
 
 ### Client
 
+#### Arch Linux (AUR)
+
+```shell
+yay -S ruroco-client
+```
+
 #### Self-build
 
 See make goal `install_client`. This builds the project and copies the client binary to `/usr/local/bin/ruroco-client`
@@ -66,7 +73,23 @@ chmod +x ~/.local/bin/ruroco-client
 ~/.local/bin/ruroco-client update --force
 ```
 
+### Client UI
+
+#### Arch Linux (AUR)
+
+```shell
+yay -S ruroco-client-ui
+```
+
 ### Server
+
+#### Arch Linux (AUR)
+
+```shell
+yay -S ruroco-server
+```
+
+After installing, generate a shared key, place it in `/etc/ruroco/`, and edit `/etc/ruroco/config.toml`.
 
 #### Self-build
 

@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.2] - 2026-05-30
+
+### Added
+
+- Server: improved logging in handler for better observability
+
+### Fixed
+
+- Tests: re-introduce update tests that were previously removed
+
+## [0.14.1] - 2026-05-30
+
+### Fixed
+
+- Tests: fix update test suite
+
+## [0.14.0] - 2026-05-30
+
+### Added
+
+- Security: release binary signing with Ed25519 keys
+- Client: verify Ed25519 signature of downloaded release binaries before installing
+- Build: add signing step to release workflow; include public key in repository
+
+### Changed
+
+- Dependencies: cargo update
+
 ## [0.13.1] - 2026-05-28
 
 ### Added
@@ -595,6 +623,16 @@ Refactored User Interface
 ### Added
 
 - Initial Release
+
+[0.14.2]: https://github.com/beac0n/ruroco/compare/v0.14.1..v0.14.2
+
+[0.14.1]: https://github.com/beac0n/ruroco/compare/v0.14.0..v0.14.1
+
+[0.14.0]: https://github.com/beac0n/ruroco/compare/v0.13.1..v0.14.0
+
+[0.13.1]: https://github.com/beac0n/ruroco/compare/v0.13.0..v0.13.1
+
+[0.13.0]: https://github.com/beac0n/ruroco/compare/v0.12.4..v0.13.0
 
 [0.12.4]: https://github.com/beac0n/ruroco/compare/v0.12.3..v0.12.4
 
