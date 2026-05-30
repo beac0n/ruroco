@@ -16,24 +16,39 @@ impl Server {
     ) -> anyhow::Result<()> {
         match ClientData::deserialize(plaintext_data) {
             client_data if self.blocklist.is_counter_replayed(key_id, client_data.counter) => {
-                Err(anyhow!("Invalid counter - {} is on blocklist", client_data.counter))
+                let server_counter = self.blocklist.get_counter(key_id);
+                Err(anyhow!(
+                    "Invalid counter for key {:X?} - {} is on blocklist, expected > {:?}",
+                    key_id,
+                    client_data.counter,
+                    server_counter
+                ))
             }
             client_data if !self.config.ips.contains(&client_data.dst_ip) => {
                 let destination_ip = &client_data.dst_ip;
                 let ips = &self.config.ips;
-                Err(anyhow!("Invalid host IP - expected {ips:?} to contain {destination_ip}"))
+                Err(anyhow!(
+                    "Invalid host IP for key {:X?} - expected {ips:?} to contain {destination_ip}",
+                    key_id
+                ))
             }
             client_data if client_data.is_source_ip_invalid(src_ip) => {
                 let client_src_ip_str =
                     client_data.src_ip.map(|i| i.to_string()).unwrap_or("none".to_string());
-                Err(anyhow!("Invalid source IP - expected {client_src_ip_str}, actual {src_ip}"))
+                Err(anyhow!(
+                    "Invalid source IP for key {:X?} - expected {client_src_ip_str}, actual {src_ip}",
+                    key_id
+                ))
             }
             client_data => {
                 let cmd = client_data.cmd_hash;
                 let server_counter = self.blocklist.get_counter(key_id);
                 let client_counter = client_data.counter;
                 let ip = client_data.src_ip.unwrap_or(src_ip);
-                info(format!("Valid data - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
+                info(format!(
+                    "Valid data for key {:X?} - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}",
+                    key_id
+                ));
 
                 self.update_block_list(key_id, client_data.counter);
                 self.send_command(CommanderData { cmd_hash: cmd, ip });
