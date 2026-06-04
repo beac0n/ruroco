@@ -4,5 +4,15 @@
       "Bash(make:*)"
     ]
   },
-  "prefersReducedMotion": true
+  "prefersReducedMotion": true,
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "make format" },
+          { "type": "command", "command": "make test" }
+        ]
+      }
+    ]
+  }
 }
