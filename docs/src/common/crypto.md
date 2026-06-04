@@ -109,7 +109,7 @@ pub(crate) fn verify_ed25519(
 
 Parses an Ed25519 public key from PEM, builds an OpenSSL `Verifier` with no pre-hash
 (`new_without_digest`, correct for Ed25519), and verifies the detached signature over `message`.
-Returns `Ok(())` only on a valid signature; otherwise it returns a contextful error
+Returns `Ok(())` only on a valid signature; otherwise it returns a descriptive error
 (`"Could not parse Ed25519 public key"`, `"Signature verification failed"`, etc). Used exclusively
 by the self-update path to authenticate downloaded binaries before they touch disk. Its tests cover
 valid signatures, tampered messages, wrong keys, and malformed PEM.

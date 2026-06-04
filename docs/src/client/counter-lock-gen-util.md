@@ -174,7 +174,7 @@ call, the file is removed when the function returns, even on the error path.
 
 Gotchas:
 
-- A lock with non-numeric or unparseable contents is treated as stale and cleaned
+- A lock with non-numeric or unparsable contents is treated as stale and cleaned
   up (the PID parse simply yields `None`).
 - Acquisition fails with `Client lock unavailable` if the parent directory does
   not exist, since `create_new` cannot create the file.

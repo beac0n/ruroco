@@ -35,7 +35,7 @@ The steps in order:
 5. Best-effort `fsync` of the parent directory so the rename itself is durable across a crash. This
    step is allowed to fail silently (it is a durability nicety, not a correctness requirement).
 
-A failure at the open or write stage returns a contextful error (the temp file is simply left
+A failure at the open or write stage returns a contextual error (the temp file is simply left
 behind, never the corrupted target). Tests cover create, overwrite, and the nonexistent-parent
 error path.
 

@@ -162,7 +162,7 @@ Field-by-field:
 | `key` | `-k`, `--key` | `String` | (required) | Base64 key with embedded key id, the output of `gen` or the UI. Decoded into an 8-byte id plus a 32-byte AES key. |
 | `command` | `-c`, `--command` | `String` | `"default"` | The command *name* to invoke. Only its Blake2b-64 hash is sent. |
 | `permissive` | `-e`, `--permissive` | `bool` | `false` | Allow permissive IP validation: the server-side source IP need not match the provided `--ip`. Inverted into the packet's `strict` flag (`strict = !permissive`). |
-| `ip` | `-i`, `--ip` | `Option<String>` | `None` | Optional source IP (or CIDR-like literal) from which the command is claimed to be sent. Parsed with `.parse()`; an unparseable value silently becomes "no source IP". |
+| `ip` | `-i`, `--ip` | `Option<String>` | `None` | Optional source IP (or CIDR-like literal) from which the command is claimed to be sent. Parsed with `.parse()`; an unparsable value silently becomes "no source IP". |
 | `ipv4` | `-4`, `--ipv4` | `bool` | `false` | Restrict the destination to IPv4 addresses. |
 | `ipv6` | `-6`, `--ipv6` | `bool` | `false` | Restrict the destination to IPv6 addresses. |
 | `send_delay_ms` | `-d`, `--send-delay-ms` | `u64` | `50` | Milliseconds to sleep between datagrams when more than one destination IP is used (for example sending to both an IPv4 and an IPv6 address). |

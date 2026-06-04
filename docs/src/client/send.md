@@ -135,7 +135,7 @@ Two important transforms happen here:
   (the default), `strict` is `true` and the server enforces that the real source
   IP matches the claimed `--ip`.
 - **Best-effort source IP.** `self.cmd.ip` is parsed with `.parse().ok()`; an
-  unparseable string becomes `None` (no source IP), which serializes as 16 zero
+  unparsable string becomes `None` (no source IP), which serializes as 16 zero
   bytes.
 
 The `ClientData` plaintext layout (from `ClientData::serialize`) is exactly

@@ -70,6 +70,10 @@ test_integration:
 check:
 	cargo check --locked --verbose && cargo check --locked --no-default-features --verbose
 
+typos:
+	command -v typos >/dev/null 2>&1 || cargo install typos-cli
+	typos
+
 format:
 	cargo fmt && cargo clippy --tests --features with-client,with-server,with-gui --verbose -- -D warnings && cargo fix --allow-dirty --features with-client,with-server,with-gui
 

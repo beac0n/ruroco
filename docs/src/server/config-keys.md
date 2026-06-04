@@ -65,7 +65,7 @@ fn deserialize_ips<'de, D>(d: D) -> Result<Vec<IpAddr>, D::Error> {
 
 Every configured IP is parsed and run through `normalize_ip`, which collapses an IPv6-mapped IPv4
 address back to plain IPv4. So `"::ffff:127.0.0.1"` in the config deserializes to `127.0.0.1`, and
-matches a packet whose `dst_ip` arrived as either form. An unparseable string is a deserialization
+matches a packet whose `dst_ip` arrived as either form. An unparsable string is a deserialization
 error.
 
 ### Command lookup by `blake2b_u64`
