@@ -13,6 +13,14 @@ build:
 	cargo build --color=always --package ruroco --no-default-features --features with-server --bin server --target x86_64-unknown-linux-gnu
 	cargo build --color=always --package ruroco --no-default-features --features with-server --bin commander --target x86_64-unknown-linux-gnu
 
+.PHONY: docs docs_serve
+
+docs:
+	mdbook build docs
+
+docs_serve:
+	mdbook serve docs --open
+
 clean:
 	rm -rf target
 	rm -rf nix/.nix-*

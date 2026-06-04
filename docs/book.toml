@@ -1,0 +1,20 @@
+[book]
+title = "Ruroco Architecture"
+description = "Comprehensive architecture documentation for ruroco (Run Remote Command): encrypted, one-way UDP remote command execution in Rust."
+authors = ["beac0n"]
+language = "en"
+src = "src"
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/beac0n/ruroco"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-css = ["mermaid-overrides.css"]
+
+[output.html.fold]
+enable = true
+level = 1

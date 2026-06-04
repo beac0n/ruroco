@@ -1,0 +1,6 @@
+/* Center mermaid diagrams. They are fit to the page width by mermaid itself
+   (useMaxWidth default), so we only handle alignment here. */
+pre.mermaid,
+.mermaid {
+    text-align: center;
+}
