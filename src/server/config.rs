@@ -31,6 +31,8 @@ pub struct ConfigServer {
     pub socket_group: String,
     #[serde(default = "default_max_requests_per_second")]
     pub max_requests_per_second: u32,
+    #[serde(default = "default_max_clock_skew_seconds")]
+    pub max_clock_skew_seconds: u64,
 }
 
 fn deserialize_ips<'de, D>(d: D) -> Result<Vec<IpAddr>, D::Error>
@@ -71,6 +73,7 @@ impl Default for ConfigServer {
             socket_group: "".to_string(),
             config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
             max_requests_per_second: default_max_requests_per_second(),
+            max_clock_skew_seconds: default_max_clock_skew_seconds(),
         }
     }
 }
@@ -87,6 +90,15 @@ fn default_max_requests_per_second() -> u32 {
     2
 }
 
+/// Upper bound, in seconds, by which an accepted counter (a nanosecond timestamp) may exceed
+/// server-local `now`. Bounds how far a future-dated packet can push `last_seen`, turning a
+/// permanent lockout into one recoverable by a client reseed. Only needs to cover client-vs-server
+/// clock disagreement at counter seed time, not counter growth (the client counter increments by 1
+/// per send, so it lags wall-clock).
+fn default_max_clock_skew_seconds() -> u64 {
+    3600
+}
+
 fn default_config_path() -> PathBuf {
     PathBuf::from("/etc/ruroco")
 }
@@ -94,8 +106,8 @@ fn default_config_path() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use crate::server::config::{
-        default_config_path, default_max_requests_per_second, default_socket_group,
-        default_socket_user, ConfigServer,
+        default_config_path, default_max_clock_skew_seconds, default_max_requests_per_second,
+        default_socket_group, default_socket_user, ConfigServer,
     };
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -124,6 +136,7 @@ mod tests {
                 socket_user: default_socket_user(),
                 socket_group: default_socket_group(),
                 max_requests_per_second: default_max_requests_per_second(),
+                max_clock_skew_seconds: default_max_clock_skew_seconds(),
             }
         );
     }

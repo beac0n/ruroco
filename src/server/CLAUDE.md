@@ -20,6 +20,8 @@ Gotchas:
 - Blocklist (`blocklist.rs`, msgpack-persisted) stores the max counter per key_id and blocks
   `counter <= last_seen` (the check is `>=`, so an *equal* counter is a replay). On startup every
   key's floor is seeded to `now_nanos()`, so packets older than process start are rejected.
+  `handler.rs` also rejects `counter > now_nanos() + max_clock_skew_seconds` (default 3600) without
+  touching the blocklist, so a future-dated packet can't permanently lock out a key.
 - `rate_limiter.rs` is in-memory only (resets on restart); it is throttling, not replay defense.
 - Strict mode only enforces src_ip when the client set `strict` and included a src_ip.
 - `signal.rs` traps SIGTERM/SIGINT into an atomic checked each loop for clean shutdown.

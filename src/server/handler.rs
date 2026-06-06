@@ -1,5 +1,6 @@
 use crate::common::client_data::ClientData;
 use crate::common::logging::{error, info};
+use crate::common::now_nanos;
 use crate::server::commander_data::CommanderData;
 use crate::server::Server;
 use anyhow::{anyhow, Context};
@@ -14,23 +15,25 @@ impl Server {
         plaintext_data: [u8; crate::common::protocol::PLAINTEXT_SIZE],
         src_ip: IpAddr,
     ) -> anyhow::Result<()> {
+        let max_future_counter = now_nanos()?
+            .saturating_add(u128::from(self.config.max_clock_skew_seconds) * 1_000_000_000);
+
         match ClientData::deserialize(plaintext_data) {
             client_data if self.blocklist.is_counter_replayed(key_id, client_data.counter) => {
                 let server_counter = self.blocklist.get_counter(key_id);
                 Err(anyhow!(
-                    "Invalid counter for key {:X?} - {} is on blocklist, expected > {:?}",
-                    key_id,
+                    "Invalid counter for key {key_id:X?} - {} is on blocklist, expected > {server_counter:?}",
                     client_data.counter,
-                    server_counter
                 ))
             }
+            client_data if client_data.counter > max_future_counter => Err(anyhow!(
+                "Future counter for key {key_id:X?} - {} exceeds now + skew ({max_future_counter}); not updating blocklist",
+                client_data.counter
+            )),
             client_data if !self.config.ips.contains(&client_data.dst_ip) => {
                 let destination_ip = &client_data.dst_ip;
                 let ips = &self.config.ips;
-                Err(anyhow!(
-                    "Invalid host IP for key {:X?} - expected {ips:?} to contain {destination_ip}",
-                    key_id
-                ))
+                Err(anyhow!("Invalid host IP for key {key_id:X?} - expected {ips:?} to contain {destination_ip}"))
             }
             client_data if client_data.is_source_ip_invalid(src_ip) => {
                 let client_src_ip_str =
@@ -45,11 +48,7 @@ impl Server {
                 let server_counter = self.blocklist.get_counter(key_id);
                 let client_counter = client_data.counter;
                 let ip = client_data.src_ip.unwrap_or(src_ip);
-                info(format!(
-                    "Valid data for key {:X?} - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}",
-                    key_id
-                ));
-
+                info(format!("Valid data for key {key_id:X?} - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
                 self.update_block_list(key_id, client_data.counter);
                 self.send_command(CommanderData { cmd_hash: cmd, ip });
                 Ok(())

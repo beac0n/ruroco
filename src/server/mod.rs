@@ -374,6 +374,51 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_future_counter_rejected_and_does_not_poison_blocklist() {
+        let (mut server, key) = create_server_with_key().unwrap();
+        let localhost: IpAddr = "127.0.0.1".parse().unwrap();
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let far_future = now + 2 * 3600 * 1_000_000_000; // 2h ahead, beyond default 1h skew
+
+        load_encrypted_packet(
+            &mut server,
+            &key,
+            "default",
+            false,
+            Some(localhost),
+            localhost,
+            far_future,
+        );
+        let err = server.run_loop_iteration(localhost_src(8080)).unwrap_err().to_string();
+        assert!(err.contains("Future counter"), "expected future counter error, got: {err}");
+
+        // last_seen must not have been poisoned: a normal packet still passes
+        load_encrypted_packet(&mut server, &key, "default", false, Some(localhost), localhost, now);
+        assert!(server.run_loop_iteration(localhost_src(8080)).is_ok());
+    }
+
+    #[test]
+    fn test_validate_future_counter_within_skew_passes() {
+        let (mut server, key) = create_server_with_key().unwrap();
+        let localhost: IpAddr = "127.0.0.1".parse().unwrap();
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let near_future = now + 60 * 1_000_000_000; // 60s ahead, within default 1h skew
+
+        load_encrypted_packet(
+            &mut server,
+            &key,
+            "default",
+            false,
+            Some(localhost),
+            localhost,
+            near_future,
+        );
+        assert!(server.run_loop_iteration(localhost_src(8080)).is_ok());
+    }
+
+    #[test]
     fn test_validate_invalid_destination_ip() {
         let (mut server, key) = create_server_with_key().unwrap();
         load_encrypted_packet(
