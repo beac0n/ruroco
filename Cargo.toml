@@ -20,7 +20,8 @@ serde = { version = "=1.0.228", features = ["derive"] }
 eframe = { version = "=0.34.2", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"], optional = true }
 toml = { version = "=1.1.2", optional = true }
 
-# android dependencies
+# android dependencies (only ever built when targeting Android, so --all-features stays buildable on desktop hosts, e.g. RustRover coverage)
+[target.'cfg(target_os = "android")'.dependencies]
 jni = { version = "=0.22.4", optional = true }
 ndk-context = { version = "=0.1.1", optional = true }
 android-activity = { version = "=0.6.1", features = ["native-activity"], optional = true }
