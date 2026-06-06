@@ -12,9 +12,10 @@ back to binding `[::]`) -> decrypt via `CryptoHandler` -> `RateLimiter::check` (
 `CommanderData` (cmd_hash[0:8] + ip[8:24]) to the commander. The commander runs the configured
 shell command with `$RUROCO_IP` set to the client IP. The server never replies.
 
-Config (`config.rs`): `ConfigServer` (shared by both processes) holds allowed `ips`, `config_dir`,
-`socket_user`/`socket_group`, rate limit. Commands live in a separate `ConfigCommands`
-(name -> shell string), loaded only by the commander via `ConfigCommands::create_from_path`. The
+Config (`config/`, split per process: `config/server.rs` + `config/commander.rs`): `ConfigServer`
+(shared by both processes) holds allowed `ips`, `config_dir`, `socket_user`/`socket_group`, rate
+limit. Commands live in a separate `ConfigCommands` (name -> shell string), loaded only by the
+commander via `ConfigCommands::create_from_path`. The
 server CLI (`CliServer`) takes `--config`; the commander CLI (`CliCommander`) takes both `--config`
 and `--commands` (default `/etc/ruroco/commands.toml`), so the command file is relocatable
 independently of the server config. The network-facing server never reads commands. Install
