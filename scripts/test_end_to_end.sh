@@ -12,10 +12,16 @@ cp ./target/x86_64-unknown-linux-gnu/debug/commander /tmp/ruroco_test/commander
 sudo mkdir /etc/ruroco
 sudo mv ./ruroco.key /etc/ruroco
 sudo cp ./tests/files/config_end_to_end.toml /etc/ruroco/config.toml
+sudo cp ./tests/files/commands_end_to_end.toml /etc/ruroco/commands.toml
 sudo chmod 400 /etc/ruroco/ruroco.key
 
 sudo chown -R ruroco:ruroco /tmp/ruroco_test
 sudo chown -R ruroco:ruroco /etc/ruroco
+
+# commands.toml is read only by commander (root); the unprivileged server user must not be able to read the command set.
+# Re-restrict it after the recursive chown.
+sudo chown root:root /etc/ruroco/commands.toml
+sudo chmod 600 /etc/ruroco/commands.toml
 
 sudo cp ./systemd/* /run/systemd/system
 

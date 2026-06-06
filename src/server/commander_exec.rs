@@ -1,7 +1,7 @@
 use crate::common::logging::error;
 use crate::common::{change_file_ownership, info};
 use crate::server::commander::Commander;
-use crate::server::config::CliServer;
+use crate::server::config::CliCommander;
 use anyhow::{bail, Context};
 use std::fs::Permissions;
 use std::net::IpAddr;
@@ -76,21 +76,22 @@ impl Commander {
     }
 }
 
-pub fn run_commander(server: CliServer) -> anyhow::Result<()> {
-    Commander::create_from_path(&server.config)?.run()
+pub fn run_commander(commander: CliCommander) -> anyhow::Result<()> {
+    Commander::create_from_paths(&commander.config, &commander.commands)?.run()
 }
 
 #[cfg(test)]
 mod tests {
     use super::run_commander;
-    use crate::server::config::CliServer;
+    use crate::server::config::CliCommander;
     use std::path::PathBuf;
 
     #[test]
     fn test_run_commander_invalid_path() {
-        let server = CliServer {
+        let commander = CliCommander {
             config: PathBuf::from("/nonexistent/ruroco_test_path.toml"),
+            commands: PathBuf::from("/nonexistent/ruroco_test_commands.toml"),
         };
-        assert!(run_commander(server).is_err());
+        assert!(run_commander(commander).is_err());
     }
 }

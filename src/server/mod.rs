@@ -25,7 +25,6 @@ use crate::server::rate_limiter::RateLimiter;
 use crate::server::signal::{install_signal_handlers, shutdown_requested};
 use anyhow::{anyhow, bail, Context};
 use std::collections::HashMap;
-use std::fs;
 use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::path::{Path, PathBuf};
@@ -44,10 +43,7 @@ pub struct Server {
 
 impl Server {
     fn create_from_path(path: &Path) -> anyhow::Result<Server> {
-        match fs::read_to_string(path) {
-            Ok(config) => Server::create(ConfigServer::deserialize(&config)?, None),
-            Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
-        }
+        Server::create(ConfigServer::create_from_path(path)?, None)
     }
 
     pub fn create(config: ConfigServer, address: Option<String>) -> anyhow::Result<Server> {
@@ -137,7 +133,7 @@ mod tests {
     use crate::common::data_parser::DataParser;
     use crate::common::get_random_range;
     use crate::common::protocol::MSG_SIZE;
-    use crate::server::config::{CliServer, ConfigServer};
+    use crate::server::config::{CliServer, ConfigCommands, ConfigServer};
     use crate::server::Server;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
@@ -472,11 +468,13 @@ mod tests {
         let commander_dir = socket_dir.clone();
         let cmds = commands.clone();
         std::thread::spawn(move || {
-            Commander::create(ConfigServer {
-                commands: cmds,
-                config_dir: commander_dir,
-                ..Default::default()
-            })
+            Commander::create(
+                ConfigServer {
+                    config_dir: commander_dir,
+                    ..Default::default()
+                },
+                ConfigCommands { commands: cmds },
+            )
             .unwrap()
             .run()
         });

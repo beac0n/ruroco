@@ -1,5 +1,2 @@
 ips = ["127.0.0.1"]
 config_dir = "/etc/ruroco/"
-
-[commands]
-default = "touch /tmp/ruroco_test/start.test /tmp/ruroco_test/stop.test"

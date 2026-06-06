@@ -3,13 +3,14 @@
 //! (default) arguments or are used to deserialize configuration files
 
 use crate::common::blake2b_u64;
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use clap::Parser;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -18,9 +19,19 @@ pub struct CliServer {
     pub(crate) config: PathBuf,
 }
 
+/// The commander reads two files: the shared `config.toml` and its own `commands.toml`. Both paths
+/// are configurable so the command set can be relocated independently of the server config.
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct CliCommander {
+    #[arg(short, long, default_value = PathBuf::from("/etc/ruroco/config.toml").into_os_string())]
+    pub(crate) config: PathBuf,
+    #[arg(long, default_value = PathBuf::from("/etc/ruroco/commands.toml").into_os_string())]
+    pub(crate) commands: PathBuf,
+}
+
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ConfigServer {
-    pub commands: HashMap<String, String>,
     #[serde(deserialize_with = "deserialize_ips")]
     pub ips: Vec<IpAddr>,
     #[serde(default = "default_config_path")]
@@ -49,6 +60,41 @@ where
 }
 
 impl ConfigServer {
+    pub(crate) fn create_from_path(path: &Path) -> anyhow::Result<ConfigServer> {
+        match fs::read_to_string(path) {
+            Ok(data) => Self::deserialize(&data),
+            Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
+        }
+    }
+
+    pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigServer> {
+        toml::from_str::<ConfigServer>(data)
+            .with_context(|| format!("Could not create ConfigServer from {data}"))
+    }
+}
+
+/// Commander-only configuration: the map of command name -> shell command. Kept in a separate
+/// file (`commands.toml`) so the network-facing server process never loads it.
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct ConfigCommands {
+    pub commands: HashMap<String, String>,
+}
+
+impl ConfigCommands {
+    /// Load the command set from `path` (typically `commands.toml`). This file must be installed
+    /// `root`-readable only so the unprivileged server process cannot read the commands.
+    pub(crate) fn create_from_path(path: &Path) -> anyhow::Result<ConfigCommands> {
+        match fs::read_to_string(path) {
+            Ok(data) => Self::deserialize(&data),
+            Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
+        }
+    }
+
+    pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigCommands> {
+        toml::from_str::<ConfigCommands>(data)
+            .with_context(|| format!("Could not create ConfigCommands from {data}"))
+    }
+
     pub(crate) fn get_hash_to_cmd(&self) -> anyhow::Result<HashMap<u64, String>> {
         self.commands
             .iter()
@@ -58,16 +104,11 @@ impl ConfigServer {
             })
             .collect()
     }
-    pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigServer> {
-        toml::from_str::<ConfigServer>(data)
-            .with_context(|| format!("Could not create ConfigServer from {data}"))
-    }
 }
 
 impl Default for ConfigServer {
     fn default() -> ConfigServer {
         ConfigServer {
-            commands: HashMap::new(),
             ips: vec!["127.0.0.1".parse().unwrap()],
             socket_user: "".to_string(),
             socket_group: "".to_string(),
@@ -107,7 +148,7 @@ fn default_config_path() -> PathBuf {
 mod tests {
     use crate::server::config::{
         default_config_path, default_max_clock_skew_seconds, default_max_requests_per_second,
-        default_socket_group, default_socket_user, ConfigServer,
+        default_socket_group, default_socket_user, ConfigCommands, ConfigServer,
     };
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -128,9 +169,8 @@ mod tests {
     #[test]
     fn test_create_deserialize() {
         assert_eq!(
-            ConfigServer::deserialize("ips = [\"127.0.0.1\"]\n[commands]").unwrap(),
+            ConfigServer::deserialize("ips = [\"127.0.0.1\"]").unwrap(),
             ConfigServer {
-                commands: HashMap::new(),
                 ips: vec!["127.0.0.1".parse().unwrap()],
                 config_dir: default_config_path(),
                 socket_user: default_socket_user(),
@@ -150,7 +190,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_invalid_ip() {
-        let result = ConfigServer::deserialize("ips = [\"not_an_ip\"]\n[commands]");
+        let result = ConfigServer::deserialize("ips = [\"not_an_ip\"]");
         assert!(result.is_err());
     }
 
@@ -159,10 +199,7 @@ mod tests {
         let mut commands = HashMap::new();
         commands.insert("default".to_string(), "echo hello".to_string());
         commands.insert("restart".to_string(), "systemctl restart foo".to_string());
-        let config = ConfigServer {
-            commands,
-            ..Default::default()
-        };
+        let config = ConfigCommands { commands };
         let hash_map = config.get_hash_to_cmd().unwrap();
         assert_eq!(hash_map.len(), 2);
         assert!(hash_map.values().any(|v| v == "echo hello"));
@@ -267,21 +304,35 @@ mod tests {
 
     #[test]
     fn test_deserialize_ipv6_mapped_ip_is_normalized_to_ipv4() {
-        let config = ConfigServer::deserialize("ips = [\"::ffff:127.0.0.1\"]\n[commands]").unwrap();
+        let config = ConfigServer::deserialize("ips = [\"::ffff:127.0.0.1\"]").unwrap();
         assert_eq!(config.ips, vec!["127.0.0.1".parse::<std::net::IpAddr>().unwrap()]);
     }
 
     #[test]
-    fn test_deserialize_with_commands() {
+    fn test_deserialize_commands() {
         let toml = r#"
-            ips = ["127.0.0.1", "::1"]
             [commands]
             default = "echo hello"
             restart = "systemctl restart foo"
         "#;
-        let config = ConfigServer::deserialize(toml).unwrap();
-        assert_eq!(config.ips.len(), 2);
+        let config = ConfigCommands::deserialize(toml).unwrap();
         assert_eq!(config.commands.len(), 2);
         assert_eq!(config.commands.get("default").unwrap(), "echo hello");
+    }
+
+    #[test]
+    fn test_create_commands_from_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("commands.toml");
+        std::fs::write(&path, "[commands]\ndefault = \"echo hi\"\n").unwrap();
+        let commands = ConfigCommands::create_from_path(&path).unwrap();
+        assert_eq!(commands.commands.get("default").unwrap(), "echo hi");
+    }
+
+    #[test]
+    fn test_create_commands_from_path_missing() {
+        let path = PathBuf::from("/tmp/path/does/not/exist/commands.toml");
+        let err = ConfigCommands::create_from_path(&path).unwrap_err().to_string();
+        assert!(err.contains("Could not read"), "unexpected error: {err}");
     }
 }

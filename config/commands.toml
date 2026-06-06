@@ -1,0 +1,9 @@
+# Commands run by the commander (root). Read ONLY by the commander, never by the
+# network-facing server. Install root-owned with mode 0600 (root:root) so the
+# unprivileged server user cannot read the command set, even though this file lives in
+# the same config_dir as the keys.
+#
+# $RUROCO_IP is set to the source IP of the client request.
+[commands]                   # MANDATORY - but can be empty
+open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"         #  open ssh for IP where request came from
+close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close ssh for IP where request came from

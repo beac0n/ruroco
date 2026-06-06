@@ -294,7 +294,10 @@ Options:
 2. copy the same `.key` file to the server config dir (default `/etc/ruroco/user.key`); the server loads every `*.key`
    file there
 3. add server config to `/etc/ruroco/config.toml` -> see [config.toml](config/config.toml)
-4. call `ruroco-client send` with `-k "$(secret-tool lookup token ruroco)"` so client and server share the identical key
+4. add the commands to `/etc/ruroco/commands.toml` -> see [commands.toml](config/commands.toml). This file is read
+   only by the commander (root) and must be installed `root`-owned with mode `0600` so the unprivileged server process
+   cannot read the command set.
+5. call `ruroco-client send` with `-k "$(secret-tool lookup token ruroco)"` so client and server share the identical key
 
 # use cases
 
@@ -314,7 +317,7 @@ so that you can ssh into your server. Afterward ruruco closes the SSH port again
 ruroco, you have to use a configuration similar to the one shown below:
 
 ```toml
-# see chapter "server config"
+# /etc/ruroco/commands.toml (root-only, see chapter "server config")
 [commands]
 open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"         #  open ssh for IP where request came from
 close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close ssh for IP where request came from
@@ -356,7 +359,7 @@ You may run a webservice like https://github.com/filebrowser/filebrowser on your
 publicly expose. If you use nginx as a reverse proxy, you can use ruroco to enable or disable services:
 
 ```toml
-# see chapter "server config"
+# /etc/ruroco/commands.toml (root-only, see chapter "server config")
 [commands]
 disable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf /etc/nginx/conf.d/https_file_browser.conf_disabled && nginx -s reload"
 enable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf_disabled /etc/nginx/conf.d/https_file_browser.conf && nginx -s reload"

@@ -1,11 +1,10 @@
 use crate::common::info;
 use crate::common::logging::error;
 use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
-use crate::server::config::ConfigServer;
+use crate::server::config::{ConfigCommands, ConfigServer};
 use crate::server::util::get_commander_unix_socket_path;
 use anyhow::{anyhow, Context};
 use std::collections::HashMap;
-use std::fs;
 use std::io::Read;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
@@ -19,16 +18,18 @@ pub struct Commander {
 }
 
 impl Commander {
-    pub(super) fn create_from_path(path: &Path) -> anyhow::Result<Commander> {
-        match fs::read_to_string(path) {
-            Ok(config) => Commander::create(ConfigServer::deserialize(&config)?),
-            Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
-        }
+    pub(super) fn create_from_paths(
+        config_path: &Path,
+        commands_path: &Path,
+    ) -> anyhow::Result<Commander> {
+        let config = ConfigServer::create_from_path(config_path)?;
+        let commands = ConfigCommands::create_from_path(commands_path)?;
+        Commander::create(config, commands)
     }
 
-    pub fn create(config: ConfigServer) -> anyhow::Result<Commander> {
+    pub fn create(config: ConfigServer, commands: ConfigCommands) -> anyhow::Result<Commander> {
         Ok(Commander {
-            cmds: config.get_hash_to_cmd()?,
+            cmds: commands.get_hash_to_cmd()?,
             socket_path: get_commander_unix_socket_path(&config.config_dir),
             socket_user: config.socket_user,
             socket_group: config.socket_group,
@@ -75,7 +76,7 @@ impl Commander {
 mod tests {
     use crate::server::commander::Commander;
     use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
-    use crate::server::config::ConfigServer;
+    use crate::server::config::{ConfigCommands, ConfigServer};
     use std::collections::HashMap;
     use std::io::Write;
     use std::os::unix::net::UnixStream;
@@ -84,11 +85,13 @@ mod tests {
     use std::{env, fs, thread};
 
     fn create_commander(commands: HashMap<String, String>, config_dir: PathBuf) -> Commander {
-        Commander::create(ConfigServer {
-            commands,
-            config_dir,
-            ..Default::default()
-        })
+        Commander::create(
+            ConfigServer {
+                config_dir,
+                ..Default::default()
+            },
+            ConfigCommands { commands },
+        )
         .unwrap()
     }
 
@@ -117,7 +120,8 @@ mod tests {
             .join("files")
             .join("config_invalid.toml");
 
-        let msg = Commander::create_from_path(&path).unwrap_err().to_string();
+        let commands = PathBuf::from("/tmp/unused_commands.toml");
+        let msg = Commander::create_from_paths(&path, &commands).unwrap_err().to_string();
         assert!(
             msg.contains("TOML parse error") || msg.contains("Could not create ConfigServer from"),
             "unexpected error: {msg}"
@@ -126,8 +130,9 @@ mod tests {
 
     #[test]
     fn test_create_from_invalid_toml_path() {
+        let commands = PathBuf::from("/tmp/unused_commands.toml");
         assert_eq!(
-            Commander::create_from_path(&PathBuf::from("/tmp/path/does/not/exist"))
+            Commander::create_from_paths(&PathBuf::from("/tmp/path/does/not/exist"), &commands)
                 .unwrap_err()
                 .to_string(),
             r#"Could not read "/tmp/path/does/not/exist": No such file or directory (os error 2)"#
@@ -142,22 +147,22 @@ mod tests {
             "touch /tmp/ruroco_test/start.test /tmp/ruroco_test/stop.test".to_string(),
         );
 
-        let path = env::current_dir()
-            .unwrap_or(PathBuf::from("/tmp"))
-            .join("tests")
-            .join("files")
-            .join("config.toml");
+        let base = env::current_dir().unwrap_or(PathBuf::from("/tmp"));
+        let path = base.join("tests").join("files").join("config.toml");
+        let commands_path = base.join("tests").join("conf_dir").join("commands.toml");
 
         assert_eq!(
-            Commander::create_from_path(&path).unwrap(),
-            Commander::create(ConfigServer {
-                ips: vec!["127.0.0.1".parse().unwrap()],
-                config_dir: PathBuf::from("tests/conf_dir"),
-                socket_user: "ruroco".to_string(),
-                socket_group: "ruroco".to_string(),
-                commands,
-                ..Default::default()
-            })
+            Commander::create_from_paths(&path, &commands_path).unwrap(),
+            Commander::create(
+                ConfigServer {
+                    ips: vec!["127.0.0.1".parse().unwrap()],
+                    config_dir: PathBuf::from("tests/conf_dir"),
+                    socket_user: "ruroco".to_string(),
+                    socket_group: "ruroco".to_string(),
+                    ..Default::default()
+                },
+                ConfigCommands { commands },
+            )
             .unwrap()
         );
     }

@@ -1,8 +1,8 @@
 use crate::client::util::set_permissions;
 use crate::client::wizard::wizard_systemd::{
-    COMMANDER_SERVICE_FILE_DATA, COMMANDER_SERVICE_FILE_PATH, CONFIG_TOML_FILE_DATA,
-    CONFIG_TOML_PATH, RUROCO_SERVICE_FILE_DATA, RUROCO_SERVICE_FILE_PATH, SOCKET_FILE_DATA,
-    SOCKET_FILE_PATH,
+    COMMANDER_SERVICE_FILE_DATA, COMMANDER_SERVICE_FILE_PATH, COMMANDS_TOML_FILE_DATA,
+    COMMANDS_TOML_PATH, CONFIG_TOML_FILE_DATA, CONFIG_TOML_PATH, RUROCO_SERVICE_FILE_DATA,
+    RUROCO_SERVICE_FILE_PATH, SOCKET_FILE_DATA, SOCKET_FILE_PATH,
 };
 use crate::common::info;
 use anyhow::Context;
@@ -27,6 +27,7 @@ impl Wizard {
         Self::write_data(SOCKET_FILE_PATH, SOCKET_FILE_DATA)?;
 
         Self::init_config_file()?;
+        Self::init_commands_file()?;
         Self::reload_systemd_daemon()?;
         Self::enable_systemd_services()?;
         Self::start_systemd_services()?;
@@ -51,6 +52,17 @@ impl Wizard {
         }
 
         set_permissions(CONFIG_TOML_PATH, 0o600)?; // owner read|write
+        Ok(())
+    }
+
+    fn init_commands_file() -> anyhow::Result<()> {
+        info(format!("Initializing commands file {COMMANDS_TOML_PATH}"));
+        if !Path::new(COMMANDS_TOML_PATH).exists() {
+            Self::write_data(COMMANDS_TOML_PATH, COMMANDS_TOML_FILE_DATA)?;
+        }
+
+        // root-only: read by the commander (root), never by the unprivileged server user
+        set_permissions(COMMANDS_TOML_PATH, 0o600)?;
         Ok(())
     }
 

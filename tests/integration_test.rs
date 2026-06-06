@@ -6,7 +6,7 @@ mod tests {
     use ruroco::common::get_random_range;
     use ruroco::server::blocklist::Blocklist;
     use ruroco::server::commander::Commander;
-    use ruroco::server::config::ConfigServer;
+    use ruroco::server::config::{ConfigCommands, ConfigServer};
     use ruroco::server::util::get_commander_unix_socket_path;
     use ruroco::server::Server;
     use std::collections::HashMap;
@@ -112,11 +112,13 @@ mod tests {
             );
 
             thread::spawn(move || {
-                Commander::create(ConfigServer {
-                    commands,
-                    config_dir,
-                    ..Default::default()
-                })
+                Commander::create(
+                    ConfigServer {
+                        config_dir,
+                        ..Default::default()
+                    },
+                    ConfigCommands { commands },
+                )
                 .unwrap()
                 .run()
                 .expect("commander terminated")

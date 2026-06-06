@@ -5,11 +5,13 @@ use anyhow::Context;
 use std::process::Command;
 
 pub(super) const CONFIG_TOML_PATH: &str = "/etc/ruroco/config.toml";
+pub(super) const COMMANDS_TOML_PATH: &str = "/etc/ruroco/commands.toml";
 pub(super) const RUROCO_SERVICE_FILE_PATH: &str = "/etc/systemd/system/ruroco.service";
 pub(super) const COMMANDER_SERVICE_FILE_PATH: &str = "/etc/systemd/system/ruroco-commander.service";
 pub(super) const SOCKET_FILE_PATH: &str = "/etc/systemd/system/ruroco.socket";
 
 pub(super) const CONFIG_TOML_FILE_DATA: &[u8] = include_bytes!("../../../config/config.toml");
+pub(super) const COMMANDS_TOML_FILE_DATA: &[u8] = include_bytes!("../../../config/commands.toml");
 pub(super) const RUROCO_SERVICE_FILE_DATA: &[u8] =
     include_bytes!("../../../systemd/ruroco.service");
 pub(super) const COMMANDER_SERVICE_FILE_DATA: &[u8] =

@@ -6,6 +6,5 @@ ntp = "system"               # OPTIONAL  - NTP server configuration - use "syste
 socket_user = "ruroco"       # OPTIONAL  - user of socket, facilitating communication between server and commander
 socket_group = "ruroco"      # OPTIONAL  - user group of socket, facilitating communication between server and commander
 
-[commands]                   # MANDATORY - but can be empty
-open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"         #  open ssh for IP where request came from
-close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close ssh for IP where request came from
+# NOTE: commands live in a separate commands.toml (read only by the commander, installed root-owned with mode 0600), so
+# the unprivileged server process never loads them. See config/commands.toml.

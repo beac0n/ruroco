@@ -1,0 +1,2 @@
+[commands]
+default = "touch /tmp/ruroco_test/start.test /tmp/ruroco_test/stop.test"
