@@ -3,7 +3,10 @@
 Two processes for privilege separation:
 
 - **server** (unprivileged): owns the UDP socket, decrypts, validates, writes to the Unix socket.
-- **commander** (root): owns the Unix socket, looks up the command by hash, and runs it.
+  Code is the loose files here (`socket.rs`, `handler.rs`, `blocklist.rs`, `rate_limiter.rs`,
+  `signal.rs`, `keys.rs`).
+- **commander** (root): owns the Unix socket, looks up the command by hash, and runs it. Code lives
+  in the `commander/` submodule (see its CLAUDE.md).
 
 Request flow: `socket.rs` receives a 93-byte datagram (supports systemd socket activation, falls
 back to binding `[::]`) -> decrypt via `CryptoHandler` -> `RateLimiter::check` (per-IP, ~1s window,

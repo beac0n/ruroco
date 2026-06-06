@@ -1,7 +1,7 @@
 use crate::common::client_data::ClientData;
 use crate::common::logging::{error, info};
 use crate::common::now_nanos;
-use crate::server::commander_data::CommanderData;
+use crate::server::commander::CommanderData;
 use crate::server::Server;
 use anyhow::{anyhow, Context};
 use std::io::Write;
@@ -81,7 +81,7 @@ impl Server {
         let mut stream = UnixStream::connect(&self.socket_path)
             .with_context(|| format!("Could not connect to socket {:?}", self.socket_path))?;
 
-        let data_to_send: [u8; crate::server::commander_data::CMDR_DATA_SIZE] = data.into();
+        let data_to_send: [u8; crate::server::commander::CMDR_DATA_SIZE] = data.into();
         stream.write_all(&data_to_send).with_context(|| {
             format!("Could not write {data_to_send:?} to socket {:?}", self.socket_path)
         })?;

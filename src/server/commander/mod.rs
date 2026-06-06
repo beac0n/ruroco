@@ -1,6 +1,11 @@
+mod data;
+mod exec;
+
+pub(crate) use data::{CommanderData, CMDR_DATA_SIZE};
+pub use exec::run_commander;
+
 use crate::common::info;
 use crate::common::logging::error;
-use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
 use crate::server::config::{ConfigCommands, ConfigServer};
 use crate::server::util::get_commander_unix_socket_path;
 use anyhow::{anyhow, Context};
@@ -74,8 +79,7 @@ impl Commander {
 
 #[cfg(test)]
 mod tests {
-    use crate::server::commander::Commander;
-    use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
+    use crate::server::commander::{Commander, CommanderData, CMDR_DATA_SIZE};
     use crate::server::config::{ConfigCommands, ConfigServer};
     use std::collections::HashMap;
     use std::io::Write;

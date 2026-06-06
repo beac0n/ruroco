@@ -1,6 +1,6 @@
+use super::Commander;
 use crate::common::logging::error;
 use crate::common::{change_file_ownership, info};
-use crate::server::commander::Commander;
 use crate::server::config::CliCommander;
 use anyhow::{bail, Context};
 use std::fs::Permissions;

@@ -2,9 +2,7 @@
 pub mod blocklist;
 /// responsible for executing the commands that are defined in the config file
 pub mod commander;
-mod commander_data;
-mod commander_exec;
-pub use commander_exec::run_commander;
+pub use commander::run_commander;
 /// data structures for loading configuration files and using CLI arguments for server services
 pub mod config;
 mod handler;
@@ -508,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_write_to_socket_no_listener() {
-        use crate::server::commander_data::CommanderData;
+        use crate::server::commander::CommanderData;
 
         let dir = tempfile::tempdir().unwrap();
         let (mut server, _key) = create_server_with_key().unwrap();
@@ -526,7 +524,7 @@ mod tests {
 
     #[test]
     fn test_send_command_logs_error_on_missing_socket() {
-        use crate::server::commander_data::CommanderData;
+        use crate::server::commander::CommanderData;
 
         let dir = tempfile::tempdir().unwrap();
         let (mut server, _key) = create_server_with_key().unwrap();
