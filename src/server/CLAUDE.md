@@ -12,15 +12,9 @@ back to binding `[::]`) -> decrypt via `CryptoHandler` -> `RateLimiter::check` (
 `CommanderData` (cmd_hash[0:8] + ip[8:24]) to the commander. The commander runs the configured
 shell command with `$RUROCO_IP` set to the client IP. The server never replies.
 
-Config (`config/`, split per process: `config/server.rs` + `config/commander.rs`): `ConfigServer`
-(shared by both processes) holds allowed `ips`, `config_dir`, `socket_user`/`socket_group`, rate
-limit. Commands live in a separate `ConfigCommands` (name -> shell string), loaded only by the
-commander via `ConfigCommands::create_from_path`. The
-server CLI (`CliServer`) takes `--config`; the commander CLI (`CliCommander`) takes both `--config`
-and `--commands` (default `/etc/ruroco/commands.toml`), so the command file is relocatable
-independently of the server config. The network-facing server never reads commands. Install
-`commands.toml` `root`-owned `0600` so the unprivileged server user cannot read the command set.
-Commands are looked up by `blake2b_u64` of the name. IPs are `normalize_ip`'d on load.
+Config (`config/`, see its CLAUDE.md): `ConfigServer` (shared `config.toml`) vs `ConfigCommands`
+(commander-only `commands.toml`, `root`-owned `0600`, never read by the server). IPs are
+`normalize_ip`'d on load; commands looked up by `blake2b_u64` of the name.
 
 Gotchas:
 - Blocklist (`blocklist.rs`, msgpack-persisted) stores the max counter per key_id and blocks
