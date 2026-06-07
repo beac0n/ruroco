@@ -87,7 +87,15 @@ install_server: install_client
 	sudo cp ./target/x86_64-unknown-linux-gnu/release/commander /usr/local/bin/ruroco-commander
 	sudo ruroco-client wizard
 
-test_end_to_end: clean_test_end_to_end build
+# e2e runs the actual binaries (under systemd, against host OpenSSL), so they must vendor OpenSSL
+# >= 3.2 for AES-256-GCM-SIV - the host's system OpenSSL (e.g. 3.0.2 on Ubuntu 22.04) is too old.
+# Debug profile is kept for fast compiles; only the openssl/vendored feature is added.
+build_end_to_end:
+	cargo build --color=always --package ruroco --no-default-features --features release-build,with-client --bin client --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features release-build,with-server --bin server --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features release-build,with-server --bin commander --target x86_64-unknown-linux-gnu
+
+test_end_to_end: clean_test_end_to_end build_end_to_end
 	./scripts/test_end_to_end.sh
 	$(MAKE) clean_test_end_to_end
 
