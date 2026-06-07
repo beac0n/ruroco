@@ -71,7 +71,7 @@ impl Commander {
     fn read(stream: &mut UnixStream) -> anyhow::Result<[u8; CMDR_DATA_SIZE]> {
         let mut buffer = [0u8; CMDR_DATA_SIZE];
         stream
-            .read(&mut buffer)
+            .read_exact(&mut buffer)
             .with_context(|| "Could not read command from Unix Stream to string")?;
         Ok(buffer)
     }
