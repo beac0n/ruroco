@@ -6,6 +6,13 @@
 
 ruroco is a tool that lets you execute commands on a server by sending UDP packets.
 
+It triggers a pre-configured **action** on the server (open a firewall rule, restart a service, run a
+script) — it is **not** a tunnel or a VPN. There is no session, no connection, and no traffic carried: the
+client fires a single stateless packet and the server runs a whitelisted command. In other words, ruroco
+grants a *capability to act* without granting *network access*. See
+[ruroco vs WireGuard / VPN](#ruroco-vs-wireguard--vpn) for when that matters and when a plain VPN is the
+better choice.
+
 the tool consist of 4 binaries:
 
 - `ruroco-client`: runs on your notebook/computer and sends the UDP packets
@@ -35,8 +42,10 @@ picks from existing commands.
 - [Commander usage](#commander-usage)
 - [Server config](#server-config)
 - [Use cases](#use-cases)
+  - [Triggering an action](#triggering-an-action)
   - [Single packet authorization (SPA)](#single-packet-authorization-spa)
   - [Enabling webservice](#enabling-webservice)
+- [ruroco vs WireGuard / VPN](#ruroco-vs-wireguard--vpn)
 - [Troubleshooting](#troubleshooting)
 - [Architecture](#architecture)
 
@@ -303,57 +312,76 @@ Options:
 
 # use cases
 
-## single packet authorization (SPA)
+ruroco's core job is to **trigger a pre-configured action** on the server. The strongest cases are the ones
+where there is no service to connect to at all — only something to *make happen*. The SPA example below
+(opening a port on demand) is the one shape of use case that overlaps with what a VPN can do; for why ruroco
+is still a distinct tool, see [ruroco vs WireGuard / VPN](#ruroco-vs-wireguard--vpn).
 
-If you host a server on the web, you know that you'll get lots of brute-force attacks on (at least) the SSH port of your
-server. While using good practices in securing your server will keep you safe from such attacks, these attacks are quite
-annoying (filling up logs) and even if you secured your server correctly, you will still not be 100% safe, see
-https://www.schneier.com/blog/archives/2024/04/xz-utils-backdoor.html or
-https://www.qualys.com/2024/07/01/cve-2024-6387/regresshion.txt
+## triggering an action
 
-Completely blocking all traffic to all ports that do not have to be open at all times can reduce the attack surface.
-But blocking the SSH port completely will make SSH unusable for that server.
-
-This is where ruroco comes in. Ruroco can execute a command that opens up the SSH port for just a short amount of time,
-so that you can ssh into your server. Afterward ruruco closes the SSH port again. To implement this use case with
-ruroco, you have to use a configuration similar to the one shown below:
+The most VPN-orthogonal use of ruroco is firing a server-side action that has no "service" to reach: deploy,
+restart something, rotate a secret, run a backup. Configure the commands on the server:
 
 ```toml
 # /etc/ruroco/commands.toml (root-only, see chapter "server config")
 [commands]
-open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"         #  open ssh for IP where request came from
-close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close ssh for IP where request came from
+deploy = "/usr/local/bin/deploy.sh"
+restart_app = "systemctl restart myapp"
+run_backup = "/usr/local/bin/run-backup.sh"
 ```
 
-If you have configured ruroco on server like that and execute the following client side command
+then fire one from anywhere — including a CI runner, a cron job on another host, or a tap in the UI:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_ssh --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:8080 --command deploy --key "$(secret-tool lookup token ruroco)"
 ```
 
-If you want to use a different IP address than the one you are sending the packet from, you can use the `--ip` argument
-together with `--permissive`:
+There is no tunnel to bring up and no session to maintain: the client sends a single stateless packet and the
+command runs. A VPN cannot do this — it would only connect you so that *you* could then run the command
+yourself. And because the client can only pick from whitelisted command names (it never sees the command
+strings), a compromised client can fire those actions but gains no foothold on your network.
+
+## single packet authorization (SPA)
+
+Any port you expose to the internet attracts brute-force and exploit traffic — and even a well-secured
+service is not 100% safe, see
+https://www.schneier.com/blog/archives/2024/04/xz-utils-backdoor.html or
+https://www.qualys.com/2024/07/01/cve-2024-6387/regresshion.txt
+
+Blocking every port that does not need to be open at all times reduces that attack surface. But blocking a
+port completely makes the service behind it unreachable when you actually do need it.
+
+This is where ruroco comes in: it can open a firewalled port for just a short while — only for the IP that
+asked — and close it again afterwards. A command can reference that IP via the `$RUROCO_IP` environment
+variable, which the commander substitutes before running the command:
+
+```toml
+# /etc/ruroco/commands.toml (root-only, see chapter "server config")
+[commands]
+open_port = "ufw allow from $RUROCO_IP proto tcp to any port 8443"         # open the service for the requesting IP
+close_port = "ufw delete allow from $RUROCO_IP proto tcp to any port 8443" # close it again
+```
+
+With that configured, run the client like this:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_ssh --ip 94.111.111.111 --permissive --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:8080 --command open_port --key "$(secret-tool lookup token ruroco)"
 ```
 
-If you want to make sure that an adversary does not spoof your source IP address, you can get your external IP address
-from a service - the ruroco server will make sure that the IP addresses match:
+If you want to authorize a different address than the one you are sending from (for example your external IP
+behind NAT), pass it with `--ip` together with `--permissive`. To make sure an adversary cannot spoof your
+source IP, fetch your real external address from a service — the server verifies that the addresses match:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_ssh --ip $(curl -s https://api64.ipify.org) --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:8080 --command open_port --ip $(curl -s https://api64.ipify.org) --key "$(secret-tool lookup token ruroco)"
 ```
 
-the server will validate that the client is authorized to execute that command by using the shared AES key (id is sent
-with the packet) and will then execute the command defined in the config above under "open_ssh". The `--deadline`
-argument means that the command has to be started on the server within 5 seconds after executing the command.
+The server validates that the client is authorized to run the command using the shared AES key (its id is
+sent with the packet) and then runs the command defined under `open_port`. This gives you on-demand access to
+a port for only the IP that sent the packet. Of course you should still apply the usual hardening to the
+service behind it.
 
-This gives you the ability to effectively only allow access to the SSH port, for only the IP that the UDP packet was
-sent from, if you want to connect to your server. Of course, you should also do all the other security hardening tasks
-you would do if the SSH port would be exposed to the internet.
-
-You can define any number of commands you wish, by adding more commands to configuration file.
+You can define any number of commands you wish, by adding more commands to the configuration file.
 
 ## Enabling webservice
 
@@ -374,6 +402,52 @@ ruroco-client send --address host.domain:8080 --command enable_file_browser --ke
 ```
 
 the file browser nginx config will be enabled and nginx reloaded, effectively making the file browser accessible.
+
+# ruroco vs WireGuard / VPN
+
+A reasonable question is: if you can hide every service behind a VPN like
+[WireGuard](https://www.wireguard.com/) and only connect when you need them, why use ruroco at all? For that
+specific use case — *you* hiding *your own* services and reaching them *yourself* — the honest answer is that
+WireGuard alone is the better tool, and ruroco adds little:
+
+- WireGuard is **also silent** to unauthenticated packets: only a valid handshake from a known peer gets a
+  response, so port-scanning it reveals nothing either. The "nothing to scan" property is not unique to
+  ruroco.
+- WireGuard is small, in-kernel, and one of the most heavily audited pieces of crypto networking in
+  existence. A custom UDP daemon has not had that scrutiny.
+- Once you are on the tunnel you reach all your services bidirectionally with no per-service knocking —
+  strictly more convenient.
+
+So if your goal is "private services for myself", reach for WireGuard. ruroco is **not** a VPN and does not
+try to replace one.
+
+## where ruroco is a different tool
+
+ruroco and a VPN answer different questions. **A VPN grants access; ruroco grants a capability.** A VPN peer
+gets a position on your network and bidirectional reach to everything behind the tunnel — and if that client
+is compromised, the attacker inherits that foothold. A ruroco client can only fire whitelisted, pre-defined
+commands and never gets a network position at all; compromise it and the worst case is triggering a
+configured action (e.g. enabling one configured service), not roaming your network.
+
+That distinction is what justifies ruroco in cases a VPN does not cover:
+
+- **Triggering server-side actions, not reaching services.** "Deploy", "restart nginx", "rotate the cert",
+  "run a backup" — there is no service to connect to, only an action to perform. A VPN can only connect you
+  so that you can then do it by hand.
+- **Triggers from clients that cannot or should not hold a tunnel.** A CI runner, a cron job on another host,
+  an IoT device, a phone tap. One stateless UDP packet, no handshake, no session, no client config to
+  provision.
+- **Granting a third party an action without granting them your network.** You might let a partner fire
+  "rebuild the search index" while never giving them VPN access. SPA gives capability without connectivity —
+  least privilege a VPN structurally cannot express.
+
+## a note on "gate the VPN with ruroco"
+
+It is tempting to put ruroco *in front of* WireGuard — keep the WireGuard port firewalled and open it with a
+ruroco knock. We do **not** recommend this as a security win: it places a less-audited UDP packet parser
+(ruroco) in front of a more-audited one (WireGuard) without removing "internet-facing daemon parsing hostile
+packets" — it just swaps which daemon does it. Use ruroco for what only ruroco does (triggering actions), not
+to wrap a VPN that is already silent on its own.
 
 # troubleshooting
 
