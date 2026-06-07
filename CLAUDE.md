@@ -6,7 +6,7 @@ All CLAUDE.md files in this repo (root and nested) MUST be concise and short. Pe
 ## Project
 
 Ruroco (Run Remote Command): encrypted, one-way UDP remote command execution in Rust. Client sends a single 93-byte
-AES-256-GCM packet; server decrypts, checks replay, forwards to
+AES-256-GCM-SIV packet; server decrypts, checks replay, forwards to
 commander over a Unix socket.
 
 ## Commands

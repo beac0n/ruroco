@@ -155,7 +155,7 @@ self.rate_limiter.check(src_ip, self.config.max_requests_per_second)
 ```
 
 This runs **before** decryption in the receive loop, so a flood of garbage packets from one IP is
-throttled before the relatively expensive AES-256-GCM decrypt.
+throttled before the relatively expensive AES-256-GCM-SIV decrypt.
 
 ### Gotchas
 

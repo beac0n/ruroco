@@ -39,7 +39,7 @@ mindmap
       Commands live in server config
       Captured packet reveals nothing
     Confidential and authentic
-      AES-256-GCM with shared key
+      AES-256-GCM-SIV with shared key
       GCM tag authenticates
       Fresh random IV per packet
     Replay-proof
@@ -62,7 +62,7 @@ flowchart TB
         CMD["commander (privileged)<br/>src/server"]
         SRV -->|24-byte CommanderData<br/>over Unix socket| CMD
     end
-    CLI -->|"one 93-byte<br/>AES-256-GCM UDP datagram"| SRV
+    CLI -->|"one 93-byte<br/>AES-256-GCM-SIV UDP datagram"| SRV
     CMD -->|"sh -c with $RUROCO_IP"| OS["configured shell command"]
 
     COM["common<br/>src/common<br/>crypto - protocol - fs - logging"]

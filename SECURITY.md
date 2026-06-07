@@ -7,11 +7,14 @@ vulnerabilities.
 
 ## Cryptographic design and an accepted risk
 
-Packets are authenticated and encrypted with a shared-secret AES-256-GCM key (key id + key), not with an asymmetric
+Packets are authenticated and encrypted with a shared-secret AES-256-GCM-SIV key (key id + key), not with an asymmetric
 signature scheme. This is a deliberate choice:
 
 - One AEAD gives both confidentiality and authenticity in an 85-byte payload (93-byte packet). It hides the command
-  hash and replay counter from on-path observers while authenticating them. A signature-only asymmetric scheme would
+  hash and replay counter from on-path observers while authenticating them.
+- AES-256-GCM-SIV (RFC 8452) is nonce-misuse-resistant: a repeated 96-bit IV is not catastrophic (it only reveals
+  whether two plaintexts were identical, which the replay counter already rejects), so the fresh random IV per packet
+  carries no birthday-bound message ceiling in practice. A signature-only asymmetric scheme would
   authenticate but leak the plaintext, and restoring confidentiality with a sealed-box (ephemeral-key) construction
   would enlarge the packet. Speed is not the main reason (signature verification is microseconds); packet size,
   confidentiality, and key-management simplicity are.

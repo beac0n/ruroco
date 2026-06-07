@@ -1,7 +1,7 @@
 # common/crypto/
 
 The cryptography module. Three files: `handler.rs` (the key type and its lifecycle),
-`handler_ops.rs` (the AES-256-GCM encrypt/decrypt operations), and `mod.rs` (the free functions:
+`handler_ops.rs` (the AES-256-GCM-SIV encrypt/decrypt operations), and `mod.rs` (the free functions:
 Blake2b hashing, Ed25519 verification, random ranges). The conceptual overview is in
 [Cryptography](../architecture/cryptography.md); this is the file-by-file reference.
 
@@ -48,7 +48,7 @@ Security hygiene baked into the type:
 
 ## handler_ops.rs
 
-Adds the AES-256-GCM operations as feature-gated `impl CryptoHandler` blocks. Local constants:
+Adds the AES-256-GCM-SIV operations as feature-gated `impl CryptoHandler` blocks. Local constants:
 `IV_SIZE = 12`, `TAG_SIZE = 16`.
 
 ### encrypt (with-client)
@@ -58,14 +58,17 @@ pub(crate) fn encrypt(&self, plaintext: &[u8; 57]) -> anyhow::Result<[u8; 85]>
 ```
 
 1. Generates a fresh random 12-byte IV (`rand_bytes`).
-2. Runs AES-256-GCM in encrypt mode over the 57-byte plaintext.
+2. Runs AES-256-GCM-SIV in encrypt mode over the 57-byte plaintext.
 3. Asserts the produced ciphertext length equals `PLAINTEXT_SIZE` and that `finalize` emits 0
    extra bytes (GCM is a stream cipher mode, so the lengths match).
 4. Reads the 16-byte authentication tag.
 5. Returns the 85-byte blob laid out as `IV(12) || tag(16) || ciphertext(57)`.
 
 Because the IV is random per call, encrypting identical plaintext twice yields different blobs (a
-tested invariant), which is exactly what GCM requires for safety.
+tested invariant). Plain GCM *requires* unique IVs for safety; AES-256-GCM-SIV is misuse-resistant,
+so an accidental IV repeat only reveals whether two plaintexts were equal (rejected anyway by the
+replay counter) rather than enabling key recovery, the random IV is defense in depth plus wire
+indistinguishability.
 
 ### decrypt (with-server)
 
@@ -74,7 +77,7 @@ pub(crate) fn decrypt(&self, iv_tag_ciphertext: &[u8; 85]) -> anyhow::Result<[u8
 ```
 
 1. Splits the blob into IV `[0:12]`, tag `[12:28]`, ciphertext `[28:85]`.
-2. Runs AES-256-GCM in decrypt mode.
+2. Runs AES-256-GCM-SIV in decrypt mode.
 3. Asserts the plaintext length equals `PLAINTEXT_SIZE`.
 4. Sets the expected tag and calls `finalize`. If the tag does not verify (wrong key, tampering,
    truncation), `finalize` errors and the function returns `Err`. **It fails closed**: no plaintext

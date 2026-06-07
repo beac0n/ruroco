@@ -86,7 +86,7 @@ example, the server build does not pull in client-only code:
 
 The leaf chapters that follow document each file in full:
 
-- [crypto/](./crypto.md): `CryptoHandler`, AES-256-GCM encrypt/decrypt, Blake2b-64, Ed25519.
+- [crypto/](./crypto.md): `CryptoHandler`, AES-256-GCM-SIV encrypt/decrypt, Blake2b-64, Ed25519.
 - [protocol/](./protocol.md): the `ClientData` struct, sizes, parser, and IP serialization.
 - [fs.rs and logging.rs](./fs-logging.md): atomic writes, path/ownership helpers, the logger.
 

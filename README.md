@@ -121,7 +121,7 @@ See `nix/android.nix`, `scripts/dev_ui_android.sh` and `scripts/release_android.
 ## security
 
 - client sends UDP packet to server, server never responds to it -> **port-scanning** does not help an adversary
-- data sent from client to server is encrypted symmetrically with AES-256-GCM using a shared key (symmetric is a
+- data sent from client to server is encrypted symmetrically with AES-256-GCM-SIV using a shared key (symmetric is a
   deliberate trade-off, see [SECURITY.md](SECURITY.md))
 - client only defines command to execute, **commands are saved on server** in a root-only file the network-facing
   server process cannot read -> client can pick command but not define it

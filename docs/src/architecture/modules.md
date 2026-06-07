@@ -44,7 +44,7 @@ flowchart TB
     client["<b>client</b> (with-client)<br/>send/ build + send UDP<br/>config/ clap schema + conf dir<br/>counter.rs · lock.rs · gen.rs<br/>update/ signed self-update<br/>wizard/ server setup"]
     ui["<b>ui</b> (with-gui)<br/>app/ RurocoApp + state<br/>tabs/ dashboard · create · execute<br/>android bridge"]
     server["<b>server</b> (with-server)<br/>socket.rs UDP + activation<br/>handler.rs decrypt + validate<br/>blocklist.rs · rate_limiter.rs<br/>config.rs · keys.rs · commander.rs"]
-    common["<b>common</b> (always)<br/>crypto/ AES-256-GCM · Ed25519 · Blake2b<br/>protocol/ ClientData · sizes · (de)serialize<br/>fs.rs atomic write + ownership<br/>logging.rs info / error"]
+    common["<b>common</b> (always)<br/>crypto/ AES-256-GCM-SIV · Ed25519 · Blake2b<br/>protocol/ ClientData · sizes · (de)serialize<br/>fs.rs atomic write + ownership<br/>logging.rs info / error"]
 
     bins --> client
     bins --> ui
@@ -81,7 +81,7 @@ binary and run as a separate (root) process. It owns the Unix socket, maps the c
 configured shell string, and runs it with `$RUROCO_IP` set to the requesting client's IP.
 
 ### common
-Code shared by the above. The two most load-bearing submodules are `crypto/` (AES-256-GCM
+Code shared by the above. The two most load-bearing submodules are `crypto/` (AES-256-GCM-SIV
 encrypt/decrypt, Ed25519 verification for updates, Blake2b-64 hashing) and `protocol/` (the
 `ClientData` plaintext struct, the fixed byte sizes, and (de)serialization). `fs.rs` provides
 atomic, fsync-backed writes used for the counter, blocklist, and saved-command list. `logging.rs`

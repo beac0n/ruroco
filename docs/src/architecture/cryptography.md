@@ -5,7 +5,7 @@ wire, which removes a whole class of downgrade attacks.
 
 | Primitive | Algorithm | Used for | Where |
 | --- | --- | --- | --- |
-| Symmetric encryption | AES-256-GCM (OpenSSL) | confidentiality + authenticity of the packet | `crypto/handler.rs`, `crypto/handler_ops.rs` |
+| Symmetric encryption | AES-256-GCM-SIV (OpenSSL) | confidentiality + authenticity of the packet | `crypto/handler.rs`, `crypto/handler_ops.rs` |
 | Hashing | Blake2b, 8-byte output | mapping command names to `cmd_hash` | `crypto/mod.rs::blake2b_u64` |
 | Signatures | Ed25519 (OpenSSL) | verifying self-update binaries | `crypto/mod.rs::verify_ed25519` |
 
@@ -35,11 +35,12 @@ flowchart LR
 - The `key_id` is sent in the clear so the server can pick the right key. Only the 32-byte key is
   secret.
 
-## AES-256-GCM: how a packet is protected
+## AES-256-GCM-SIV: how a packet is protected
 
-GCM is an authenticated encryption mode: it provides confidentiality (the plaintext is hidden) and
-integrity/authenticity (any tampering, or use of the wrong key, fails the tag check). The 57-byte
-plaintext becomes an 85-byte blob:
+AES-256-GCM-SIV (RFC 8452) is an authenticated encryption mode: it provides confidentiality (the
+plaintext is hidden) and integrity/authenticity (any tampering, or use of the wrong key, fails the
+tag check). It is the nonce-misuse-resistant variant of GCM (see "Fresh IV per packet" below). The
+57-byte plaintext becomes an 85-byte blob:
 
 ```mermaid
 sequenceDiagram
@@ -51,13 +52,13 @@ sequenceDiagram
 
     Note over E: client side (with-client)
     E->>E: generate fresh random IV (12 B)
-    E->>E: AES-256-GCM encrypt with key + IV
+    E->>E: AES-256-GCM-SIV encrypt with key + IV
     E->>E: read out 16-byte GCM tag
     E->>Blob: IV(12) || tag(16) || ciphertext(57)
 
     Note over D: server side (with-server)
     Blob->>D: split IV, tag, ciphertext
-    D->>D: AES-256-GCM decrypt with key + IV
+    D->>D: AES-256-GCM-SIV decrypt with key + IV
     D->>D: set expected tag, finalize
     alt tag verifies
         D->>Out: 57-byte plaintext
@@ -69,8 +70,11 @@ sequenceDiagram
 Key properties enforced in code:
 
 - **Fresh IV per packet.** `encrypt` generates a new random 12-byte IV every call, so encrypting
-  the same plaintext twice yields different ciphertexts (a tested invariant). This is essential:
-  reusing an IV with GCM is catastrophic.
+  the same plaintext twice yields different ciphertexts (a tested invariant). With AES-256-GCM-SIV
+  an accidental IV repeat is *not* catastrophic (it would only reveal whether two plaintexts were
+  identical, which the replay counter already rejects), unlike plain AES-GCM where IV reuse enables
+  key recovery and forgery. The fresh random IV keeps packets indistinguishable from random on the
+  wire; the replay counter lives inside the authenticated plaintext.
 - **Fail closed.** `decrypt` only returns plaintext if the GCM tag verifies. A wrong key, a
   flipped bit, or a truncated packet all produce an error and the packet is dropped. There is no
   partial decryption and no error is sent back to the client.

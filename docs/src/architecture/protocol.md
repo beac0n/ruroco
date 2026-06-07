@@ -37,7 +37,7 @@ flowchart LR
 - **`key_id` (8 bytes, cleartext).** Identifies which shared key encrypted this packet. It is
   not secret: it only lets the server pick the right key out of the several it may have loaded.
   It is generated randomly alongside the key by `gen`.
-- **ciphertext blob (85 bytes).** The output of AES-256-GCM, laid out as `IV(12) || tag(16) ||
+- **ciphertext blob (85 bytes).** The output of AES-256-GCM-SIV, laid out as `IV(12) || tag(16) ||
   ciphertext(57)`. See [Cryptography](./cryptography.md).
 
 The framing is done in `src/common/protocol/parser.rs`:

@@ -167,4 +167,31 @@ mod cross_tests {
         let result = handler2.decrypt(&ciphertext);
         assert!(result.is_err());
     }
+
+    // Proves the IV is load-bearing: flipping a byte in the 12-byte IV region must fail decryption
+    // (GCM-SIV mixes the nonce into key derivation and the synthetic tag, so a wrong IV won't verify).
+    #[test]
+    fn test_decrypt_fails_on_tampered_iv() {
+        let mut plaintext = [0u8; PLAINTEXT_SIZE];
+        rand_bytes(&mut plaintext).unwrap();
+
+        let handler = CryptoHandler::create(&CryptoHandler::gen_key().unwrap()).unwrap();
+        let mut ciphertext = handler.encrypt(&plaintext).unwrap();
+        ciphertext[0] ^= 0x01; // first IV byte
+
+        assert!(handler.decrypt(&ciphertext).is_err());
+    }
+
+    // Proves the tag is load-bearing: flipping a byte in the 16-byte tag region must fail decryption.
+    #[test]
+    fn test_decrypt_fails_on_tampered_tag() {
+        let mut plaintext = [0u8; PLAINTEXT_SIZE];
+        rand_bytes(&mut plaintext).unwrap();
+
+        let handler = CryptoHandler::create(&CryptoHandler::gen_key().unwrap()).unwrap();
+        let mut ciphertext = handler.encrypt(&plaintext).unwrap();
+        ciphertext[12] ^= 0x01; // first tag byte (IV is bytes 0..12)
+
+        assert!(handler.decrypt(&ciphertext).is_err());
+    }
 }

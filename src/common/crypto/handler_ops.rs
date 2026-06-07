@@ -1,9 +1,11 @@
 #[cfg(any(feature = "with-client", feature = "with-server"))]
 use anyhow::Context;
+#[cfg(any(feature = "with-client", feature = "with-server"))]
+use openssl::cipher::Cipher;
+#[cfg(any(feature = "with-client", feature = "with-server"))]
+use openssl::cipher_ctx::CipherCtx;
 #[cfg(feature = "with-client")]
 use openssl::rand::rand_bytes;
-#[cfg(any(feature = "with-client", feature = "with-server"))]
-use openssl::symm::{Cipher, Crypter, Mode};
 
 use super::handler::CryptoHandler;
 #[cfg(any(feature = "with-client", feature = "with-server"))]
@@ -14,34 +16,42 @@ const IV_SIZE: usize = 12;
 #[cfg(any(feature = "with-client", feature = "with-server"))]
 const TAG_SIZE: usize = 16;
 
+// AES-256-GCM-SIV (RFC 8452): nonce-misuse-resistant AEAD. A repeated nonce only ever leaks
+// whether two plaintexts were identical (which the replay check already rejects), never the
+// catastrophic key recovery of plain GCM. Requires OpenSSL >= 3.2 (fetched from the default
+// provider). The counter lives inside the authenticated plaintext, so replay protection is bound
+// to the message; the 12-byte nonce stays random to keep packets indistinguishable on the wire.
+#[cfg(any(feature = "with-client", feature = "with-server"))]
+fn gcm_siv() -> anyhow::Result<Cipher> {
+    Cipher::fetch(None, "AES-256-GCM-SIV", None)
+        .with_context(|| "Could not fetch AES-256-GCM-SIV cipher (requires OpenSSL >= 3.2)")
+}
+
 #[cfg(feature = "with-client")]
 impl CryptoHandler {
     pub(crate) fn encrypt(
         &self,
         plaintext: &[u8; PLAINTEXT_SIZE],
     ) -> anyhow::Result<[u8; CIPHERTEXT_SIZE]> {
-        let cipher = Cipher::aes_256_gcm();
         let mut iv = [0u8; IV_SIZE];
         rand_bytes(&mut iv).with_context(|| "Could not generate IV")?;
 
-        let mut crypter = Crypter::new(cipher, Mode::Encrypt, &self.key, Some(&iv))
-            .with_context(|| "Could not create crypter")?;
+        let cipher = gcm_siv()?;
+        let mut ctx = CipherCtx::new().with_context(|| "Could not create cipher context")?;
+        ctx.encrypt_init(Some(&cipher), Some(&self.key), Some(&iv))
+            .with_context(|| "Could not init encryption")?;
 
-        let mut ciphertext = [0u8; PLAINTEXT_SIZE];
-        let count = crypter
-            .update(plaintext, &mut ciphertext)
-            .with_context(|| "Could not update crypter")?;
+        let mut ciphertext = Vec::with_capacity(PLAINTEXT_SIZE);
+        ctx.cipher_update_vec(plaintext, &mut ciphertext)
+            .with_context(|| "Could not update encryption")?;
+        ctx.cipher_final_vec(&mut ciphertext).with_context(|| "Could not finalize encryption")?;
 
-        if count != PLAINTEXT_SIZE {
+        if ciphertext.len() != PLAINTEXT_SIZE {
             anyhow::bail!("ciphertext length mismatch");
         }
 
-        if crypter.finalize(&mut []).with_context(|| "Could not finalize crypter")? != 0 {
-            anyhow::bail!("GCM finalize returned unexpected bytes");
-        }
-
         let mut tag = [0u8; TAG_SIZE];
-        crypter.get_tag(&mut tag).with_context(|| "Could not get tag from crypter")?;
+        ctx.tag(&mut tag).with_context(|| "Could not get tag")?;
 
         let mut out = [0u8; CIPHERTEXT_SIZE];
         out[0..IV_SIZE].copy_from_slice(&iv);
@@ -62,25 +72,22 @@ impl CryptoHandler {
         let tag = &iv_tag_ciphertext[IV_SIZE..IV_SIZE + TAG_SIZE];
         let ciphertext = &iv_tag_ciphertext[IV_SIZE + TAG_SIZE..];
 
-        let cipher = Cipher::aes_256_gcm();
-        let mut decrypter = Crypter::new(cipher, Mode::Decrypt, &self.key, Some(iv))
-            .with_context(|| "Could not create decrypter")?;
+        let cipher = gcm_siv()?;
+        let mut ctx = CipherCtx::new().with_context(|| "Could not create cipher context")?;
+        ctx.decrypt_init(Some(&cipher), Some(&self.key), Some(iv))
+            .with_context(|| "Could not init decryption")?;
+        ctx.set_tag(tag).with_context(|| "Could not set tag")?;
 
-        let mut plaintext = [0u8; PLAINTEXT_SIZE];
-        let written = decrypter
-            .update(ciphertext, &mut plaintext)
-            .with_context(|| "Could not update decrypter")?;
+        let mut plaintext = Vec::with_capacity(PLAINTEXT_SIZE);
+        ctx.cipher_update_vec(ciphertext, &mut plaintext)
+            .with_context(|| "Could not update decryption")?;
+        ctx.cipher_final_vec(&mut plaintext)
+            .with_context(|| "Could not finalize decryption (tag mismatch)")?;
 
-        if written != PLAINTEXT_SIZE {
+        if plaintext.len() != PLAINTEXT_SIZE {
             anyhow::bail!("Plaintext length mismatch");
         }
 
-        decrypter.set_tag(tag).with_context(|| "Could not set tag")?;
-
-        if decrypter.finalize(&mut []).with_context(|| "Could not finalize decrypter")? != 0 {
-            anyhow::bail!("GCM finalize returned unexpected bytes");
-        }
-
-        Ok(plaintext)
+        plaintext.as_slice().try_into().with_context(|| "Could not convert plaintext")
     }
 }

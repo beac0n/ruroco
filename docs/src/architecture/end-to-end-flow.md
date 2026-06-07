@@ -61,7 +61,7 @@ Driven by `Sender::send` ([send/](../client/send.md)).
    `cmd_hash`, `counter`, `strict`, `src_ip`, `dst_ip` into a fixed **57-byte** layout
    ([Wire Protocol](./protocol.md)). Note the inversion: the CLI flag is `--permissive`, but the
    packet carries `strict = !permissive`.
-5. **Encrypt.** The 57 bytes are encrypted with AES-256-GCM using the shared key. A fresh random
+5. **Encrypt.** The 57 bytes are encrypted with AES-256-GCM-SIV using the shared key. A fresh random
    IV is generated per packet. Output is `IV(12) || tag(16) || ciphertext(57)` = **85 bytes**
    ([Cryptography](./cryptography.md)).
 6. **Frame.** The 8-byte `key_id` is prepended, giving the final **93-byte** packet. The key_id
@@ -83,7 +83,7 @@ Driven by the server main loop and `handler.rs` ([Server Overview](../server/ove
    selects the matching `CryptoHandler` ([keys.rs](../server/config-keys.md)).
 4. **Rate limit.** `RateLimiter::check` enforces a per-IP cap (default 2 requests/second). This is
    throttling, not security ([rate_limiter.rs](../server/blocklist-ratelimiter.md)).
-5. **Decrypt.** AES-256-GCM decrypts and verifies the tag. A bad key or tampered packet fails the
+5. **Decrypt.** AES-256-GCM-SIV decrypts and verifies the tag. A bad key or tampered packet fails the
    tag check and is dropped silently.
 6. **Deserialize.** The 57-byte plaintext becomes a `ClientData` struct.
 7. **Validate**, in order ([handler.rs](../server/handler.md)):

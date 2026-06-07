@@ -219,7 +219,7 @@ string for the three socket operations.
 The encryption and framing happen in the `common` crate, driven by the client's
 `DataParser`.
 
-- **Encrypt** (`CryptoHandler::encrypt`): AES-256-GCM with a freshly randomized
+- **Encrypt** (`CryptoHandler::encrypt`): AES-256-GCM-SIV with a freshly randomized
   12-byte IV. The output `CIPHERTEXT_SIZE = 85` bytes is laid out as
   `[IV (12)] [GCM tag (16)] [ciphertext (57)]`. The ciphertext is the same length
   as the plaintext (GCM is a stream cipher), so `12 + 16 + 57 = 85`.
@@ -260,7 +260,7 @@ sequenceDiagram
         S->>S: get_data_to_encrypt(ip)
         Note over S: ClientData::create(cmd, !permissive, src_ip, dst_ip, counter)<br/>serialize -> 57 bytes
         S->>D: encode(57-byte plaintext)
-        Note over D: AES-256-GCM encrypt -> 85-byte (IV+tag+ct)<br/>prepend 8-byte key_id -> 93-byte datagram
+        Note over D: AES-256-GCM-SIV encrypt -> 85-byte (IV+tag+ct)<br/>prepend 8-byte key_id -> 93-byte datagram
         D-->>S: [u8; 93]
         S->>K: bind 0.0.0.0:0 or [::]:0, connect(address), send(datagram)
         Note over K: one UDP datagram, no response read

@@ -18,14 +18,14 @@ Ruroco assumes the attacker **cannot**:
 
 - read the shared AES key (it is provisioned out of band and never transmitted),
 - execute code on the server host already (that is game over regardless),
-- break AES-256-GCM or Ed25519.
+- break AES-256-GCM-SIV or Ed25519.
 
 ## Defenses, mapped to mechanisms
 
 ```mermaid
 flowchart TD
     T1["Port scanning / fingerprinting"] -->|server never replies| D1["No oracle, port looks closed"]
-    T2["Eavesdropping"] -->|AES-256-GCM| D2["Plaintext confidential"]
+    T2["Eavesdropping"] -->|AES-256-GCM-SIV| D2["Plaintext confidential"]
     T3["Packet tampering / forgery"] -->|GCM auth tag| D3["Bad packets dropped, fail closed"]
     T4["Replay of a captured packet"] -->|monotonic counter + per-key floor| D4["counter <= floor rejected"]
     T5["Learning what command runs"] -->|Blake2b-64 hash of name only| D5["Command string never on wire"]
@@ -40,8 +40,8 @@ The server sends **no response of any kind**, ever. A scanner cannot tell an ope
 a closed one, there is no banner to fingerprint, and there is no reply packet to use as an oracle.
 This is an architectural invariant, not a config option.
 
-### 2. Confidentiality and authenticity: AES-256-GCM
-The packet body is encrypted and authenticated with AES-256-GCM under the shared key. Eavesdroppers
+### 2. Confidentiality and authenticity: AES-256-GCM-SIV
+The packet body is encrypted and authenticated with AES-256-GCM-SIV under the shared key. Eavesdroppers
 see only random-looking bytes. Tampered or forged packets fail the GCM tag check and are dropped
 silently. See [Cryptography](./cryptography.md).
 

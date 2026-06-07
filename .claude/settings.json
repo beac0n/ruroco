@@ -9,8 +9,14 @@
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "make format" },
-          { "type": "command", "command": "make test" }
+          {
+            "type": "command",
+            "command": "make format"
+          },
+          {
+            "type": "command",
+            "command": "make check"
+          }
         ]
       }
     ]
