@@ -109,7 +109,7 @@ deserialize` round-trip reproduces the original.
 - **No parser ambiguity.** The server knows a valid packet is exactly 93 bytes; anything else is
   discarded before any crypto runs.
 - **No information leak via length.** Every authorized command, short or long, produces the same
-  93 bytes. An observer cannot distinguish "open_ssh" from "deploy_production" by size.
+  93 bytes. An observer cannot distinguish "open_port" from "deploy_production" by size.
 - **Constant work per packet.** The server does the same bounded work for every datagram, which
   bounds the cost of flood traffic (further capped by the rate limiter).
 

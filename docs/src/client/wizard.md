@@ -246,5 +246,5 @@ Notes drawn from the embedded unit files:
   is the privilege-separated half: the server decrypts and validates packets, then forwards the
   command over a Unix socket to the commander.
 - Both services read `/etc/ruroco/config.toml`. The wizard writes this file with mode `0o600`,
-  and its `[commands]` section defines what the commander can run (for example the `open_ssh` /
-  `close_ssh` `ufw` rules in the shipped sample config).
+  and its `[commands]` section defines what the commander can run (for example the `open_port` /
+  `close_port` `ufw` rules in the shipped sample config).

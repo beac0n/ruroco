@@ -5,5 +5,5 @@
 #
 # $RUROCO_IP is set to the source IP of the client request.
 [commands]                   # MANDATORY - but can be empty
-open_ssh = "ufw allow from $RUROCO_IP proto tcp to any port 22"         #  open ssh for IP where request came from
-close_ssh = "ufw delete allow from $RUROCO_IP proto tcp to any port 22" # close ssh for IP where request came from
+open_port = "ufw allow from $RUROCO_IP proto tcp to any port 8443"         # open the service for the requesting IP
+close_port = "ufw delete allow from $RUROCO_IP proto tcp to any port 8443" # close it again

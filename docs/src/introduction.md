@@ -5,9 +5,14 @@ server by sending a single encrypted UDP packet. The server never answers, so fr
 outside the relevant port looks closed: there is nothing to port-scan, nothing to
 fingerprint, and nothing to brute-force.
 
-The canonical use case is **Single Packet Authorization (SPA)**: keep a sensitive port
-(for example SSH) firewalled shut at all times, and use ruroco to briefly open it only for
-the IP that asked, only when you ask.
+Ruroco **triggers a pre-configured action** on the server (open a firewall rule, restart a
+service, run a script). It is not a tunnel or a VPN: there is no session and no traffic is
+carried, so it grants a *capability to act* rather than *network access*. See
+[Overview and Core Idea](./architecture/overview.md#ruroco-is-not-a-vpn) for how it compares to
+a VPN like WireGuard.
+
+A common use is **Single Packet Authorization (SPA)**: keep a sensitive port firewalled shut at
+all times, and use ruroco to briefly open it only for the IP that asked, only when you ask.
 
 ## What makes ruroco different
 

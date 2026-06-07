@@ -17,7 +17,7 @@ sequenceDiagram
     participant Cmd as commander (root)
     participant Sh as shell
 
-    U->>C: ruroco-client send -a host:port -k KEY -c open_ssh
+    U->>C: ruroco-client send -a host:port -k KEY -c open_port
     Note over C: acquire single-instance lock
     C->>C: resolve host to IP(s), filter by --ipv4/--ipv6
     loop for each destination IP
