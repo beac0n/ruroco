@@ -42,6 +42,7 @@ android-build = ["dep:ndk-context", "dep:jni", "dep:android-activity", "dep:wgpu
 with-server = ["dep:toml"]
 with-gui = ["dep:eframe", "dep:toml", "with-client"]
 with-client = ["dep:ureq", "dep:tempfile"]
+fuzzing = ["with-server"]  # Exposes the public fuzz entry points in `src/fuzz_api.rs` for the libFuzzer targets in `fuzz/`.
 
 
 [[bin]]

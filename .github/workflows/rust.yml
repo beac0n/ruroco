@@ -49,6 +49,19 @@ jobs:
         with:
           command: check
 
+  fuzz:
+    name: Fuzz smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Run short fuzz smoke check
+        run: make fuzz_smoke
+
   build:
     name: Build
     runs-on: ubuntu-latest

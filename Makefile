@@ -70,6 +70,16 @@ test_integration:
 check:
 	cargo check --locked --verbose && cargo check --locked --no-default-features --verbose
 
+# Fuzz the untrusted server packet path (decode -> decrypt -> deserialize). Needs nightly.
+fuzz:
+	command -v cargo-fuzz >/dev/null 2>&1 || cargo install cargo-fuzz --locked
+	cargo +nightly fuzz run parse_path
+
+# Short, deterministic fuzz run used as a CI smoke check.
+fuzz_smoke:
+	command -v cargo-fuzz >/dev/null 2>&1 || cargo install cargo-fuzz --locked
+	cargo +nightly fuzz run parse_path -- -runs=100000 -max_total_time=60
+
 typos:
 	command -v typos >/dev/null 2>&1 || cargo install typos-cli
 	typos

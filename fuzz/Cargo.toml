@@ -1,0 +1,27 @@
+[package]
+name = "ruroco-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.ruroco]
+path = ".."
+default-features = false
+features = ["fuzzing"]
+
+# Keep this crate out of the parent workspace: cargo-fuzz needs its own build with nightly + a
+# sanitizer, and the parent's `make check`/cargo-deny should not pull in libfuzzer-sys.
+[workspace]
+
+[[bin]]
+name = "parse_path"
+path = "fuzz_targets/parse_path.rs"
+test = false
+doc = false
+bench = false

@@ -7,6 +7,9 @@ pub mod client;
 /// common functionality used by client, server and commander
 pub mod common;
 
+/// public entry points for the libFuzzer targets in `fuzz/`; only built with the `fuzzing` feature
+#[cfg(feature = "fuzzing")]
+pub mod fuzz_api;
 /// responsible for receiving data from the client and sending that data to the commander
 #[cfg(feature = "with-server")]
 pub mod server;
