@@ -74,6 +74,10 @@ typos:
 	command -v typos >/dev/null 2>&1 || cargo install typos-cli
 	typos
 
+audit:
+	command -v cargo-deny >/dev/null 2>&1 || cargo install cargo-deny --locked
+	cargo deny check
+
 format:
 	cargo fmt && cargo clippy --tests --features with-client,with-server,with-gui --verbose -- -D warnings && cargo fix --allow-dirty --features with-client,with-server,with-gui
 

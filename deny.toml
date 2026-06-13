@@ -1,0 +1,52 @@
+# cargo-deny policy. Run locally with `make audit`; enforced in CI (see rust.yml).
+# Docs: https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Resolve every optional feature so the GUI/server-only deps are audited too.
+all-features = true
+
+[advisories]
+version = 2
+# v2 defaults: vulnerabilities and unmaintained advisories are denied.
+yanked = "deny"
+# Waive advisory IDs here ONLY with a justification comment.
+ignore = [
+    # proc-macro-error2: unmaintained, no safe upgrade. Dev-only transitive dep
+    # (test-with -> test-with-derive); never ships in any binary. Not a vuln.
+    "RUSTSEC-2026-0173",
+]
+
+[licenses]
+version = 2
+# Permissive licenses observed across the dependency graph (incl. GUI fonts).
+# OR-expressions resolve to one of these; AND-expressions need every term listed.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "BSL-1.0",
+    "Unlicense",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+confidence-threshold = 0.8
+# Workspace crates carry no license field; don't flag our own packages.
+private = { ignore = true }
+
+[bans]
+# Duplicate versions bloat the graph but aren't fatal; surface them as warnings.
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
