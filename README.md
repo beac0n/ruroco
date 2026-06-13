@@ -137,6 +137,9 @@ See `nix/android.nix`, `scripts/dev_ui_android.sh` and `scripts/release_android.
 - run server software in such a way so that it uses **as little operating system rights** as possible
 - **replay protection** by adding every packet that the server received to a blocklist
 
+See [SECURITY.md](SECURITY.md) for the full threat model: in-scope attacks, accepted risks, key lifecycle
+(generation, rotation, revocation), and the supported-versions table.
+
 ## client ui usage
 
 ```shell
