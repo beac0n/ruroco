@@ -1,9 +1,10 @@
 use anyhow::Context;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
-use openssl::rand::rand_bytes;
 
+#[cfg(any(feature = "with-client", feature = "with-server"))]
 pub(crate) mod handler;
+#[cfg(any(feature = "with-client", feature = "with-server"))]
 mod handler_ops;
 
 /// Verify a raw Ed25519 detached signature over `message` against `public_key_pem`.
@@ -44,7 +45,9 @@ pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     Ok(u64::from_be_bytes(out))
 }
 
+#[cfg(any(feature = "with-client", feature = "with-server"))]
 pub fn get_random_range(from: u16, to: u16) -> anyhow::Result<u16> {
+    use openssl::rand::rand_bytes;
     let mut buf = [0u8; 4];
     rand_bytes(&mut buf).with_context(|| "Could not generate number")?;
     let span = (to - from) as u32;

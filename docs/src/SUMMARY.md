@@ -18,6 +18,7 @@
 - [crypto/](./common/crypto.md)
 - [protocol/](./common/protocol.md)
 - [fs.rs and logging.rs](./common/fs-logging.md)
+- [ipc.rs](./common/ipc.md)
 
 # Client and UI
 
@@ -33,11 +34,14 @@
 - [UI support (widgets, colors, command list)](./ui/support.md)
 - [Android integration](./ui/android.md)
 
-# Server and Commander
+# Server
 
-- [Server and Commander Overview](./server/overview.md)
+- [Server Overview](./server/overview.md)
 - [socket.rs and signal.rs](./server/socket-signal.md)
 - [handler.rs](./server/handler.md)
 - [blocklist.rs and rate_limiter.rs](./server/blocklist-ratelimiter.md)
-- [config.rs and keys.rs](./server/config-keys.md)
-- [commander (data, exec, util)](./server/commander.md)
+- [config and keys](./server/config-keys.md)
+
+# Commander
+
+- [Commander](./commander.md)

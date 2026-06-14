@@ -11,7 +11,7 @@ build:
 	cargo build --color=always --package ruroco --no-default-features --features with-client --bin client --target x86_64-unknown-linux-gnu
 	cargo build --color=always --package ruroco --no-default-features --features with-gui --bin client_ui --target x86_64-unknown-linux-gnu
 	cargo build --color=always --package ruroco --no-default-features --features with-server --bin server --target x86_64-unknown-linux-gnu
-	cargo build --color=always --package ruroco --no-default-features --features with-server --bin commander --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features with-commander --bin commander --target x86_64-unknown-linux-gnu
 
 .PHONY: docs docs_serve
 
@@ -44,10 +44,10 @@ gen_signing_key:
 release: release_android release_linux
 
 release_linux:
-	cargo build --color=always --release --package ruroco --no-default-features --features release-build,with-client --bin client --target x86_64-unknown-linux-gnu
-	cargo build --color=always --release --package ruroco --no-default-features --features release-build,with-gui --bin client_ui --target x86_64-unknown-linux-gnu
-	cargo build --color=always --release --package ruroco --no-default-features --features release-build,with-server --bin server --target x86_64-unknown-linux-gnu
-	cargo build --color=always --release --package ruroco --no-default-features --features release-build,with-server --bin commander --target x86_64-unknown-linux-gnu
+	cargo build --color=always --release --package ruroco --no-default-features --features with-vendored-openssl,with-client --bin client --target x86_64-unknown-linux-gnu
+	cargo build --color=always --release --package ruroco --no-default-features --features with-vendored-openssl,with-gui --bin client_ui --target x86_64-unknown-linux-gnu
+	cargo build --color=always --release --package ruroco --no-default-features --features with-vendored-openssl,with-server --bin server --target x86_64-unknown-linux-gnu
+	cargo build --color=always --release --package ruroco --no-default-features --features with-commander --bin commander --target x86_64-unknown-linux-gnu
 
 release_linux_nix:
 	nix-shell nix/linux.nix --pure --run ./scripts/release_linux.sh
@@ -101,13 +101,14 @@ install_server: install_client
 	sudo cp ./target/x86_64-unknown-linux-gnu/release/commander /usr/local/bin/ruroco-commander
 	sudo ruroco-client wizard
 
-# e2e runs the actual binaries (under systemd, against host OpenSSL), so they must vendor OpenSSL
-# >= 3.2 for AES-256-GCM-SIV - the host's system OpenSSL (e.g. 3.0.2 on Ubuntu 22.04) is too old.
-# Debug profile is kept for fast compiles; only the openssl/vendored feature is added.
+# e2e runs the actual binaries (under systemd, against host OpenSSL), so the crypto-linking ones
+# must vendor OpenSSL >= 3.2 for AES-256-GCM-SIV - the host's system OpenSSL (e.g. 3.0.2 on Ubuntu
+# 22.04) is too old. Debug profile is kept for fast compiles; only with-vendored-openssl is added.
+# The commander links no OpenSSL (with-commander), so it does not need with-vendored-openssl at all.
 build_end_to_end:
-	cargo build --color=always --package ruroco --no-default-features --features release-build,with-client --bin client --target x86_64-unknown-linux-gnu
-	cargo build --color=always --package ruroco --no-default-features --features release-build,with-server --bin server --target x86_64-unknown-linux-gnu
-	cargo build --color=always --package ruroco --no-default-features --features release-build,with-server --bin commander --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features with-vendored-openssl,with-client --bin client --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features with-vendored-openssl,with-server --bin server --target x86_64-unknown-linux-gnu
+	cargo build --color=always --package ruroco --no-default-features --features with-commander --bin commander --target x86_64-unknown-linux-gnu
 
 test_end_to_end: clean_test_end_to_end build_end_to_end
 	./scripts/test_end_to_end.sh

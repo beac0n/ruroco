@@ -10,14 +10,17 @@ structured" and "how it runs in production".
 
 | Feature | Pulls in | Enables |
 | --- | --- | --- |
-| `with-client` | `ureq`, `tempfile` | the `client` module (send, gen, update, wizard, counter, lock) |
-| `with-server` | `toml` | the `server` module (server + commander) |
+| `with-client` | `ureq`, `tempfile`, `openssl` | the `client` module (send, gen, update, wizard, counter, lock) |
+| `with-commander` | `toml` | the `commander` module (no OpenSSL, no UDP/decrypt) |
+| `with-server` | `openssl`, **+ `with-commander`** | the `server` module (network-facing daemon) |
 | `with-gui` | `eframe`, `toml`, **+ `with-client`** | the `ui` module |
 | `android-build` | `jni`, `ndk-context`, `android-activity`, `wgpu`, **+ `with-gui`** | Android GUI backend |
-| `release-build` | `openssl/vendored` | static OpenSSL for portable release binaries |
+| `with-vendored-openssl` | `openssl/vendored` | static OpenSSL for portable release binaries |
 
 `default = []`: nothing is on by default, so each binary is built with `--no-default-features` plus
-exactly the feature it needs. `common` always compiles. This is why `make check` also runs
+exactly the feature it needs. `common` always compiles. `openssl` is an optional dependency pulled
+in only by `with-client` and `with-server`, so a `with-commander`-only build of the privileged
+commander links no crypto/network code at all. This is why `make check` also runs
 `cargo check --no-default-features`: to prove the shared code stands alone.
 
 ## Binary / feature / entry-point mapping
@@ -29,7 +32,7 @@ flowchart TD
         f1["--features with-client<br/>bin client"] --> e1["client::run_client"]
         f2["--features with-gui<br/>bin client_ui"] --> e2["ui::run_ui"]
         f3["--features with-server<br/>bin server"] --> e3["server::run_server"]
-        f4["--features with-server<br/>bin commander"] --> e4["server::run_commander"]
+        f4["--features with-commander<br/>bin commander"] --> e4["commander::run_commander"]
     end
 ```
 
@@ -50,7 +53,7 @@ The `Makefile` is the source of truth for commands. The ones you use most:
 | `make format` | `cargo fmt`, then `clippy -D warnings`, then `cargo fix` |
 | `make coverage` | `cargo tarpaulin` (llvm engine), xml + html output |
 | `make release` | `release_android` + `release_linux` |
-| `make release_linux` | release build of all four binaries with `release-build` |
+| `make release_linux` | release build of all binaries (client/server/ui add `with-vendored-openssl` for static OpenSSL; commander uses `with-commander`, no OpenSSL) |
 | `make gen_signing_key` | generate the Ed25519 release signing keypair (one-time) |
 | `make install_client` | build release, copy client binaries into `~/.local/bin` |
 | `make install_server` | also copy server binaries to `/usr/local/bin`, then run the wizard |
@@ -86,7 +89,7 @@ flowchart TB
         socket["ruroco.socket<br/>(UDP socket activation)"]
         server["ruroco.service<br/>ruroco-server (unprivileged user)"]
         commander["ruroco-commander.service<br/>(root)"]
-        etc["/etc/ruroco/<br/>config.toml + *.key"]
+        etc["/etc/ruroco/<br/>config.toml + commands.toml + *.key"]
         unixsock["commander Unix socket"]
         socket --> server
         server --> unixsock --> commander
@@ -112,8 +115,12 @@ directories. Full detail in [wizard](../client/wizard.md).
 - **`ruroco-commander.service`**: runs `ruroco-commander` as root, owning the Unix socket.
 
 ### Config files
-- `/etc/ruroco/config.toml`: the `[commands]` map (name to shell string), allowed `ips`, socket
-  user/group, and rate limit. See [config.rs](../server/config-keys.md).
+- `/etc/ruroco/config.toml`: allowed `ips`, rate limit, clock skew, socket user/group, and
+  `config_dir`. Read by both processes through their own views (`ConfigServer` reads the server
+  fields, `ConfigCommander` the socket-ownership fields; only `config_dir` overlaps). Has **no**
+  command map. See [config and keys](../server/config-keys.md) and [Commander](../commander.md).
+- `/etc/ruroco/commands.toml`: the `[commands]` map (name to shell string), `root`-owned `0600`.
+  Read **only** by the commander, never by the network-facing server. See [Commander](../commander.md).
 - `/etc/ruroco/*.key`: one or more shared keys. The server loads every `*.key` file; the packet's
   `key_id` selects which one. See [keys.rs](../server/config-keys.md).
 

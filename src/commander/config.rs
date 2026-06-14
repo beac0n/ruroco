@@ -1,6 +1,12 @@
-//! Commander-only configuration: the `commands.toml` schema (`ConfigCommands`) and the commander
-//! CLI (`CliCommander`). Kept separate from the server config so the network-facing server process
-//! never loads the command set.
+//! Commander configuration, in two parts:
+//!
+//! - `ConfigCommander`: the commander's view of the shared `config.toml`. It reads only what it
+//!   needs (`config_dir`, plus `socket_user`/`socket_group` for the Unix socket it owns) and ignores
+//!   the server-only fields (`ips`, rate limit, clock skew). `config_dir` is the one value shared
+//!   with the server (`ConfigServer`): both must agree so they resolve the same `ruroco.socket`.
+//! - `ConfigCommands`: the `commands.toml` schema. Kept in a separate file so the network-facing
+//!   server process never loads the command set; installed `root`-owned `0600` and relocatable via
+//!   `--commands` independently of `config.toml`.
 
 use crate::common::blake2b_u64;
 use anyhow::{anyhow, Context};
@@ -19,6 +25,54 @@ pub struct CliCommander {
     pub(crate) config: PathBuf,
     #[arg(long, default_value = PathBuf::from("/etc/ruroco/commands.toml").into_os_string())]
     pub(crate) commands: PathBuf,
+}
+
+/// The commander's view of `config.toml`. Holds only the fields the commander uses; server-only
+/// fields present in the same file are ignored by serde.
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct ConfigCommander {
+    #[serde(default = "default_config_path")]
+    pub config_dir: PathBuf,
+    #[serde(default = "default_socket_user")]
+    pub socket_user: String,
+    #[serde(default = "default_socket_group")]
+    pub socket_group: String,
+}
+
+impl ConfigCommander {
+    pub(crate) fn create_from_path(path: &Path) -> anyhow::Result<ConfigCommander> {
+        match fs::read_to_string(path) {
+            Ok(data) => Self::deserialize(&data),
+            Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
+        }
+    }
+
+    pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigCommander> {
+        toml::from_str::<ConfigCommander>(data)
+            .with_context(|| format!("Could not create ConfigCommander from {data}"))
+    }
+}
+
+impl Default for ConfigCommander {
+    fn default() -> ConfigCommander {
+        ConfigCommander {
+            config_dir: std::env::current_dir().unwrap_or(PathBuf::from("/tmp")),
+            socket_user: "".to_string(),
+            socket_group: "".to_string(),
+        }
+    }
+}
+
+fn default_config_path() -> PathBuf {
+    PathBuf::from("/etc/ruroco")
+}
+
+fn default_socket_user() -> String {
+    "ruroco".to_string()
+}
+
+fn default_socket_group() -> String {
+    "ruroco".to_string()
 }
 
 /// Commander-only configuration: the map of command name -> shell command. Kept in a separate
@@ -56,9 +110,33 @@ impl ConfigCommands {
 
 #[cfg(test)]
 mod tests {
-    use super::ConfigCommands;
+    use super::{ConfigCommander, ConfigCommands};
     use std::collections::HashMap;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_config_commander_reads_shared_fields_and_ignores_server_fields() {
+        // A real config.toml carries server-only fields too; the commander view ignores them.
+        let toml = r#"
+            ips = ["127.0.0.1"]
+            config_dir = "/etc/ruroco"
+            socket_user = "ruroco"
+            socket_group = "ruroco"
+            max_requests_per_second = 5
+        "#;
+        let config = ConfigCommander::deserialize(toml).unwrap();
+        assert_eq!(config.config_dir, PathBuf::from("/etc/ruroco"));
+        assert_eq!(config.socket_user, "ruroco");
+        assert_eq!(config.socket_group, "ruroco");
+    }
+
+    #[test]
+    fn test_config_commander_defaults() {
+        let config = ConfigCommander::deserialize("ips = [\"127.0.0.1\"]").unwrap();
+        assert_eq!(config.config_dir, PathBuf::from("/etc/ruroco"));
+        assert_eq!(config.socket_user, "ruroco");
+        assert_eq!(config.socket_group, "ruroco");
+    }
 
     #[test]
     fn test_get_hash_to_cmd() {

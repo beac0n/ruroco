@@ -3,11 +3,11 @@ mod tests {
     use ruroco::client::config::SendCommand;
     use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
+    use ruroco::commander::{Commander, ConfigCommander, ConfigCommands};
     use ruroco::common::get_random_range;
+    use ruroco::common::ipc::get_commander_unix_socket_path;
     use ruroco::server::blocklist::Blocklist;
-    use ruroco::server::commander::Commander;
-    use ruroco::server::config::{ConfigCommands, ConfigServer};
-    use ruroco::server::util::get_commander_unix_socket_path;
+    use ruroco::server::config::ConfigServer;
     use ruroco::server::Server;
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
@@ -113,7 +113,7 @@ mod tests {
 
             thread::spawn(move || {
                 Commander::create(
-                    ConfigServer {
+                    ConfigCommander {
                         config_dir,
                         ..Default::default()
                     },

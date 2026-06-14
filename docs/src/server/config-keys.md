@@ -1,12 +1,14 @@
 # Config and Keys
 
-This chapter covers configuration loading (`config.rs`) and key file discovery / crypto handler
-construction (`keys.rs`). Both are implemented as methods on `ConfigServer`, shared by the server
-and the commander.
+This chapter covers the server's configuration (`config.rs`) and key file discovery / crypto handler
+construction (`keys.rs`).
 
-## `config.rs`
+## `config.rs`: `ConfigServer` and `CliServer`
 
-### CLI argument
+The server's view of `config.toml`. The commander reads the *same* file through its own
+`ConfigCommander` view (see [Commander](../commander.md)); only `config_dir` is shared between the
+two, and it must agree so both resolve the same `ruroco.socket` (see [ipc.rs](../common/ipc.md)).
+The command set is a separate file (`commands.toml`), never loaded here.
 
 ```rust
 #[derive(Parser, Debug)]
@@ -14,102 +16,36 @@ pub struct CliServer {
     #[arg(short, long, default_value = "/etc/ruroco/config.toml")]
     pub(crate) config: PathBuf,
 }
-```
 
-Both `run_server` and `run_commander` take a `CliServer` and read the TOML config from this path.
-
-### `ConfigServer`
-
-```rust
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ConfigServer {
-    pub commands: HashMap<String, String>, // command name -> shell string
     #[serde(deserialize_with = "deserialize_ips")]
     pub ips: Vec<IpAddr>,
-    #[serde(default = "default_config_path")]   // /etc/ruroco
+    #[serde(default = "default_config_path")]            // /etc/ruroco
     pub config_dir: PathBuf,
-    #[serde(default = "default_socket_user")]   // "ruroco"
-    pub socket_user: String,
-    #[serde(default = "default_socket_group")]  // "ruroco"
-    pub socket_group: String,
     #[serde(default = "default_max_requests_per_second")] // 2
     pub max_requests_per_second: u32,
+    #[serde(default = "default_max_clock_skew_seconds")]  // 3600
+    pub max_clock_skew_seconds: u64,
 }
 ```
 
-Field meanings:
-
-- `commands`: maps a human command **name** to the **shell string** to run. The client never sees
-  this; it only sends the Blake2b-64 hash of the name. Only the commander resolves it.
-- `ips`: the set of destination IPs this server answers for. A packet's `dst_ip` must be in this
-  list (handler step 2). Defaults to `["127.0.0.1"]`.
-- `config_dir`: directory holding the `*.key` files, the `blocklist.msgpck`, and the
-  `ruroco.socket`. Defaults to `/etc/ruroco` when loaded from TOML, or the current working
-  directory in the `Default` impl.
-- `socket_user` / `socket_group`: ownership applied to the Unix socket by the commander.
+- `ips`: the destination IPs this server answers for; a packet's `dst_ip` must be in this list
+  (handler step 2). Defaults to `["127.0.0.1"]`. Each entry is run through `normalize_ip` on load
+  (via `deserialize_ips`), so `"::ffff:127.0.0.1"` is stored as `127.0.0.1`.
+- `config_dir`: directory holding the `*.key` files, `blocklist.msgpck`, and `ruroco.socket`.
+  Defaults to `/etc/ruroco` from TOML, or the current working directory in `Default`.
 - `max_requests_per_second`: per-IP rate limit, default 2.
+- `max_clock_skew_seconds`: how far ahead of server-local time an accepted counter may be, default
+  3600. See [handler.rs](./handler.md).
 
-### IP normalization on load
+Note there is **no** `socket_user` / `socket_group` here: those are commander-only (the commander
+chowns the socket), so they live in `ConfigCommander`. `ConfigServer` simply ignores them when they
+appear in `config.toml`.
 
-```rust
-fn deserialize_ips<'de, D>(d: D) -> Result<Vec<IpAddr>, D::Error> {
-    let v: Vec<String> = Vec::<String>::deserialize(d)?;
-    v.into_iter()
-        .map(|s| {
-            let ip: IpAddr = s.parse().map_err(serde::de::Error::custom)?;
-            Ok(crate::common::normalize_ip(ip))
-        })
-        .collect()
-}
-```
-
-Every configured IP is parsed and run through `normalize_ip`, which collapses an IPv6-mapped IPv4
-address back to plain IPv4. So `"::ffff:127.0.0.1"` in the config deserializes to `127.0.0.1`, and
-matches a packet whose `dst_ip` arrived as either form. An unparsable string is a deserialization
-error.
-
-### Command lookup by `blake2b_u64`
-
-```rust
-pub(crate) fn get_hash_to_cmd(&self) -> anyhow::Result<HashMap<u64, String>> {
-    self.commands
-        .iter()
-        .map(|(k, v)| {
-            let hash = blake2b_u64(k)?; // hash of the command NAME
-            Ok((hash, v.clone()))
-        })
-        .collect()
-}
-```
-
-This is how the commander turns the name-keyed config into a hash-keyed lookup table. The incoming
-`CommanderData.cmd_hash` is matched against these `u64` keys. The hash is computed over the command
-**name** (the map key), not the shell string.
-
-### Other methods and defaults
-
-```rust
-pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigServer>; // toml::from_str
-impl Default for ConfigServer; // commands empty, ips ["127.0.0.1"], config_dir = cwd, user/group "", rps = 2
-fn default_config_path() -> PathBuf;          // /etc/ruroco
-fn default_socket_user() -> String;           // "ruroco"
-fn default_socket_group() -> String;          // "ruroco"
-fn default_max_requests_per_second() -> u32;  // 2
-```
-
-`Default` is used heavily in tests with struct update syntax:
-
-```rust
-ConfigServer { config_dir, ..Default::default() }
-```
-
-### Gotchas
-
-- The `Default` impl differs from the `serde` defaults: `Default` sets `socket_user`/`socket_group`
-  to empty strings and `config_dir` to the current directory, whereas a TOML file with those keys
-  omitted gets `"ruroco"`/`"ruroco"` and `/etc/ruroco` from the `#[serde(default = ...)]` functions.
-- `commands` and `ips` have no serde default, so a config TOML must provide both (`[commands]` may
-  be empty, but the key must be present).
+The inherent methods that act on `config_dir` (key discovery, crypto handlers, the UDP socket, the
+blocklist) are separate `impl ConfigServer` blocks in `keys.rs` and `socket.rs`, covered below and
+in [socket.rs and signal.rs](./socket-signal.md).
 
 ## `keys.rs`
 
@@ -117,7 +53,8 @@ ConfigServer { config_dir, ..Default::default() }
 
 Discovers every `*.key` file in `config_dir`, reads them, and builds one `CryptoHandler` per key,
 indexed by the 8-byte key id. Supporting multiple keys lets several independent clients (each with
-its own key) talk to one server. Also constructs the blocklist and resolves the Unix socket path.
+its own key) talk to one server. Also constructs the blocklist and resolves the Unix socket path
+(via `common::ipc::get_commander_unix_socket_path`).
 
 ### Methods
 
@@ -125,10 +62,14 @@ its own key) talk to one server. Also constructs the blocklist and resolves the 
 pub(crate) fn create_blocklist(&self) -> anyhow::Result<Blocklist>;
 pub(crate) fn create_crypto_handlers(&self)
     -> anyhow::Result<HashMap<[u8; KEY_ID_SIZE], CryptoHandler>>;
-pub(crate) fn get_commander_unix_socket_path(&self) -> PathBuf;
+pub(crate) fn get_commander_unix_socket_path(&self) -> PathBuf; // convenience over common::ipc
 pub(crate) fn resolve_config_dir(&self) -> PathBuf;
 pub(crate) fn get_key_paths(&self) -> anyhow::Result<Vec<PathBuf>>;
 ```
+
+These are server-only, so they do not compile into the commander build (which loads `ConfigServer`
+for its fields only). `create_server_udp_socket` is the matching server-only method in
+[socket.rs](./socket-signal.md).
 
 ### `*.key` discovery
 

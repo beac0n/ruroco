@@ -57,17 +57,25 @@ classDiagram
         -write_to_socket(CommanderData) Result
     }
     class ConfigServer {
-        +HashMap~String,String~ commands
         +Vec~IpAddr~ ips
         +PathBuf config_dir
         +String socket_user
         +String socket_group
         +u32 max_requests_per_second
-        +get_hash_to_cmd() Result
+        +u64 max_clock_skew_seconds
         +create_crypto_handlers() Result
         +create_blocklist() Result
         +create_server_udp_socket(Option~String~) Result
         +get_commander_unix_socket_path() PathBuf
+    }
+    class ConfigCommander {
+        +PathBuf config_dir
+        +String socket_user
+        +String socket_group
+    }
+    class ConfigCommands {
+        +HashMap~String,String~ commands
+        +get_hash_to_cmd() Result
     }
     class CliServer {
         +PathBuf config
@@ -92,7 +100,7 @@ classDiagram
         +HashMap~u64,String~ cmds
         +String socket_user
         +String socket_group
-        +create(ConfigServer) Result
+        +create(ConfigCommander, ConfigCommands) Result
         +run() Result
         -run_cycle(UnixStream) Result
         -run_command(str, IpAddr)
@@ -101,16 +109,27 @@ classDiagram
         +u64 cmd_hash
         +IpAddr ip
     }
+    class CliCommander {
+        +PathBuf config
+        +PathBuf commands
+    }
 
     Server --> ConfigServer
     Server --> Blocklist
     Server --> RateLimiter
     Server ..> CommanderData : sends 24 bytes
     Commander --> CommanderData : receives 24 bytes
-    Commander --> ConfigServer
+    Commander --> ConfigCommander
+    Commander --> ConfigCommands
     CliServer ..> Server : run_server
-    CliServer ..> Commander : run_commander
+    CliCommander ..> Commander : run_commander
 ```
+
+`ConfigServer` / `CliServer` live in `server::config`; `Commander`, `ConfigCommander`,
+`ConfigCommands`, and `CliCommander` live in the top-level `commander` module; the IPC type
+`CommanderData` is the one shared piece, in `common::ipc`. `config.toml` is one file read by both
+processes through their own views (`ConfigServer` vs `ConfigCommander`). The commander builds under
+`with-commander` (no OpenSSL); `with-server` is a superset of it.
 
 ## Full valid request flow
 
@@ -174,4 +193,5 @@ and the loop continues. Nothing is sent back to the client in any case.
 - [Handler and validation](./handler.md)
 - [Blocklist and rate limiter](./blocklist-ratelimiter.md)
 - [Config and keys](./config-keys.md)
-- [Commander](./commander.md)
+- [IPC contract (ipc.rs)](../common/ipc.md)
+- [Commander](../commander.md)

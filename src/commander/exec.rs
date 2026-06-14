@@ -1,7 +1,7 @@
 use super::Commander;
+use crate::commander::CliCommander;
 use crate::common::logging::error;
 use crate::common::{change_file_ownership, info};
-use crate::server::config::CliCommander;
 use anyhow::{bail, Context};
 use std::fs::Permissions;
 use std::net::IpAddr;
@@ -83,7 +83,7 @@ pub fn run_commander(commander: CliCommander) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::run_commander;
-    use crate::server::config::CliCommander;
+    use crate::commander::CliCommander;
     use std::path::PathBuf;
 
     #[test]

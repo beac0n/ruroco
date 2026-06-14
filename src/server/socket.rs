@@ -102,6 +102,18 @@ mod tests {
     }
 
     #[test]
+    fn test_create_udp_socket_with_env_var() {
+        let port = crate::common::get_random_range(1024, 65535).unwrap();
+        env::set_var("RUROCO_LISTEN_ADDRESS", format!("127.0.0.1:{port}"));
+        env::remove_var("LISTEN_FDS");
+        env::remove_var("LISTEN_PID");
+        let config = ConfigServer::default();
+        let socket = config.create_server_udp_socket(None).unwrap();
+        env::remove_var("RUROCO_LISTEN_ADDRESS");
+        assert_eq!(socket.local_addr().unwrap().port(), port);
+    }
+
+    #[test]
     fn test_create_udp_socket_ruroco_listen_address_invalid() {
         env::remove_var("LISTEN_PID");
         env::remove_var("LISTEN_FDS");

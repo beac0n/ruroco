@@ -1,6 +1,12 @@
 # src/common/
 
-Code shared by client, server, and ui. Subdirs: `crypto/`, `protocol/`, `android/`.
+Code shared by client, server, commander, and ui. Subdirs: `crypto/`, `protocol/`, `android/`.
+
+- `ipc.rs`: the server <-> commander IPC contract - `CommanderData` (cmd_hash[0:8] + ip[8:24]) plus
+  `get_commander_unix_socket_path`. Server produces + connects, commander consumes + binds. Gated
+  behind `any(with-server, with-commander)`; no crypto/network deps. (The config structs are *not*
+  shared: `ConfigServer` lives in `server::config`, `ConfigCommander`/`ConfigCommands` in
+  `commander::config`; they just read the same `config.toml`/`commands.toml` files.)
 
 Cross-cutting helpers worth knowing:
 

@@ -1,9 +1,9 @@
 use crate::common::crypto_handler::CryptoHandler;
+use crate::common::ipc::get_commander_unix_socket_path as util_socket_path;
 use crate::common::protocol::KEY_ID_SIZE;
 use crate::common::{info, resolve_path};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::ConfigServer;
-use crate::server::util::get_commander_unix_socket_path as util_socket_path;
 use anyhow::{anyhow, bail, Context};
 use openssl::version::version;
 use std::collections::HashMap;
@@ -75,5 +75,85 @@ impl ConfigServer {
             0 => Err(anyhow!("Could not find any .key files in {config_dir:?}")),
             _ => Ok(key_files),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::server::config::ConfigServer;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_get_key_path() {
+        let config_server = ConfigServer {
+            config_dir: PathBuf::from("/foo/bar/baz"),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            config_server.get_key_paths().unwrap_err().to_string(),
+            r#"Error reading directory "/foo/bar/baz": No such file or directory (os error 2)"#
+        );
+    }
+
+    #[test]
+    fn test_get_key_paths_no_key_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ConfigServer {
+            config_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let result = config.get_key_paths();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not find any .key files"));
+    }
+
+    #[test]
+    fn test_get_key_paths_with_key_files() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("test.key"), "key_content").unwrap();
+        std::fs::write(dir.path().join("test.txt"), "not_a_key").unwrap();
+        let config = ConfigServer {
+            config_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let paths = config.get_key_paths().unwrap();
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].extension().unwrap() == "key");
+    }
+
+    #[test]
+    fn test_create_crypto_handlers_duplicate_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let content = "duplicate_key_content";
+        std::fs::write(dir.path().join("a.key"), content).unwrap();
+        std::fs::write(dir.path().join("b.key"), content).unwrap();
+        let config = ConfigServer {
+            config_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let err = config.create_crypto_handlers().unwrap_err().to_string();
+        assert!(err.contains("Duplicate key files detected"), "unexpected: {err}");
+    }
+
+    #[test]
+    fn test_create_blocklist() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ConfigServer {
+            config_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let blocklist = config.create_blocklist().unwrap();
+        assert!(blocklist.get().is_empty());
+    }
+
+    #[test]
+    fn test_get_commander_unix_socket_path() {
+        let config = ConfigServer {
+            config_dir: PathBuf::from("/tmp/ruroco_test"),
+            ..Default::default()
+        };
+        let path = config.get_commander_unix_socket_path();
+        assert!(path.to_str().unwrap().contains("ruroco.socket"));
     }
 }

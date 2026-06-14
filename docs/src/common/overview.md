@@ -1,9 +1,10 @@
 # Common Layer Overview
 
-`src/common/` is the shared library compiled into every binary. It holds the code that the client
-and server must agree on (cryptography and the wire protocol) plus cross-cutting utilities (atomic
-file IO and logging). It is the only module not behind a feature gate: it always compiles, even
-with `--no-default-features`.
+`src/common/` is the shared library compiled into every binary. It holds the code that the client,
+server, and commander must agree on (cryptography, the wire protocol, and the server <-> commander
+IPC contract) plus cross-cutting utilities (atomic file IO and logging). It is the only module not
+behind a feature gate: it always compiles, even with `--no-default-features` (individual items
+inside it are gated per feature).
 
 ## Layout
 
@@ -21,12 +22,14 @@ flowchart TD
         pp["parser.rs<br/>DataParser encode/decode"]
         ps["serialization.rs<br/>IP <-> 16 bytes"]
     end
+    ipc["ipc.rs<br/>CommanderData + socket path (server/commander)"]
     fs["fs.rs<br/>write_atomic, resolve_path, chown"]
     log["logging.rs<br/>info / error"]
     andr["android/<br/>JNI bridge (android only)"]
 
     mod --> crypto
     mod --> protocol
+    mod --> ipc
     mod --> fs
     mod --> log
     mod -.cfg android.- andr
@@ -48,17 +51,18 @@ the source of every counter value in the system: the client seeds and advances i
 from it, and the server seeds its blocklist floor from it on startup. It returns an error (rather
 than panicking) if the system clock is before the epoch.
 
-### `normalize_ip` (server only)
+### `normalize_ip` (server / commander)
 
 ```rust
-#[cfg(feature = "with-server")]
+#[cfg(any(feature = "with-server", feature = "with-commander"))]
 pub(crate) fn normalize_ip(ip: IpAddr) -> IpAddr
 ```
 
 Collapses an IPv6-mapped IPv4 address (for example `::ffff:192.168.0.1`) back to a plain IPv4
 address, leaving genuine IPv6 and IPv4 addresses unchanged. Because every IP on the wire is stored
-as 16 bytes (IPv6-mapped), this is how the server gets back a clean IPv4 value for comparison and
-for `$RUROCO_IP`.
+as 16 bytes (IPv6-mapped), this is how a clean IPv4 value is recovered for comparison and for
+`$RUROCO_IP`. Both the server (validation) and the commander (decoding `CommanderData`) need it, so
+it is gated for either role.
 
 ### Re-exports
 
@@ -67,7 +71,7 @@ submodules:
 
 | Re-export | From | Used by |
 | --- | --- | --- |
-| `blake2b_u64` | `crypto` | client (build hash) and server (command lookup) |
+| `blake2b_u64` | `crypto` | client (build hash) and commander (command lookup) |
 | `get_random_range` | `crypto` | `fs::write_atomic` temp-name, UI |
 | `crypto_handler` (alias for `crypto::handler`) | `crypto` | parser |
 | `change_file_ownership`, `resolve_path` | `fs` | server, update, wizard |
@@ -80,8 +84,13 @@ Even though `common` always compiles, individual functions inside it are feature
 example, the server build does not pull in client-only code:
 
 - `encrypt`, `verify_ed25519`, `ClientData::create` / `serialize`: `with-client`.
-- `decrypt`, `ClientData::deserialize`, `is_source_ip_invalid`, `normalize_ip`,
-  `deserialize_ip`: `with-server`.
+- `decrypt`, `ClientData::deserialize`, `is_source_ip_invalid`: `with-server`.
+- the `crypto::handler` (`CryptoHandler`) and `get_random_range`, which pull in OpenSSL:
+  `with-client` or `with-server` (never the commander).
+- `ipc` (`CommanderData`, socket path), `normalize_ip`, `deserialize_ip`: `with-server` or
+  `with-commander` (both roles need them; no OpenSSL involved). The config structs themselves are
+  not in `common` - `ConfigServer` is in `server::config`, `ConfigCommander`/`ConfigCommands` in
+  `commander::config`.
 - `write_atomic`: `with-server` or `with-gui` (the components that persist files).
 
 The leaf chapters that follow document each file in full:
@@ -89,6 +98,7 @@ The leaf chapters that follow document each file in full:
 - [crypto/](./crypto.md): `CryptoHandler`, AES-256-GCM-SIV encrypt/decrypt, Blake2b-64, Ed25519.
 - [protocol/](./protocol.md): the `ClientData` struct, sizes, parser, and IP serialization.
 - [fs.rs and logging.rs](./fs-logging.md): atomic writes, path/ownership helpers, the logger.
+- [ipc.rs](./ipc.md): the server <-> commander IPC contract (`CommanderData` + the socket path).
 
 The Android JNI bridge under `common/android/` is documented alongside the GUI it serves, in
 [Android integration](../ui/android.md), because it only exists to back the UI on Android.

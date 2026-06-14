@@ -90,15 +90,16 @@ flowchart TB
     end
     subgraph remote["Remote host"]
         SRV["server (unprivileged)<br/>src/server"]
-        CMD["commander (privileged)<br/>src/server"]
+        CMD["commander (privileged)<br/>src/commander"]
         SRV -->|24-byte CommanderData<br/>over Unix socket| CMD
     end
     CLI -->|"one 93-byte<br/>AES-256-GCM-SIV UDP datagram"| SRV
     CMD -->|"sh -c with $RUROCO_IP"| OS["configured shell command"]
 
-    COM["common<br/>src/common<br/>crypto - protocol - fs - logging"]
+    COM["common<br/>src/common<br/>crypto - protocol - ipc - fs - logging"]
     CLI -.shared code.- COM
     SRV -.shared code.- COM
+    CMD -.shared code.- COM
 ```
 
 - **`client`** (`src/client`) is the CLI. It hashes a command name, builds the plaintext,
@@ -109,11 +110,12 @@ flowchart TB
 - **`server`** (`src/server`) is the unprivileged, internet-facing daemon. It receives the
   datagram, decrypts it, runs rate-limit / replay / IP checks, and forwards an authorized
   command to the commander. It never sends a network response.
-- **`commander`** (`src/server`, separate binary) is the privileged executor. It owns a local
-  Unix socket, looks the command hash up in its config, and runs the configured shell command.
-- **`common`** (`src/common`) is the shared library: cryptography, the wire protocol, atomic
-  file IO, and the project's own logger. Both client and server compile pieces of it, gated by
-  Cargo features.
+- **`commander`** (`src/commander`, separate binary) is the privileged executor. It owns a local
+  Unix socket, looks the command hash up in its config, and runs the configured shell command. It
+  links no OpenSSL and no network code.
+- **`common`** (`src/common`) is the shared library: cryptography, the wire protocol, the server <->
+  commander IPC contract (`CommanderData` + socket path), atomic file IO, and the project's own
+  logger. Client, server, and commander each compile pieces of it, gated by Cargo features.
 
 ## Where to go next
 

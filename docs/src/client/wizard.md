@@ -245,6 +245,8 @@ Notes drawn from the embedded unit files:
 - `ruroco-commander.service` runs `ruroco-commander`, which executes the configured commands. It
   is the privilege-separated half: the server decrypts and validates packets, then forwards the
   command over a Unix socket to the commander.
-- Both services read `/etc/ruroco/config.toml`. The wizard writes this file with mode `0o600`,
-  and its `[commands]` section defines what the commander can run (for example the `open_port` /
-  `close_port` `ufw` rules in the shipped sample config).
+- Both services read `/etc/ruroco/config.toml` (allowed `ips`, socket user/group, rate limit). The
+  commander additionally reads `/etc/ruroco/commands.toml`, whose `[commands]` section defines what
+  it can run (for example the `open_port` / `close_port` `ufw` rules in the shipped sample config).
+  The wizard writes both files with mode `0o600`; the command set is kept out of `config.toml` so
+  the network-facing server never loads it.

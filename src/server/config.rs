@@ -1,0 +1,141 @@
+//! Server configuration: the `config.toml` fields the network-facing server reads, plus its CLI
+//! (`CliServer`). The commander reads the *same* `config.toml` file but through its own
+//! `ConfigCommander` view (only `config_dir` is shared between the two; it must agree so both sides
+//! resolve the same `ruroco.socket`). Server-only fields (`ips`, rate limit, clock skew) live here;
+//! commander-only fields (`socket_user`/`socket_group`) live in `commander::config`.
+//!
+//! The inherent methods that act on `config_dir` (keys, UDP socket, blocklist) are separate
+//! `impl ConfigServer` blocks in `keys.rs` and `socket.rs`.
+
+use anyhow::{anyhow, Context};
+use clap::Parser;
+use serde::Deserialize;
+use std::env;
+use std::fs;
+use std::net::IpAddr;
+use std::path::{Path, PathBuf};
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct CliServer {
+    #[arg(short, long, default_value = PathBuf::from("/etc/ruroco/config.toml").into_os_string())]
+    pub(crate) config: PathBuf,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct ConfigServer {
+    #[serde(deserialize_with = "deserialize_ips")]
+    pub ips: Vec<IpAddr>,
+    #[serde(default = "default_config_path")]
+    pub config_dir: PathBuf,
+    #[serde(default = "default_max_requests_per_second")]
+    pub max_requests_per_second: u32,
+    #[serde(default = "default_max_clock_skew_seconds")]
+    pub max_clock_skew_seconds: u64,
+}
+
+fn deserialize_ips<'de, D>(d: D) -> Result<Vec<IpAddr>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v: Vec<String> = Vec::<String>::deserialize(d)?;
+    v.into_iter()
+        .map(|s| {
+            let ip: IpAddr = s.parse().map_err(serde::de::Error::custom)?;
+            Ok(crate::common::normalize_ip(ip))
+        })
+        .collect()
+}
+
+impl ConfigServer {
+    pub(crate) fn create_from_path(path: &Path) -> anyhow::Result<ConfigServer> {
+        match fs::read_to_string(path) {
+            Ok(data) => Self::deserialize(&data),
+            Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
+        }
+    }
+
+    pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigServer> {
+        toml::from_str::<ConfigServer>(data)
+            .with_context(|| format!("Could not create ConfigServer from {data}"))
+    }
+}
+
+impl Default for ConfigServer {
+    fn default() -> ConfigServer {
+        ConfigServer {
+            ips: vec!["127.0.0.1".parse().unwrap()],
+            config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
+            max_requests_per_second: default_max_requests_per_second(),
+            max_clock_skew_seconds: default_max_clock_skew_seconds(),
+        }
+    }
+}
+
+fn default_max_requests_per_second() -> u32 {
+    2
+}
+
+/// Upper bound, in seconds, by which an accepted counter (a nanosecond timestamp) may exceed
+/// server-local `now`. Bounds how far a future-dated packet can push `last_seen`, turning a
+/// permanent lockout into one recoverable by a client reseed. Only needs to cover client-vs-server
+/// clock disagreement at counter seed time, not counter growth (the client counter increments by 1
+/// per send, so it lags wall-clock).
+fn default_max_clock_skew_seconds() -> u64 {
+    3600
+}
+
+fn default_config_path() -> PathBuf {
+    PathBuf::from("/etc/ruroco")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        default_config_path, default_max_clock_skew_seconds, default_max_requests_per_second,
+        ConfigServer,
+    };
+
+    #[test]
+    fn test_create_deserialize() {
+        assert_eq!(
+            ConfigServer::deserialize("ips = [\"127.0.0.1\"]").unwrap(),
+            ConfigServer {
+                ips: vec!["127.0.0.1".parse().unwrap()],
+                config_dir: default_config_path(),
+                max_requests_per_second: default_max_requests_per_second(),
+                max_clock_skew_seconds: default_max_clock_skew_seconds(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_deserialize_invalid_toml() {
+        let result = ConfigServer::deserialize("this is not valid toml {{{}}}");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Could not create ConfigServer from"));
+    }
+
+    #[test]
+    fn test_deserialize_invalid_ip() {
+        let result = ConfigServer::deserialize("ips = [\"not_an_ip\"]");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_deserialize_ipv6_mapped_ip_is_normalized_to_ipv4() {
+        let config = ConfigServer::deserialize("ips = [\"::ffff:127.0.0.1\"]").unwrap();
+        assert_eq!(config.ips, vec!["127.0.0.1".parse::<std::net::IpAddr>().unwrap()]);
+    }
+
+    #[test]
+    fn test_ignores_commander_only_fields() {
+        // socket_user / socket_group belong to the commander's view of config.toml; the server's
+        // ConfigServer must simply ignore them rather than fail to parse.
+        let config = ConfigServer::deserialize(
+            "ips = [\"127.0.0.1\"]\nsocket_user = \"ruroco\"\nsocket_group = \"ruroco\"",
+        )
+        .unwrap();
+        assert_eq!(config.ips, vec!["127.0.0.1".parse::<std::net::IpAddr>().unwrap()]);
+    }
+}

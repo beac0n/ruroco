@@ -36,7 +36,7 @@ all times, and use ruroco to briefly open it only for the IP that asked, only wh
 | `ruroco-client` | your machine | builds, encrypts and sends the UDP packet | `with-client` |
 | `ruroco-client-ui` | your machine / Android | a GUI over the client (egui) | `with-gui` |
 | `ruroco-server` | remote host (exposed) | receives, decrypts, validates, forwards | `with-server` |
-| `ruroco-commander` | remote host (not exposed) | looks up and runs the command | `with-server` |
+| `ruroco-commander` | remote host (not exposed) | looks up and runs the command | `with-commander` |
 
 ## How to read this documentation
 
@@ -45,7 +45,7 @@ This book is organized **top-down**, like a tree.
 1. **Top-Level Architecture** sits at the root: the core idea, how the four big modules
    interact, the end-to-end flow, the wire protocol, the cryptography, the security model,
    and how the project is built and deployed.
-2. **Common Layer**, **Client and UI**, and **Server and Commander** are the branches: each
+2. **Common Layer**, **Client and UI**, **Server**, and **Commander** are the branches: each
    documents how a subsystem works as a whole, then drills into its files.
 3. The **leaves** are the individual `.rs` files. Every source file is documented with its
    real types, signatures, responsibilities, and gotchas.

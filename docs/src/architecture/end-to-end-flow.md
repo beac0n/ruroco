@@ -100,7 +100,7 @@ Driven by the server main loop and `handler.rs` ([Server Overview](../server/ove
 
 ## Phase 3: the commander executes
 
-Driven by `commander.rs` and `commander_exec.rs` ([commander](../server/commander.md)).
+Driven by the top-level commander module (`mod.rs` + `exec.rs`) ([commander](../commander.md)).
 
 1. **Receive.** The commander reads the 24-byte `CommanderData` from the Unix socket.
 2. **Look up.** It hashes each configured command name with Blake2b-64 and finds the one matching

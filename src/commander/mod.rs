@@ -1,13 +1,17 @@
-mod data;
+//! The privileged executor (runs as root). Owns the Unix socket, reads a 24-byte `CommanderData`
+//! off it, looks the `cmd_hash` up in its `cmds` map (built from `ConfigCommands`), and runs the
+//! configured shell command. Never touches crypto, keys, or the network: it trusts the Unix socket
+//! (see the threat-model discussion in `.todo/03`) and links neither OpenSSL nor the decrypt path.
+
+mod config;
 mod exec;
 
-pub(crate) use data::{CommanderData, CMDR_DATA_SIZE};
+pub use config::{CliCommander, ConfigCommander, ConfigCommands};
 pub use exec::run_commander;
 
 use crate::common::info;
+use crate::common::ipc::{get_commander_unix_socket_path, CommanderData, CMDR_DATA_SIZE};
 use crate::common::logging::error;
-use crate::server::config::{ConfigCommands, ConfigServer};
-use crate::server::util::get_commander_unix_socket_path;
 use anyhow::{anyhow, Context};
 use std::collections::HashMap;
 use std::io::Read;
@@ -27,12 +31,12 @@ impl Commander {
         config_path: &Path,
         commands_path: &Path,
     ) -> anyhow::Result<Commander> {
-        let config = ConfigServer::create_from_path(config_path)?;
+        let config = ConfigCommander::create_from_path(config_path)?;
         let commands = ConfigCommands::create_from_path(commands_path)?;
         Commander::create(config, commands)
     }
 
-    pub fn create(config: ConfigServer, commands: ConfigCommands) -> anyhow::Result<Commander> {
+    pub fn create(config: ConfigCommander, commands: ConfigCommands) -> anyhow::Result<Commander> {
         Ok(Commander {
             cmds: commands.get_hash_to_cmd()?,
             socket_path: get_commander_unix_socket_path(&config.config_dir),
@@ -79,8 +83,8 @@ impl Commander {
 
 #[cfg(test)]
 mod tests {
-    use crate::server::commander::{Commander, CommanderData, CMDR_DATA_SIZE};
-    use crate::server::config::{ConfigCommands, ConfigServer};
+    use crate::commander::{Commander, ConfigCommander, ConfigCommands};
+    use crate::common::ipc::{CommanderData, CMDR_DATA_SIZE};
     use std::collections::HashMap;
     use std::io::Write;
     use std::os::unix::net::UnixStream;
@@ -90,7 +94,7 @@ mod tests {
 
     fn create_commander(commands: HashMap<String, String>, config_dir: PathBuf) -> Commander {
         Commander::create(
-            ConfigServer {
+            ConfigCommander {
                 config_dir,
                 ..Default::default()
             },
@@ -118,18 +122,17 @@ mod tests {
 
     #[test]
     fn test_create_from_invalid_path() {
+        // ConfigCommander's fields are all optional, so config_invalid.toml (which merely omits the
+        // server-only `ips`) parses fine here; a malformed-syntax file is what the commander rejects.
         let path = env::current_dir()
             .unwrap_or(PathBuf::from("/tmp"))
             .join("tests")
             .join("files")
-            .join("config_invalid.toml");
+            .join("config_invalid_syntax.toml");
 
         let commands = PathBuf::from("/tmp/unused_commands.toml");
         let msg = Commander::create_from_paths(&path, &commands).unwrap_err().to_string();
-        assert!(
-            msg.contains("TOML parse error") || msg.contains("Could not create ConfigServer from"),
-            "unexpected error: {msg}"
-        );
+        assert!(msg.contains("Could not create ConfigCommander from"), "unexpected error: {msg}");
     }
 
     #[test]
@@ -158,12 +161,10 @@ mod tests {
         assert_eq!(
             Commander::create_from_paths(&path, &commands_path).unwrap(),
             Commander::create(
-                ConfigServer {
-                    ips: vec!["127.0.0.1".parse().unwrap()],
+                ConfigCommander {
                     config_dir: PathBuf::from("tests/conf_dir"),
                     socket_user: "ruroco".to_string(),
                     socket_group: "ruroco".to_string(),
-                    ..Default::default()
                 },
                 ConfigCommands { commands },
             )

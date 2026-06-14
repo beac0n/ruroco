@@ -1,5 +1,5 @@
 use std::net::IpAddr;
-#[cfg(feature = "with-server")]
+#[cfg(any(feature = "with-server", feature = "with-commander"))]
 use std::net::Ipv6Addr;
 
 const IP_SIZE: usize = 16;
@@ -11,7 +11,7 @@ pub(crate) fn serialize_ip(ip: &IpAddr) -> [u8; IP_SIZE] {
     }
 }
 
-#[cfg(feature = "with-server")]
+#[cfg(any(feature = "with-server", feature = "with-commander"))]
 pub(crate) fn deserialize_ip(data: [u8; IP_SIZE]) -> IpAddr {
     crate::common::normalize_ip(IpAddr::V6(Ipv6Addr::from(data)))
 }

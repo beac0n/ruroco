@@ -4,6 +4,9 @@
 /// provides functionality to sending data to the server and for generating key file
 #[cfg(feature = "with-client")]
 pub mod client;
+/// the privileged executor (root): owns the Unix socket and runs the configured commands
+#[cfg(feature = "with-commander")]
+pub mod commander;
 /// common functionality used by client, server and commander
 pub mod common;
 
