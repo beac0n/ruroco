@@ -39,7 +39,9 @@ impl Commander {
     pub fn create(config: ConfigCommander, commands: ConfigCommands) -> anyhow::Result<Commander> {
         Ok(Commander {
             cmds: commands.get_hash_to_cmd()?,
-            socket_path: get_commander_unix_socket_path(&config.config_dir),
+            socket_path: get_commander_unix_socket_path(
+                config.socket_dir.as_ref().unwrap_or(&config.config_dir),
+            ),
             socket_user: config.socket_user,
             socket_group: config.socket_group,
         })
@@ -163,6 +165,7 @@ mod tests {
             Commander::create(
                 ConfigCommander {
                     config_dir: PathBuf::from("tests/conf_dir"),
+                    socket_dir: None,
                     socket_user: "ruroco".to_string(),
                     socket_group: "ruroco".to_string(),
                 },

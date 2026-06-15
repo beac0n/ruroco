@@ -2,6 +2,8 @@
 ips = ["127.0.0.1", "dead:beef:dead:beef:dead:beef:dead:beef"]
 address = "[::]:8080"        # OPTIONAL  - address the ruroco serer listens on, if systemd/ruroco.socket is not used
 config_dir = "/etc/ruroco/"  # OPTIONAL  - path where the configuration files (.pem and others) are saved
+blocklist_dir = "/var/lib/ruroco" # OPTIONAL - where blocklist.msgpck is persisted; defaults to config_dir. Set to the server's systemd StateDirectory so config_dir can stay read-only.
+socket_dir = "/run/ruroco"   # OPTIONAL  - where ruroco.socket lives; defaults to config_dir. Set to the commander's systemd RuntimeDirectory. Server and commander MUST use the same value.
 ntp = "system"               # OPTIONAL  - NTP server configuration - use "system" to use the systems time configuration
 socket_user = "ruroco"       # OPTIONAL  - user of socket, facilitating communication between server and commander
 socket_group = "ruroco"      # OPTIONAL  - user group of socket, facilitating communication between server and commander

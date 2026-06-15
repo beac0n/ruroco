@@ -111,14 +111,26 @@ directories. Full detail in [wizard](../client/wizard.md).
 - **`ruroco.socket`**: holds the UDP listening socket and hands the file descriptor to the service
   (socket activation). The server reads it via `LISTEN_FDS`; if absent it falls back to binding
   `[::]` itself.
-- **`ruroco.service`**: runs `ruroco-server` as the dedicated low-privilege `ruroco` user.
-- **`ruroco-commander.service`**: runs `ruroco-commander` as root, owning the Unix socket.
+- **`ruroco.service`**: runs `ruroco-server` as the dedicated low-privilege `ruroco` user. Heavily
+  sandboxed: it holds **no** capabilities (port 80 is bound by `ruroco.socket`, not the service),
+  has its blocklist in a `StateDirectory` (`/var/lib/ruroco`) so `/etc/ruroco` stays fully
+  read-only, and is restricted to `AF_UNIX` (correct only under socket activation — see the comments
+  in the unit before changing the socket).
+- **`ruroco-commander.service`**: runs `ruroco-commander` as root, owning the Unix socket (placed in
+  a `RuntimeDirectory`, `/run/ruroco`). Because it is a generic root command runner whose
+  restrictions are inherited by every command it spawns, its sandbox is deliberately looser: it
+  keeps `CAP_CHOWN` (to chown the socket) plus `CAP_NET_ADMIN`/`CAP_NET_RAW` and INET/NETLINK
+  address families so the documented `ufw` firewall commands still work. Tighten to `CAP_CHOWN` +
+  `AF_UNIX` only if all your commands are `systemctl`/dbus-style (see the comments in the unit).
 
 ### Config files
-- `/etc/ruroco/config.toml`: allowed `ips`, rate limit, clock skew, socket user/group, and
-  `config_dir`. Read by both processes through their own views (`ConfigServer` reads the server
-  fields, `ConfigCommander` the socket-ownership fields; only `config_dir` overlaps). Has **no**
-  command map. See [config and keys](../server/config-keys.md) and [Commander](../commander.md).
+- `/etc/ruroco/config.toml`: allowed `ips`, rate limit, clock skew, socket user/group, `config_dir`,
+  and the optional `blocklist_dir` / `socket_dir` relocations (defaulting to `config_dir`). Read by
+  both processes through their own views (`ConfigServer` reads the server fields, `ConfigCommander`
+  the socket-ownership fields; `config_dir` and `socket_dir` overlap). Has **no** command map. The
+  whole `/etc/ruroco` directory is mounted **read-only** for the server; its mutable state lives in
+  `StateDirectory`/`RuntimeDirectory` instead. See [config and keys](../server/config-keys.md) and
+  [Commander](../commander.md).
 - `/etc/ruroco/commands.toml`: the `[commands]` map (name to shell string), `root`-owned `0600`.
   Read **only** by the commander, never by the network-facing server. See [Commander](../commander.md).
 - `/etc/ruroco/*.key`: one or more shared keys. The server loads every `*.key` file; the packet's

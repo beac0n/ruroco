@@ -33,6 +33,12 @@ pub struct CliCommander {
 pub struct ConfigCommander {
     #[serde(default = "default_config_path")]
     pub config_dir: PathBuf,
+    /// Directory holding the Unix socket (`ruroco.socket`) the commander binds. When unset it
+    /// defaults to `config_dir`. Point it at a systemd `RuntimeDirectory` (e.g. `/run/ruroco`)
+    /// shared with the server; both sides MUST resolve the same path. See
+    /// `systemd/ruroco-commander.service`.
+    #[serde(default)]
+    pub socket_dir: Option<PathBuf>,
     #[serde(default = "default_socket_user")]
     pub socket_user: String,
     #[serde(default = "default_socket_group")]
@@ -57,6 +63,7 @@ impl Default for ConfigCommander {
     fn default() -> ConfigCommander {
         ConfigCommander {
             config_dir: std::env::current_dir().unwrap_or(PathBuf::from("/tmp")),
+            socket_dir: None,
             socket_user: "".to_string(),
             socket_group: "".to_string(),
         }
@@ -134,8 +141,17 @@ mod tests {
     fn test_config_commander_defaults() {
         let config = ConfigCommander::deserialize("ips = [\"127.0.0.1\"]").unwrap();
         assert_eq!(config.config_dir, PathBuf::from("/etc/ruroco"));
+        assert_eq!(config.socket_dir, None);
         assert_eq!(config.socket_user, "ruroco");
         assert_eq!(config.socket_group, "ruroco");
+    }
+
+    #[test]
+    fn test_config_commander_reads_socket_dir() {
+        let config =
+            ConfigCommander::deserialize("ips = [\"127.0.0.1\"]\nsocket_dir = \"/run/ruroco\"")
+                .unwrap();
+        assert_eq!(config.socket_dir, Some(PathBuf::from("/run/ruroco")));
     }
 
     #[test]

@@ -28,6 +28,17 @@ pub struct ConfigServer {
     pub ips: Vec<IpAddr>,
     #[serde(default = "default_config_path")]
     pub config_dir: PathBuf,
+    /// Directory holding the persisted blocklist (`blocklist.msgpck`). When unset it defaults to
+    /// `config_dir`. Point it at a dedicated systemd `StateDirectory` (e.g. `/var/lib/ruroco`) so
+    /// the rest of `config_dir` (keys, config) can be mounted read-only. See
+    /// `systemd/ruroco.service`.
+    #[serde(default)]
+    pub blocklist_dir: Option<PathBuf>,
+    /// Directory holding the commander Unix socket (`ruroco.socket`). When unset it defaults to
+    /// `config_dir`. Point it at a systemd `RuntimeDirectory` (e.g. `/run/ruroco`) shared with the
+    /// commander. Server and commander MUST resolve the same path.
+    #[serde(default)]
+    pub socket_dir: Option<PathBuf>,
     #[serde(default = "default_max_requests_per_second")]
     pub max_requests_per_second: u32,
     #[serde(default = "default_max_clock_skew_seconds")]
@@ -66,6 +77,8 @@ impl Default for ConfigServer {
         ConfigServer {
             ips: vec!["127.0.0.1".parse().unwrap()],
             config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
+            blocklist_dir: None,
+            socket_dir: None,
             max_requests_per_second: default_max_requests_per_second(),
             max_clock_skew_seconds: default_max_clock_skew_seconds(),
         }
@@ -103,10 +116,30 @@ mod tests {
             ConfigServer {
                 ips: vec!["127.0.0.1".parse().unwrap()],
                 config_dir: default_config_path(),
+                blocklist_dir: None,
+                socket_dir: None,
                 max_requests_per_second: default_max_requests_per_second(),
                 max_clock_skew_seconds: default_max_clock_skew_seconds(),
             }
         );
+    }
+
+    #[test]
+    fn test_deserialize_state_and_socket_dirs() {
+        use std::path::PathBuf;
+        let config = ConfigServer::deserialize(
+            "ips = [\"127.0.0.1\"]\nblocklist_dir = \"/var/lib/ruroco\"\nsocket_dir = \"/run/ruroco\"",
+        )
+        .unwrap();
+        assert_eq!(config.blocklist_dir, Some(PathBuf::from("/var/lib/ruroco")));
+        assert_eq!(config.socket_dir, Some(PathBuf::from("/run/ruroco")));
+    }
+
+    #[test]
+    fn test_dirs_default_to_none_when_absent() {
+        let config = ConfigServer::deserialize("ips = [\"127.0.0.1\"]").unwrap();
+        assert_eq!(config.blocklist_dir, None);
+        assert_eq!(config.socket_dir, None);
     }
 
     #[test]

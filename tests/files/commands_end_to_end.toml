@@ -1,2 +1,4 @@
 [commands]
-default = "touch /tmp/ruroco_test/start.test /tmp/ruroco_test/stop.test"
+# Writes outside /tmp on purpose: the commander unit sets PrivateTmp=true, so anything written to
+# /tmp would land in the commander's private tmpfs and be invisible to the host assertions.
+default = "touch /opt/ruroco_test/start.test /opt/ruroco_test/stop.test"

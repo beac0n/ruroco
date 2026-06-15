@@ -9,10 +9,11 @@ This is one half of the privilege separation; the **commander** (root) is the to
 no UDP/decrypt code). The only thing shared between the two processes is the IPC contract
 (`CommanderData` + the Unix socket path) in `src/common/ipc.rs`. `config.toml` is one physical file
 read by both, but each side has its own view: `server::config::ConfigServer` (here) reads the
-server-only fields, `commander::config::ConfigCommander` reads the commander-only ones; only
-`config_dir` overlaps (so both resolve the same socket). `keys.rs`/`socket.rs` hang the server-only
-inherent methods off `ConfigServer` (crypto handlers, UDP socket, blocklist) via separate `impl`
-blocks.
+server-only fields, `commander::config::ConfigCommander` reads the commander-only ones; `config_dir`
+(and the optional `socket_dir`) overlap, so both resolve the same socket. The server also takes an
+optional `blocklist_dir` (defaults to `config_dir`) so the blocklist can live in a `StateDirectory`
+while `config_dir` stays read-only. `keys.rs`/`socket.rs` hang the server-only inherent methods off
+`ConfigServer` (crypto handlers, UDP socket, blocklist) via separate `impl` blocks.
 
 Request flow: `socket.rs` receives a 93-byte datagram (supports systemd socket activation, falls
 back to binding `[::]`) -> decrypt via `CryptoHandler` -> `RateLimiter::check` (per-IP, ~1s window,

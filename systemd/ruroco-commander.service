@@ -8,12 +8,32 @@ Type=simple
 ExecStart=/usr/local/bin/ruroco-commander --config /etc/ruroco/config.toml --commands /etc/ruroco/commands.toml
 Restart=always
 
+# The commander is a deliberately-generic root command runner: these restrictions are inherited by
+# every shell command it spawns, so they are scoped to keep the documented examples working.
+# CAP_CHOWN: the commander chowns the Unix socket it creates (exec.rs).
+# CAP_NET_ADMIN + CAP_NET_RAW: needed by the README's ufw/firewall example (editing netfilter).
+# For a systemctl/dbus-only deployment you can tighten this to just CAP_CHOWN.
+CapabilityBoundingSet=CAP_CHOWN CAP_NET_ADMIN CAP_NET_RAW
+AmbientCapabilities=
 DeviceAllow=
 LockPersonality=true
 NoNewPrivileges=true
+PrivateTmp=true
+# ProcSubset=pid hides /proc/sys, /proc/net, etc. systemctl and nft-based ufw are fine; if a
+# command needs /proc/net (e.g. iptables-legacy listing) and misbehaves, remove this line.
+ProcSubset=pid
 ProtectClock=true
 ProtectHostname=true
-RestrictAddressFamilies=
+ProtectKernelLogs=true
+# AF_UNIX: the socket the commander binds. AF_NETLINK + AF_INET/AF_INET6: needed by ufw/iptables
+# to talk to netfilter. For a systemctl/dbus-only deployment you can tighten this to AF_UNIX only.
+# An empty assignment here would be a no-op (systemd resets the filter to allow-all), not a deny.
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+# The Unix socket lives in RuntimeDirectory (/run/ruroco), pointed at by socket_dir in config.toml.
+# Created root-owned 0755 so the server (ruroco) can traverse it; the commander chowns the socket
+# file itself. Auto-removed when the commander stops.
+RuntimeDirectory=ruroco
+RuntimeDirectoryMode=0755
 RestrictNamespaces=true
 RestrictRealtime=true
 RestrictSUIDSGID=true

@@ -19,4 +19,5 @@ path (`with-server` is a superset of it). It trusts the Unix socket; see the thr
 The one thing shared with the server lives in `common::ipc`: the IPC contract `CommanderData` +
 `get_commander_unix_socket_path` - the server *produces* `CommanderData` and connects; the commander
 *consumes* it and binds. `config.toml` is read by both processes, but each through its own struct
-(`ConfigCommander` here, `ConfigServer` in `server::config`); only `config_dir` overlaps.
+(`ConfigCommander` here, `ConfigServer` in `server::config`); `config_dir` (and the optional
+`socket_dir`, which relocates the socket to e.g. a `RuntimeDirectory`) overlap.

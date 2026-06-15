@@ -29,12 +29,16 @@ not a sequential number, so the stored value jumps forward by large amounts and 
 ### Persistence (MessagePack)
 
 ```rust
-pub fn create(config_dir: &Path) -> anyhow::Result<Blocklist>;
-pub fn get_blocklist_path(config_dir: &Path) -> PathBuf; // config_dir/blocklist.msgpck
+pub fn create(dir: &Path) -> anyhow::Result<Blocklist>;
+pub fn get_blocklist_path(dir: &Path) -> PathBuf;        // dir/blocklist.msgpck
 pub(crate) fn save(&self) -> anyhow::Result<()>;
 ```
 
-- `create` reads `config_dir/blocklist.msgpck` if it exists and deserializes it with `rmp_serde`
+The directory is `config_dir` by default, or the server's optional `blocklist_dir` when set (e.g. a
+writable systemd `StateDirectory` like `/var/lib/ruroco`, so `config_dir` itself can stay
+read-only). `ConfigServer::create_blocklist` picks the directory and the rest is path-agnostic.
+
+- `create` reads `<dir>/blocklist.msgpck` if it exists and deserializes it with `rmp_serde`
   (a corrupted file is a hard error: `"Could not create blocklist from vec"`), otherwise starts
   with an empty map. It then immediately `save()`s, so the file always exists after `create`.
 - `save` serializes the whole struct with `rmp_serde::to_vec` and writes it through

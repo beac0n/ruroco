@@ -1,2 +1,4 @@
 ips = ["127.0.0.1"]
 config_dir = "/etc/ruroco/"
+blocklist_dir = "/var/lib/ruroco"
+socket_dir = "/run/ruroco"

@@ -36,21 +36,23 @@ pub fn get_commander_unix_socket_path(config_dir: &Path) -> PathBuf {
 ```
 
 Both the server (when deciding where to connect) and the commander (when deciding where to bind)
-call this with their `config_dir`, so they always agree: `<resolved config_dir>/ruroco.socket`.
-`resolve_path` is applied first so a relative config dir resolves consistently on both sides.
+call this with their socket directory, so they always agree: `<resolved socket dir>/ruroco.socket`.
+`resolve_path` is applied first so a relative dir resolves consistently on both sides. That socket
+directory is `config_dir` by default, or the optional `socket_dir` field when set (e.g. a systemd
+`RuntimeDirectory` like `/run/ruroco`); both sides read the same field, so they stay in agreement.
 
 ## One config file, two views
 
-`config_dir` is the one configuration value that *must* match between the two processes (otherwise
-they resolve different socket paths and the IPC silently breaks). It is therefore kept in a single
-shared `config.toml` file read by both. But the two processes do **not** share a config struct: each
+The socket directory (`config_dir`, or `socket_dir` when set) is the one configuration value that
+*must* match between the two processes (otherwise they resolve different socket paths and the IPC
+silently breaks). It is therefore kept in a single shared `config.toml` file read by both. But the two processes do **not** share a config struct: each
 deserializes the same file through its own view, declaring only the fields it uses and ignoring the
 rest.
 
 - `server::config::ConfigServer` reads the server-only fields (`ips`, rate limit, clock skew) plus
   `config_dir`. See [Config and keys](../server/config-keys.md).
-- `commander::config::ConfigCommander` reads `config_dir` plus the commander-only `socket_user` /
-  `socket_group`. See [Commander](../commander.md).
+- `commander::config::ConfigCommander` reads `config_dir` (plus the optional `socket_dir`) and the
+  commander-only `socket_user` / `socket_group`. See [Commander](../commander.md).
 
 The command set is a separate file again (`commands.toml`, `ConfigCommands`), read only by the
 commander, so the network-facing server never loads it.

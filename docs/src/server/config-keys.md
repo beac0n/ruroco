@@ -23,6 +23,10 @@ pub struct ConfigServer {
     pub ips: Vec<IpAddr>,
     #[serde(default = "default_config_path")]            // /etc/ruroco
     pub config_dir: PathBuf,
+    #[serde(default)]                                    // None -> config_dir
+    pub blocklist_dir: Option<PathBuf>,
+    #[serde(default)]                                    // None -> config_dir
+    pub socket_dir: Option<PathBuf>,
     #[serde(default = "default_max_requests_per_second")] // 2
     pub max_requests_per_second: u32,
     #[serde(default = "default_max_clock_skew_seconds")]  // 3600
@@ -33,8 +37,16 @@ pub struct ConfigServer {
 - `ips`: the destination IPs this server answers for; a packet's `dst_ip` must be in this list
   (handler step 2). Defaults to `["127.0.0.1"]`. Each entry is run through `normalize_ip` on load
   (via `deserialize_ips`), so `"::ffff:127.0.0.1"` is stored as `127.0.0.1`.
-- `config_dir`: directory holding the `*.key` files, `blocklist.msgpck`, and `ruroco.socket`.
-  Defaults to `/etc/ruroco` from TOML, or the current working directory in `Default`.
+- `config_dir`: directory holding the `*.key` files (and, by default, `blocklist.msgpck` and
+  `ruroco.socket`). Defaults to `/etc/ruroco` from TOML, or the current working directory in
+  `Default`.
+- `blocklist_dir`: optional override for where `blocklist.msgpck` is persisted; defaults to
+  `config_dir`. Point it at a writable systemd `StateDirectory` (`/var/lib/ruroco`) so `config_dir`
+  (keys, config) can be mounted read-only — a compromised server can then only rewrite its own
+  counter state, not the keys.
+- `socket_dir`: optional override for where `ruroco.socket` lives; defaults to `config_dir`. Point
+  it at a systemd `RuntimeDirectory` (`/run/ruroco`). Server and commander **must** resolve the same
+  value (the commander reads the same field via `ConfigCommander`).
 - `max_requests_per_second`: per-IP rate limit, default 2.
 - `max_clock_skew_seconds`: how far ahead of server-local time an accepted counter may be, default
   3600. See [handler.rs](./handler.md).

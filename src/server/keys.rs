@@ -13,7 +13,9 @@ use std::path::PathBuf;
 
 impl ConfigServer {
     pub(crate) fn create_blocklist(&self) -> anyhow::Result<Blocklist> {
-        Blocklist::create(&self.resolve_config_dir())
+        // Blocklist lives in `blocklist_dir` when set (a writable StateDirectory), otherwise in
+        // `config_dir`. `Blocklist::get_blocklist_path` resolve_path's a relative dir for us.
+        Blocklist::create(self.blocklist_dir.as_ref().unwrap_or(&self.config_dir))
     }
 
     pub(crate) fn create_crypto_handlers(
@@ -39,7 +41,10 @@ impl ConfigServer {
     }
 
     pub(crate) fn get_commander_unix_socket_path(&self) -> PathBuf {
-        util_socket_path(&self.resolve_config_dir())
+        // Socket lives in `socket_dir` when set (a RuntimeDirectory shared with the commander),
+        // otherwise in `config_dir`. Both sides must resolve the same path; `util_socket_path`
+        // resolve_path's a relative dir for us.
+        util_socket_path(self.socket_dir.as_ref().unwrap_or(&self.config_dir))
     }
 
     pub(crate) fn resolve_config_dir(&self) -> PathBuf {

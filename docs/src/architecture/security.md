@@ -96,7 +96,13 @@ flowchart TB
 
 The systemd units reinforce this: the server runs as a dedicated low-privilege `ruroco` user, the
 binaries are installed mode `0o500` and owned appropriately, and the wizard sets it all up
-([wizard](../client/wizard.md)).
+([wizard](../client/wizard.md)). The server unit is additionally locked down hard — no capabilities
+at all (port 80 is bound by `ruroco.socket`, not the service), `AF_UNIX`-only sockets, no bind,
+`MemoryDenyWriteExecute`, and a read-only `/etc/ruroco` (its only writable state, the blocklist,
+lives in a `StateDirectory`). The commander's sandbox is necessarily looser because its restrictions
+are inherited by the root shell commands it spawns; it keeps only `CAP_CHOWN` plus the
+network capabilities the documented `ufw` commands need. See
+[Build and deploy](./build-and-deploy.md) for the exact directives.
 
 ### 8. Signed self-update
 Self-update verifies an Ed25519 signature against an embedded public key before writing any binary
