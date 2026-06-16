@@ -49,7 +49,9 @@ impl Server {
                 let client_counter = client_data.counter;
                 let ip = client_data.src_ip.unwrap_or(src_ip);
                 info(format!("Valid data for key {key_id:X?} - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
-                self.update_block_list(key_id, client_data.counter);
+                // Persist the advanced counter before executing: if the blocklist can't be saved we
+                // must not run the command, otherwise a replay could re-trigger it after a restart.
+                self.update_block_list(key_id, client_data.counter)?;
                 self.send_command(CommanderData { cmd_hash: cmd, ip });
                 Ok(())
             }
@@ -60,11 +62,9 @@ impl Server {
         &mut self,
         key_id: [u8; crate::common::protocol::KEY_ID_SIZE],
         counter: u128,
-    ) {
+    ) -> anyhow::Result<()> {
         self.blocklist.add(key_id, counter);
-        if let Err(e) = self.blocklist.save() {
-            error(format!("Could not update block list: {e}"))
-        }
+        self.blocklist.save().with_context(|| "Could not update block list")
     }
 
     pub(super) fn send_command(&self, data: CommanderData) {
