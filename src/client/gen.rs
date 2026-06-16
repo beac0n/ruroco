@@ -3,12 +3,11 @@ use crate::common::crypto_handler::CryptoHandler;
 pub struct Generator {}
 
 impl Generator {
-    /// Create a key generator
     pub fn create() -> anyhow::Result<Self> {
         Ok(Self {})
     }
 
-    /// Generate a key file with the provided arguments used in create
+    /// Generate a fresh AES key, print it to stdout, and return it.
     pub fn gen(&self) -> anyhow::Result<String> {
         let key = CryptoHandler::gen_key()?;
         print!("{}", key);

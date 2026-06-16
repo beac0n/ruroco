@@ -30,7 +30,6 @@ mod tests {
 
     #[test]
     fn test_shutdown_not_requested_by_default() {
-        // Reset state
         SHUTDOWN_REQUESTED.store(false, Ordering::SeqCst);
         assert!(!shutdown_requested());
     }
@@ -40,7 +39,6 @@ mod tests {
         SHUTDOWN_REQUESTED.store(false, Ordering::SeqCst);
         handle_signal(15);
         assert!(shutdown_requested());
-        // Reset
         SHUTDOWN_REQUESTED.store(false, Ordering::SeqCst);
     }
 

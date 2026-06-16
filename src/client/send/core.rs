@@ -17,9 +17,6 @@ pub struct Sender {
 }
 
 impl Sender {
-    /// Create a new Sender instance
-    ///
-    /// * `send_command` - data holding information how to send the command - see SendCommand
     pub fn create(mut cmd: SendCommand) -> anyhow::Result<Self> {
         cmd.address = Self::ensure_port(cmd.address, 80);
         let counter_path = Self::get_counter_path()?;

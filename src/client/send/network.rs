@@ -20,6 +20,7 @@ impl Sender {
         let destination_ipv6s: Vec<&SocketAddr> =
             destination_ips.iter().filter(|a| a.is_ipv6()).collect();
 
+        // Neither or both of --ipv4/--ipv6 given means "no preference": send to whatever resolves.
         let use_ip_undef = self.cmd.ipv4 == self.cmd.ipv6;
         Ok(match (destination_ipv4s.first(), destination_ipv6s.first()) {
             // ipv4 or ipv6 where not defined or where both defined
@@ -48,7 +49,6 @@ impl Sender {
         let data_to_encrypt = self.get_data_to_encrypt(ip)?;
         let data_to_send = self.data_parser.encode(&data_to_encrypt)?;
 
-        // create UDP socket and send the encrypted data to the specified address
         let address = &self.cmd.address;
         let socket = UdpSocket::bind(bind_address).with_context(|| Self::socket_ctx(address))?;
         socket.connect(address).with_context(|| Self::socket_ctx(address))?;
