@@ -67,15 +67,14 @@ impl ConfigServer {
     }
 
     pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigServer> {
-        toml::from_str::<ConfigServer>(data)
-            .with_context(|| format!("Could not create ConfigServer from {data}"))
+        toml::from_str::<ConfigServer>(data).with_context(|| "Could not parse server config")
     }
 }
 
 impl Default for ConfigServer {
     fn default() -> ConfigServer {
         ConfigServer {
-            ips: vec!["127.0.0.1".parse().unwrap()],
+            ips: vec![IpAddr::from([127, 0, 0, 1])],
             config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
             blocklist_dir: None,
             socket_dir: None,
@@ -146,7 +145,7 @@ mod tests {
     fn test_deserialize_invalid_toml() {
         let result = ConfigServer::deserialize("this is not valid toml {{{}}}");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Could not create ConfigServer from"));
+        assert!(result.unwrap_err().to_string().contains("Could not parse server config"));
     }
 
     #[test]

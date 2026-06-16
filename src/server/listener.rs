@@ -192,7 +192,7 @@ mod tests {
         assert!(result.is_err());
         let msg = result.err().unwrap().to_string();
         assert!(
-            msg.contains("TOML parse error") || msg.contains("Could not create ConfigServer from"),
+            msg.contains("TOML parse error") || msg.contains("Could not parse server config"),
             "unexpected error: {msg}"
         );
     }
