@@ -46,7 +46,6 @@ impl AndroidKeyboard {
                 "()Landroid/view/View;",
                 &[],
             )?;
-            // requestFocus returns boolean — call directly with proper JNI types
             let name = JNIString::new("requestFocus");
             let sig = RuntimeMethodSignature::from_str("()Z").context("requestFocus sig")?;
             env.call_method(decor_view.as_ref(), name, sig.method_signature(), &[])
@@ -59,7 +58,6 @@ impl AndroidKeyboard {
                 "(Ljava/lang/String;)Ljava/lang/Object;",
                 &[JValue::from(&svc)],
             )?;
-            // showSoftInput returns boolean — call directly with proper JNI types
             let name = JNIString::new("showSoftInput");
             let sig = RuntimeMethodSignature::from_str("(Landroid/view/View;I)Z")
                 .context("showSoftInput sig")?;

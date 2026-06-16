@@ -74,12 +74,10 @@ impl Blocklist {
         &self.map
     }
 
-    /// adds a new entry to the blocklist
     pub(crate) fn add(&mut self, key_id: [u8; KEY_ID_SIZE], entry: u128) {
         self.map.insert(key_id, entry);
     }
 
-    /// saves the current content of the blocklist to the defined path
     pub(crate) fn save(&self) -> anyhow::Result<()> {
         let vec = rmp_serde::to_vec(&self).with_context(|| "Error serializing blacklist")?;
         write_atomic(&self.path, vec.as_slice()).with_context(|| "Error persisting blacklist")?;

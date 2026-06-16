@@ -1,7 +1,3 @@
-//! This module contains all data structs that are needed for the client binary.
-//! The data that these structs and enums represent are used for invoking the client binary with CLI
-//! (default) arguments.
-
 pub(crate) mod commands;
 
 pub use commands::SendCommand;

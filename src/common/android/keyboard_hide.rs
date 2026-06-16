@@ -42,7 +42,6 @@ impl AndroidKeyboard {
                 "(Ljava/lang/String;)Ljava/lang/Object;",
                 &[JValue::from(&svc)],
             )?;
-            // hideSoftInputFromWindow returns boolean — call directly with proper JNI types
             let name = JNIString::new("hideSoftInputFromWindow");
             let sig = RuntimeMethodSignature::from_str("(Landroid/os/IBinder;I)Z")
                 .context("hideSoftInputFromWindow sig")?;

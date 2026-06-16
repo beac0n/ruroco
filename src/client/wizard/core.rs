@@ -102,7 +102,6 @@ mod tests {
     #[test]
     fn test_create() {
         let wizard = Wizard::create();
-        // Wizard is a unit struct, just ensure create doesn't panic
         assert_eq!(format!("{wizard:?}"), "Wizard");
     }
 }
