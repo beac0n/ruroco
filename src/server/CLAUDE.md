@@ -15,7 +15,7 @@ optional `blocklist_dir` (defaults to `config_dir`) so the blocklist can live in
 while `config_dir` stays read-only. `keys.rs`/`socket.rs` hang the server-only inherent methods off
 `ConfigServer` (crypto handlers, UDP socket, blocklist) via separate `impl` blocks.
 
-Request flow: `socket.rs` receives a 93-byte datagram (supports systemd socket activation, falls
+Request flow: `socket.rs` receives a 94-byte datagram (supports systemd socket activation, falls
 back to binding `[::]`) -> decrypt via `CryptoHandler` -> `RateLimiter::check` (per-IP, ~1s window,
 `max_requests_per_second`, default 2) -> deserialize `ClientData` -> validate: replay (blocklist),
 `dst_ip` in config, strict src_ip match -> on success, persist the new counter and send a 24-byte

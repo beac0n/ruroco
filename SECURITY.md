@@ -17,6 +17,22 @@ ruroco follows SemVer. Security fixes land on the latest minor release; older mi
 When a fix ships, update with `ruroco-client update` (client) and `ruroco-client update --server` (server binaries);
 both verify the Ed25519 signature before replacing anything on disk.
 
+## Format versioning and stability
+
+The UDP wire packet carries an explicit version marker, `PROTOCOL_VERSION`, as the first byte of
+the AES-256-GCM-SIV plaintext. It is authenticated (so it cannot be tampered with on the wire) and
+checked before any field is interpreted: a packet of an unknown version is rejected fail-closed,
+never reinterpreted. The byte is added now, pre-1.0, because it cannot be introduced later without
+an undetectable break, and it is what lets a future server distinguish and support multiple packet
+versions during a migration. Bump `PROTOCOL_VERSION` on any incompatible plaintext/framing change.
+
+The on-disk formats are local state, not cross-version wire contracts, and need no version field:
+
+- `blocklist.msgpck` is msgpack of the `Blocklist` struct, so any incompatible schema change makes
+  deserialization fail (surfaced as "Could not create blocklist from vec"): it already fails closed.
+- The client counter file is a single raw big-endian `u128`; a fixed-width integer has no internal
+  layout that can change incompatibly, and it is recoverable at any time with `ruroco-client reseed`.
+
 ## Threat model
 
 ruroco's job is narrow: deliver one authenticated, encrypted UDP packet that names (by hash) a pre-configured action,

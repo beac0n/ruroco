@@ -10,7 +10,7 @@ config (`server::config::ConfigServer`, `commander::config::ConfigCommander`/`Co
 they just read the same `config.toml`/`commands.toml` files.
 
 End-to-end flow: client hashes a command name (Blake2b-64), builds `ClientData`, encrypts it
-(AES-256-GCM-SIV) into a 93-byte packet, sends one UDP datagram. The server decrypts, runs replay +
+(AES-256-GCM-SIV) into a 94-byte packet, sends one UDP datagram. The server decrypts, runs replay +
 IP + rate checks, then hands a 24-byte `CommanderData` to the separate commander process over a
 Unix socket; the commander looks the hash up and runs the configured shell command. Nothing is
 ever sent back to the client.

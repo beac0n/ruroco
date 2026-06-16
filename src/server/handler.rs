@@ -18,7 +18,7 @@ impl Server {
         let max_future_counter = now_nanos()?
             .saturating_add(u128::from(self.config.max_clock_skew_seconds) * 1_000_000_000);
 
-        match ClientData::deserialize(plaintext_data) {
+        match ClientData::deserialize(plaintext_data)? {
             client_data if self.blocklist.is_counter_replayed(key_id, client_data.counter) => {
                 let server_counter = self.blocklist.get_counter(key_id);
                 Err(anyhow!(

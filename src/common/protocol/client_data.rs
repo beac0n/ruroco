@@ -9,6 +9,10 @@ use crate::common::protocol::serialization::deserialize_ip;
 use crate::common::protocol::serialization::serialize_ip;
 #[cfg(any(feature = "with-client", feature = "with-server"))]
 use crate::common::protocol::PLAINTEXT_SIZE;
+#[cfg(any(feature = "with-client", feature = "with-server"))]
+use crate::common::protocol::PROTOCOL_VERSION;
+#[cfg(feature = "with-server")]
+use anyhow::bail;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct ClientData {
@@ -40,11 +44,12 @@ impl ClientData {
     pub(crate) fn serialize(&self) -> anyhow::Result<[u8; PLAINTEXT_SIZE]> {
         let mut out = [0u8; PLAINTEXT_SIZE];
 
-        out[0..8].copy_from_slice(&self.cmd_hash.to_be_bytes());
-        out[8..24].copy_from_slice(&self.counter.to_be_bytes());
-        out[24] = self.strict as u8;
-        out[25..41].copy_from_slice(&self.src_ip.map(|i| serialize_ip(&i)).unwrap_or([0u8; 16]));
-        out[41..].copy_from_slice(&serialize_ip(&self.dst_ip));
+        out[0] = PROTOCOL_VERSION;
+        out[1..9].copy_from_slice(&self.cmd_hash.to_be_bytes());
+        out[9..25].copy_from_slice(&self.counter.to_be_bytes());
+        out[25] = self.strict as u8;
+        out[26..42].copy_from_slice(&self.src_ip.map(|i| serialize_ip(&i)).unwrap_or([0u8; 16]));
+        out[42..].copy_from_slice(&serialize_ip(&self.dst_ip));
 
         Ok(out)
     }
@@ -52,26 +57,31 @@ impl ClientData {
 
 #[cfg(feature = "with-server")]
 impl ClientData {
-    pub(crate) fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> Self {
+    pub(crate) fn deserialize(data: [u8; PLAINTEXT_SIZE]) -> anyhow::Result<Self> {
+        let version = data[0];
+        if version != PROTOCOL_VERSION {
+            bail!("Unsupported protocol version {version}, expected {PROTOCOL_VERSION}");
+        }
+
         let mut command_hash_bytes = [0u8; 8];
-        command_hash_bytes.copy_from_slice(&data[0..8]);
+        command_hash_bytes.copy_from_slice(&data[1..9]);
 
         let mut counter_bytes = [0u8; 16];
-        counter_bytes.copy_from_slice(&data[8..24]);
+        counter_bytes.copy_from_slice(&data[9..25]);
 
         let mut source_ip_bytes = [0u8; 16];
-        source_ip_bytes.copy_from_slice(&data[25..41]);
+        source_ip_bytes.copy_from_slice(&data[26..42]);
 
         let mut host_ip_bytes = [0u8; 16];
-        host_ip_bytes.copy_from_slice(&data[41..]);
+        host_ip_bytes.copy_from_slice(&data[42..]);
 
-        Self {
+        Ok(Self {
             cmd_hash: u64::from_be_bytes(command_hash_bytes),
             counter: u128::from_be_bytes(counter_bytes),
-            strict: data[24] != 0,
+            strict: data[25] != 0,
             src_ip: (source_ip_bytes != [0u8; 16]).then(|| deserialize_ip(source_ip_bytes)),
             dst_ip: deserialize_ip(host_ip_bytes),
-        }
+        })
     }
 
     pub(crate) fn is_source_ip_invalid(&self, source_ip: IpAddr) -> bool {
@@ -140,7 +150,7 @@ mod roundtrip_tests {
         assert_eq!(data.len(), PLAINTEXT_SIZE);
 
         assert_eq!(
-            ClientData::deserialize(data),
+            ClientData::deserialize(data).unwrap(),
             ClientData {
                 cmd_hash: blake2b_u64("some_kind_of_long_but_not_really_that_long_command")
                     .unwrap(),
@@ -150,5 +160,18 @@ mod roundtrip_tests {
                 dst_ip: IpAddr::from(Ipv4Addr::new(192, 168, 178, 124)),
             }
         );
+    }
+
+    #[test]
+    fn test_deserialize_rejects_unknown_version() {
+        let mut data =
+            ClientData::create("cmd", false, None, "192.168.178.124".parse().unwrap(), 42)
+                .unwrap()
+                .serialize()
+                .unwrap();
+        data[0] = 0xFF; // tamper the version byte
+
+        let err = ClientData::deserialize(data).unwrap_err().to_string();
+        assert!(err.contains("Unsupported protocol version 255"), "unexpected error: {err}");
     }
 }
