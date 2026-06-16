@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context};
 use std::io::Write;
 use std::net::IpAddr;
 use std::os::unix::net::UnixStream;
+use std::time::Duration;
 
 impl Server {
     pub(super) fn validate_and_send_command(
@@ -80,6 +81,11 @@ impl Server {
     pub(super) fn write_to_socket(&self, data: CommanderData) -> anyhow::Result<()> {
         let mut stream = UnixStream::connect(&self.socket_path)
             .with_context(|| format!("Could not connect to socket {:?}", self.socket_path))?;
+        // Bound the write so a hung commander can't stall the server's single-threaded loop. The
+        // payload is tiny (24 bytes), so a second is generous for a healthy commander.
+        stream
+            .set_write_timeout(Some(Duration::from_secs(1)))
+            .with_context(|| format!("Could not set write timeout for {:?}", self.socket_path))?;
 
         let data_to_send: [u8; crate::common::ipc::CMDR_DATA_SIZE] = data.into();
         stream.write_all(&data_to_send).with_context(|| {
