@@ -4,7 +4,7 @@ use crate::common::logging::error;
 use crate::common::{change_file_ownership, info};
 use anyhow::{bail, Context};
 use std::fs::Permissions;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
 use std::process::Command;
@@ -41,7 +41,7 @@ impl Commander {
     }
 
     pub(super) fn run_command(&self, command: &str, ip: IpAddr) {
-        if Self::sanitize_ip(ip) {
+        if !Self::is_ip_allowed(ip) {
             return;
         }
 
@@ -54,25 +54,42 @@ impl Commander {
             Ok(result) => {
                 let stdout = String::from_utf8_lossy(&result.stdout);
                 let stderr = String::from_utf8_lossy(&result.stderr);
-                let msg = format!("{command}\nstdout: {stdout}\nstderr: {stderr}");
+                let msg = format!("{command} for {ip}\nstdout: {stdout}\nstderr: {stderr}");
                 if result.status.success() {
                     info(format!("Execution was successful: {msg}"))
                 } else {
                     error(format!("Execution was not successful: {msg}"))
                 }
             }
-            Err(e) => error(format!("Error executing {command}: {e}")),
+            Err(e) => error(format!("Error executing {command} for {ip}: {e}")),
         };
     }
 
-    fn sanitize_ip(ip: IpAddr) -> bool {
-        let ip_str = ip.to_string();
-        if !ip_str.chars().all(|c| c.is_ascii_hexdigit() || c == '.' || c == ':') {
-            error(format!("refusing to execute with suspicious IP: {:?}", ip_str));
-            true
-        } else {
-            false
+    /// Returns `true` if the command may run for this IP. The IP reaches the executed command via
+    /// `$RUROCO_IP`, so only allow globally-routable unicast peers: reject loopback, private, and
+    /// other non-routable addresses a client must not be able to whitelist.
+    fn is_ip_allowed(ip: IpAddr) -> bool {
+        let reject = ip.is_unspecified()
+            || ip.is_loopback()
+            || ip.is_multicast()
+            || match ip {
+                IpAddr::V4(v4) => Self::is_ipv4_rejected(v4),
+                IpAddr::V6(v6) => Self::is_ipv6_rejected(v6),
+            };
+
+        if reject {
+            error(format!("refusing to execute with non-routable IP: {ip}"));
         }
+
+        !reject
+    }
+
+    fn is_ipv6_rejected(v6: Ipv6Addr) -> bool {
+        v6.is_unique_local() || v6.is_unicast_link_local()
+    }
+
+    fn is_ipv4_rejected(v4: Ipv4Addr) -> bool {
+        v4.is_broadcast() || v4.is_private() || v4.is_link_local() || v4.is_documentation()
     }
 }
 
