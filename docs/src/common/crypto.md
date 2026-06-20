@@ -12,8 +12,8 @@ classDiagram
         +id 8 bytes
         +create(key_string) Result
         +gen_key() Result~String~
-        +encrypt(plaintext_57B) Result
-        +decrypt(blob_85B) Result
+        +encrypt(plaintext_58B) Result
+        +decrypt(blob_86B) Result
     }
     note for CryptoHandler "ZeroizeOnDrop. Debug redacts the key. gen_key and encrypt are with-client. decrypt is with-server."
 ```
@@ -54,15 +54,15 @@ Adds the AES-256-GCM-SIV operations as feature-gated `impl CryptoHandler` blocks
 ### encrypt (with-client)
 
 ```rust
-pub(crate) fn encrypt(&self, plaintext: &[u8; 57]) -> anyhow::Result<[u8; 85]>
+pub(crate) fn encrypt(&self, plaintext: &[u8; 58]) -> anyhow::Result<[u8; 86]>
 ```
 
 1. Generates a fresh random 12-byte IV (`rand_bytes`).
-2. Runs AES-256-GCM-SIV in encrypt mode over the 57-byte plaintext.
+2. Runs AES-256-GCM-SIV in encrypt mode over the 58-byte plaintext.
 3. Asserts the produced ciphertext length equals `PLAINTEXT_SIZE` and that `finalize` emits 0
    extra bytes (GCM is a stream cipher mode, so the lengths match).
 4. Reads the 16-byte authentication tag.
-5. Returns the 85-byte blob laid out as `IV(12) || tag(16) || ciphertext(57)`.
+5. Returns the 86-byte blob laid out as `IV(12) || tag(16) || ciphertext(58)`.
 
 Because the IV is random per call, encrypting identical plaintext twice yields different blobs (a
 tested invariant). Plain GCM *requires* unique IVs for safety; AES-256-GCM-SIV is misuse-resistant,
@@ -73,10 +73,10 @@ indistinguishability.
 ### decrypt (with-server)
 
 ```rust
-pub(crate) fn decrypt(&self, iv_tag_ciphertext: &[u8; 85]) -> anyhow::Result<[u8; 57]>
+pub(crate) fn decrypt(&self, iv_tag_ciphertext: &[u8; 86]) -> anyhow::Result<[u8; 58]>
 ```
 
-1. Splits the blob into IV `[0:12]`, tag `[12:28]`, ciphertext `[28:85]`.
+1. Splits the blob into IV `[0:12]`, tag `[12:28]`, ciphertext `[28:86]`.
 2. Runs AES-256-GCM-SIV in decrypt mode.
 3. Asserts the plaintext length equals `PLAINTEXT_SIZE`.
 4. Sets the expected tag and calls `finalize`. If the tag does not verify (wrong key, tampering,

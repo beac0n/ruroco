@@ -16,7 +16,7 @@ all times, and use ruroco to briefly open it only for the IP that asked, only wh
 
 ## What makes ruroco different
 
-- **One-way and silent.** The client sends one 93-byte UDP datagram. The server never
+- **One-way and silent.** The client sends one 94-byte UDP datagram. The server never
   sends a response of any kind. An attacker probing the port learns nothing.
 - **The client cannot choose arbitrary commands.** Commands are defined on the server. The
   client only sends a Blake2b-64 hash of a command *name*. It literally does not transmit

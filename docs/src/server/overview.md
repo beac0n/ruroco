@@ -4,7 +4,7 @@ Ruroco splits the receiving side of the system into two cooperating processes fo
 separation:
 
 - **Server** (`run_server`): an unprivileged daemon that owns the UDP socket. It receives the
-  93-byte datagram, decrypts it, enforces rate limiting, deserializes the plaintext, and runs all
+  94-byte datagram, decrypts it, enforces rate limiting, deserializes the plaintext, and runs all
   validation (replay, destination IP, strict source IP). It never executes anything itself.
 - **Commander** (`run_commander`): a privileged (typically root) process that owns the Unix domain
   socket. It receives a 24-byte `CommanderData` message from the server, looks the command up by
@@ -43,7 +43,7 @@ classDiagram
         -ConfigServer config
         -HashMap~[u8;8],CryptoHandler~ crypto_handlers
         -UdpSocket socket
-        -[u8;93] client_recv_data
+        -[u8;94] client_recv_data
         -PathBuf socket_path
         -Blocklist blocklist
         -RateLimiter rate_limiter
@@ -142,13 +142,13 @@ sequenceDiagram
     participant K as Commander (root)
     participant SH as sh -c
 
-    C->>S: UDP datagram (93 bytes)
+    C->>S: UDP datagram (94 bytes)
     Note over S: recv_from into client_recv_data
-    S->>S: count == MSG_SIZE (93)?
+    S->>S: count == MSG_SIZE (94)?
     S->>S: normalize_ip(src.ip())
     S->>S: rate_limiter.check(src_ip, max)
     S->>S: DataParser::decode -> (key_id, ciphertext)
-    S->>S: crypto_handlers[key_id].decrypt -> plaintext (57 bytes)
+    S->>S: crypto_handlers[key_id].decrypt -> plaintext (58 bytes)
     S->>S: ClientData::deserialize(plaintext)
     S->>B: is_counter_replayed(key_id, counter)?
     B-->>S: false (not a replay)
@@ -166,7 +166,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[UDP datagram received] --> B{count == 93?}
+    A[UDP datagram received] --> B{count == 94?}
     B -- no --> X1[Error: Invalid read count, drop]
     B -- yes --> C{rate_limiter.check OK?}
     C -- no --> X2[Error: Rate limit exceeded, drop]

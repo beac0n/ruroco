@@ -85,9 +85,9 @@ rules:
 - **Unidirectional.** The client only ever calls `socket.send`. It never reads a
   response; the server never sends one.
 - **Fixed packet geometry.** The encrypted plaintext (`ClientData::serialize`) is
-  exactly `PLAINTEXT_SIZE = 57` bytes. The full datagram is `MSG_SIZE = 93` bytes:
-  an 8-byte key id followed by an 85-byte ciphertext block
-  (`CIPHERTEXT_SIZE = 85` = 12-byte IV + 16-byte GCM tag + 57-byte ciphertext).
+  exactly `PLAINTEXT_SIZE = 58` bytes. The full datagram is `MSG_SIZE = 94` bytes:
+  an 8-byte key id followed by an 86-byte ciphertext block
+  (`CIPHERTEXT_SIZE = 86` = 12-byte IV + 16-byte GCM tag + 58-byte ciphertext).
 - **IPv6-mapped storage.** All IP addresses are serialized as 16 bytes; the unset
   source IP is all-zero (16 zero bytes).
 - **Monotonic counter.** The counter is a nanosecond timestamp seeded to

@@ -1,7 +1,7 @@
 //! Public entry points for the libFuzzer targets under `fuzz/`. Only compiled with the `fuzzing`
 //! feature (which pulls in `with-server`), so these never ship in any real binary.
 //!
-//! The 93-byte UDP datagram is the only untrusted input surface on the server. This module drives
+//! The 94-byte UDP datagram is the only untrusted input surface on the server. This module drives
 //! arbitrary bytes through the server-side ingest chain to confirm no malformed input can panic,
 //! hang, or read out of bounds:
 //!   `DataParser::decode` -> `CryptoHandler::decrypt` -> `ClientData::deserialize`.

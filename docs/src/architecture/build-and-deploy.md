@@ -96,7 +96,7 @@ flowchart TB
         etc -.config.- server
         etc -.config.- commander
     end
-    cli -->|93-byte UDP| socket
+    cli -->|94-byte UDP| socket
     keyfile -. same key string .- etc
 ```
 

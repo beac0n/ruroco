@@ -115,7 +115,7 @@ pub(super) fn get_data_to_encrypt(
 ) -> anyhow::Result<[u8; PLAINTEXT_SIZE]>
 ```
 
-Builds the 57-byte plaintext for one destination:
+Builds the 58-byte plaintext for one destination:
 
 ```rust
 ClientData::create(
@@ -139,15 +139,16 @@ Two important transforms happen here:
   bytes.
 
 The `ClientData` plaintext layout (from `ClientData::serialize`) is exactly
-`PLAINTEXT_SIZE = 57` bytes:
+`PLAINTEXT_SIZE = 58` bytes:
 
 | Offset | Size | Field |
 | --- | --- | --- |
-| 0..8 | 8 | `cmd_hash` (Blake2b-64 of the command name, big-endian) |
-| 8..24 | 16 | `counter` (`u128`, big-endian) |
-| 24..25 | 1 | `strict` (`0` or `1`) |
-| 25..41 | 16 | `src_ip` (IPv6-mapped, all zero if `None`) |
-| 41..57 | 16 | `dst_ip` (IPv6-mapped) |
+| 0..1 | 1 | `version` (`PROTOCOL_VERSION` byte, currently `1`) |
+| 1..9 | 8 | `cmd_hash` (Blake2b-64 of the command name, big-endian) |
+| 9..25 | 16 | `counter` (`u128`, big-endian) |
+| 25..26 | 1 | `strict` (`0` or `1`) |
+| 26..42 | 16 | `src_ip` (IPv6-mapped, all zero if `None`) |
+| 42..58 | 16 | `dst_ip` (IPv6-mapped) |
 
 ## `send/network.rs`
 
@@ -194,8 +195,8 @@ The single-datagram path:
    send, carries a strictly larger counter.
 2. Pick the bind address by family: `0.0.0.0:0` for IPv4, `[::]:0` for IPv6.
 3. Log `Connecting to <ip>...`.
-4. `self.get_data_to_encrypt(ip)?` builds the 57-byte plaintext.
-5. `self.data_parser.encode(&data_to_encrypt)?` produces the 93-byte datagram.
+4. `self.get_data_to_encrypt(ip)?` builds the 58-byte plaintext.
+5. `self.data_parser.encode(&data_to_encrypt)?` produces the 94-byte datagram.
 6. Bind a `UdpSocket` to the bind address, `connect` to `cmd.address`, and `send`
    the bytes. Each of the three socket calls adds the context
    `Could not connect/send data to <address>` via `Self::socket_ctx`.
@@ -214,29 +215,29 @@ pub(super) fn socket_ctx<E: std::fmt::Debug>(val: E) -> String
 Returns `format!("Could not connect/send data to {val:?}")`, the shared context
 string for the three socket operations.
 
-## Packet assembly: from 57 bytes to the 93-byte datagram
+## Packet assembly: from 58 bytes to the 94-byte datagram
 
 The encryption and framing happen in the `common` crate, driven by the client's
 `DataParser`.
 
 - **Encrypt** (`CryptoHandler::encrypt`): AES-256-GCM-SIV with a freshly randomized
-  12-byte IV. The output `CIPHERTEXT_SIZE = 85` bytes is laid out as
-  `[IV (12)] [GCM tag (16)] [ciphertext (57)]`. The ciphertext is the same length
-  as the plaintext (GCM is a stream cipher), so `12 + 16 + 57 = 85`.
+  12-byte IV. The output `CIPHERTEXT_SIZE = 86` bytes is laid out as
+  `[IV (12)] [GCM tag (16)] [ciphertext (58)]`. The ciphertext is the same length
+  as the plaintext (GCM is a stream cipher), so `12 + 16 + 58 = 86`.
 - **Frame / key_id prepend** (`DataParser::encode`): prepend the 8-byte key id in
-  front of the 85-byte ciphertext block, giving `MSG_SIZE = 93` bytes:
-  `[key_id (8)] [IV (12)] [tag (16)] [ciphertext (57)]`. The key id lets the
+  front of the 86-byte ciphertext block, giving `MSG_SIZE = 94` bytes:
+  `[key_id (8)] [IV (12)] [tag (16)] [ciphertext (58)]`. The key id lets the
   server pick the right shared key before attempting decryption.
 
 So the full datagram geometry is:
 
 ```
-93 bytes total
+94 bytes total
 = 8  key_id
-+ 85 ciphertext block
++ 86 ciphertext block
      = 12 IV
      + 16 GCM tag
-     + 57 encrypted ClientData
+     + 58 encrypted ClientData
 ```
 
 ## Send sequence diagram
@@ -258,10 +259,10 @@ sequenceDiagram
     loop for each destination IP (delay send_delay_ms after the first)
         S->>C: inc() then persist counter (u128 big-endian)
         S->>S: get_data_to_encrypt(ip)
-        Note over S: ClientData::create(cmd, !permissive, src_ip, dst_ip, counter)<br/>serialize -> 57 bytes
-        S->>D: encode(57-byte plaintext)
-        Note over D: AES-256-GCM-SIV encrypt -> 85-byte (IV+tag+ct)<br/>prepend 8-byte key_id -> 93-byte datagram
-        D-->>S: [u8; 93]
+        Note over S: ClientData::create(cmd, !permissive, src_ip, dst_ip, counter)<br/>serialize -> 58 bytes
+        S->>D: encode(58-byte plaintext)
+        Note over D: AES-256-GCM-SIV encrypt -> 86-byte (IV+tag+ct)<br/>prepend 8-byte key_id -> 94-byte datagram
+        D-->>S: [u8; 94]
         S->>K: bind 0.0.0.0:0 or [::]:0, connect(address), send(datagram)
         Note over K: one UDP datagram, no response read
     end

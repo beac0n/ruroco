@@ -23,18 +23,18 @@ sequenceDiagram
     loop for each destination IP
         C->>C: increment + persist counter (u128 ns)
         C->>C: ClientData::create(cmd, strict, src_ip, dst_ip, counter)
-        C->>C: serialize to 57-byte plaintext
-        C->>C: encrypt: IV(12)+tag(16)+ct(57) = 85 bytes
-        C->>C: prepend 8-byte key_id => 93-byte packet
+        C->>C: serialize to 58-byte plaintext
+        C->>C: encrypt: IV(12)+tag(16)+ct(58) = 86 bytes
+        C->>C: prepend 8-byte key_id => 94-byte packet
         C->>Net: send one UDP datagram
         C->>C: sleep send_delay_ms
     end
-    Net->>S: 93-byte datagram arrives
-    S->>S: split key_id (8) + ciphertext (85)
+    Net->>S: 94-byte datagram arrives
+    S->>S: split key_id (8) + ciphertext (86)
     S->>S: look up CryptoHandler by key_id
     S->>S: RateLimiter::check(source_ip)
     S->>S: decrypt + GCM tag verify
-    S->>S: deserialize ClientData (57 bytes)
+    S->>S: deserialize ClientData (58 bytes)
     S->>S: validate (replay, dst_ip, strict src_ip)
     S->>S: persist new counter to blocklist
     S->>Sock: send 24-byte CommanderData (cmd_hash + ip)
@@ -58,13 +58,13 @@ Driven by `Sender::send` ([send/](../client/send.md)).
    strictly increasing ([counter.rs](../client/counter-lock-gen-util.md)). This is what makes
    replays impossible.
 4. **Build plaintext.** `ClientData::create` hashes the command name with Blake2b-64 and packs
-   `cmd_hash`, `counter`, `strict`, `src_ip`, `dst_ip` into a fixed **57-byte** layout
+   `version`, `cmd_hash`, `counter`, `strict`, `src_ip`, `dst_ip` into a fixed **58-byte** layout
    ([Wire Protocol](./protocol.md)). Note the inversion: the CLI flag is `--permissive`, but the
    packet carries `strict = !permissive`.
-5. **Encrypt.** The 57 bytes are encrypted with AES-256-GCM-SIV using the shared key. A fresh random
-   IV is generated per packet. Output is `IV(12) || tag(16) || ciphertext(57)` = **85 bytes**
+5. **Encrypt.** The 58 bytes are encrypted with AES-256-GCM-SIV using the shared key. A fresh random
+   IV is generated per packet. Output is `IV(12) || tag(16) || ciphertext(58)` = **86 bytes**
    ([Cryptography](./cryptography.md)).
-6. **Frame.** The 8-byte `key_id` is prepended, giving the final **93-byte** packet. The key_id
+6. **Frame.** The 8-byte `key_id` is prepended, giving the final **94-byte** packet. The key_id
    tells the server which shared key to use without revealing it.
 7. **Send.** Exactly one UDP datagram goes out per destination IP, with `send_delay_ms` between
    IPs. The client does not wait for and does not expect a reply.
@@ -74,10 +74,10 @@ Driven by `Sender::send` ([send/](../client/send.md)).
 Driven by the server main loop and `handler.rs` ([Server Overview](../server/overview.md),
 [handler.rs](../server/handler.md)).
 
-1. **Receive.** `socket.rs` reads a datagram into a 93-byte buffer. The socket is either
+1. **Receive.** `socket.rs` reads a datagram into a 94-byte buffer. The socket is either
    inherited from systemd socket activation or bound to `[::]` as a fallback
    ([socket.rs](../server/socket-signal.md)).
-2. **Decode frame.** The first 8 bytes are the `key_id`; the remaining 85 are the ciphertext
+2. **Decode frame.** The first 8 bytes are the `key_id`; the remaining 86 are the ciphertext
    blob.
 3. **Select key.** The server loads every `*.key` file in its config dir at startup; the `key_id`
    selects the matching `CryptoHandler` ([keys.rs](../server/config-keys.md)).
@@ -85,7 +85,8 @@ Driven by the server main loop and `handler.rs` ([Server Overview](../server/ove
    throttling, not security ([rate_limiter.rs](../server/blocklist-ratelimiter.md)).
 5. **Decrypt.** AES-256-GCM-SIV decrypts and verifies the tag. A bad key or tampered packet fails the
    tag check and is dropped silently.
-6. **Deserialize.** The 57-byte plaintext becomes a `ClientData` struct.
+6. **Deserialize.** The 58-byte plaintext becomes a `ClientData` struct. The leading `version` byte
+   is checked against `PROTOCOL_VERSION` (it is authenticated, so this happens after the tag verifies).
 7. **Validate**, in order ([handler.rs](../server/handler.md)):
    - **Replay:** the counter must be strictly greater than the highest counter previously seen
      for this `key_id` (the blocklist floor). Equal counts as a replay

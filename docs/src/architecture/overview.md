@@ -93,7 +93,7 @@ flowchart TB
         CMD["commander (privileged)<br/>src/commander"]
         SRV -->|24-byte CommanderData<br/>over Unix socket| CMD
     end
-    CLI -->|"one 93-byte<br/>AES-256-GCM-SIV UDP datagram"| SRV
+    CLI -->|"one 94-byte<br/>AES-256-GCM-SIV UDP datagram"| SRV
     CMD -->|"sh -c with $RUROCO_IP"| OS["configured shell command"]
 
     COM["common<br/>src/common<br/>crypto - protocol - ipc - fs - logging"]

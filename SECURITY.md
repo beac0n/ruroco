@@ -41,7 +41,7 @@ model below states what we defend against, what we explicitly do not, and how ke
 
 ### System boundaries
 
-- **Client** (untrusted position on the internet): holds the shared key, sends 93-byte packets. Never learns the
+- **Client** (untrusted position on the internet): holds the shared key, sends 94-byte packets. Never learns the
   command strings; only sends a Blake2b-64 hash of a command name.
 - **Server** (network-facing, unprivileged): receives packets, decrypts, validates, forwards a command hash to the
   commander over a local Unix socket. Never replies on the network. Holds the shared key(s).
@@ -94,7 +94,7 @@ unprivileged server; only a fixed-size message of `(command hash, IP)` crosses t
 - **Local clock dependency.** Replay protection is timestamp-based. A client whose clock is rolled back below the
   server's last-seen counter will have packets rejected until reseeded (`ruroco-client reseed`).
 - **Traffic analysis / metadata.** Packet size is fixed and contents are encrypted, but an observer can still see that
-  a 93-byte UDP packet was sent to the server, and when.
+  a 94-byte UDP packet was sent to the server, and when.
 
 ### Key lifecycle
 
@@ -119,7 +119,7 @@ unprivileged server; only a fixed-size message of `(command hash, IP)` crosses t
 Packets are authenticated and encrypted with a shared-secret AES-256-GCM-SIV key (key id + key), not with an asymmetric
 signature scheme. This is a deliberate choice:
 
-- One AEAD gives both confidentiality and authenticity in an 85-byte payload (93-byte packet). It hides the command
+- One AEAD gives both confidentiality and authenticity in an 86-byte payload (94-byte packet). It hides the command
   hash and replay counter from on-path observers while authenticating them.
 - AES-256-GCM-SIV (RFC 8452) is nonce-misuse-resistant: a repeated 96-bit IV is not catastrophic (it only reveals
   whether two plaintexts were identical, which the replay counter already rejects), so the fresh random IV per packet

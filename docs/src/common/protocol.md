@@ -11,10 +11,10 @@ and call crypto), and `serialization.rs` (IP to 16 bytes and back). The conceptu
 ## constants.rs
 
 ```rust
-pub(crate) const PLAINTEXT_SIZE: usize  = 57; // serialized ClientData
-pub(crate) const CIPHERTEXT_SIZE: usize = 85; // IV(12) + tag(16) + ciphertext(57)
+pub(crate) const PLAINTEXT_SIZE: usize  = 58; // serialized ClientData
+pub(crate) const CIPHERTEXT_SIZE: usize = 86; // IV(12) + tag(16) + ciphertext(58)
 pub(crate) const KEY_ID_SIZE: usize     = 8;  // cleartext key selector
-pub(crate) const MSG_SIZE: usize        = KEY_ID_SIZE + CIPHERTEXT_SIZE; // = 93, the datagram
+pub(crate) const MSG_SIZE: usize        = KEY_ID_SIZE + CIPHERTEXT_SIZE; // = 94, the datagram
 ```
 
 `mod.rs` re-exports all four for use across the crate.
@@ -38,20 +38,22 @@ pub(crate) struct ClientData {
 
 - **`create(command, strict, src_ip, dst_ip, counter) -> Result<ClientData>`**: hashes `command`
   with `blake2b_u64` into `cmd_hash` and stores the rest verbatim.
-- **`serialize(&self) -> Result<[u8; 57]>`**: writes the fixed big-endian layout into a
-  57-byte array:
+- **`serialize(&self) -> Result<[u8; 58]>`**: writes the fixed big-endian layout into a
+  58-byte array:
 
   | Field | Offset | Encoding |
   | --- | --- | --- |
-  | `cmd_hash` | `[0:8]` | `u64` big-endian |
-  | `counter` | `[8:24]` | `u128` big-endian |
-  | `strict` | `[24]` | `1` or `0` |
-  | `src_ip` | `[25:41]` | `serialize_ip`, or all-zeros if `None` |
-  | `dst_ip` | `[41:57]` | `serialize_ip` |
+  | `version` | `[0]` | `PROTOCOL_VERSION` byte (currently `1`) |
+  | `cmd_hash` | `[1:9]` | `u64` big-endian |
+  | `counter` | `[9:25]` | `u128` big-endian |
+  | `strict` | `[25]` | `1` or `0` |
+  | `src_ip` | `[26:42]` | `serialize_ip`, or all-zeros if `None` |
+  | `dst_ip` | `[42:58]` | `serialize_ip` |
 
 ### Server side (with-server)
 
-- **`deserialize(data: [u8; 57]) -> ClientData`**: reads the same layout back. A `src_ip` field of
+- **`deserialize(data: [u8; 58]) -> ClientData`**: reads the same layout back. The `version` byte
+  at `[0]` is checked against `PROTOCOL_VERSION` (after the GCM tag has verified). A `src_ip` field of
   all-zeros decodes to `None` (the "no claimed source IP" sentinel); any other value decodes via
   `deserialize_ip`.
 - **`is_source_ip_invalid(&self, source_ip: IpAddr) -> bool`**: returns `true` only when
@@ -62,13 +64,13 @@ pub(crate) struct ClientData {
 ### Tests
 
 `client_data.rs` ships three test modules: size tests proving `serialize` always yields exactly
-57 bytes for both extreme (`u128::MAX` counter, IPv6) and minimal (all zeros, IPv4) values, and a
+58 bytes for both extreme (`u128::MAX` counter, IPv6) and minimal (all zeros, IPv4) values, and a
 cross-feature round-trip test asserting `create -> serialize -> deserialize` reproduces the
 original struct including the Blake2b hash of the command name.
 
 ## parser.rs
 
-`DataParser` handles framing: turning the encrypted blob into the 93-byte datagram and back. It
+`DataParser` handles framing: turning the encrypted blob into the 94-byte datagram and back. It
 owns a `CryptoHandler` on the client.
 
 ```rust
@@ -82,22 +84,22 @@ pub(crate) struct DataParser {
 
 ```rust
 pub(crate) fn create(key_string: &str) -> Result<Self>
-pub(crate) fn encode(&self, data: &[u8; 57]) -> Result<[u8; 93]>
+pub(crate) fn encode(&self, data: &[u8; 58]) -> Result<[u8; 94]>
 ```
 
-`create` builds the inner `CryptoHandler` from the key string. `encode` encrypts the 57-byte
-plaintext into the 85-byte blob, then prepends the handler's 8-byte `id`, producing the final
-93-byte message.
+`create` builds the inner `CryptoHandler` from the key string. `encode` encrypts the 58-byte
+plaintext into the 86-byte blob, then prepends the handler's 8-byte `id`, producing the final
+94-byte message.
 
 ### decode (with-server)
 
 ```rust
-pub(crate) fn decode(data: &[u8; 93])
-    -> Result<(&[u8; 8], &[u8; 85])>
+pub(crate) fn decode(data: &[u8; 94])
+    -> Result<(&[u8; 8], &[u8; 86])>
 ```
 
 A static method (no handler needed): splits the datagram into the `key_id` (`[0:8]`) and the
-ciphertext blob (`[8:93]`), returning references into the original buffer. The server then uses the
+ciphertext blob (`[8:94]`), returning references into the original buffer. The server then uses the
 `key_id` to pick the right `CryptoHandler` and decrypt the blob. Decode is purely structural; it
 does no crypto and cannot fail on content, only on a wrong-sized buffer.
 
@@ -122,8 +124,10 @@ why the server always compares and exposes normalized addresses.
 
 ## Gotchas
 
-- The protocol has **no version byte**. Compatibility is maintained by never changing the sizes or
-  field order. The constants file is the contract.
+- The protocol carries a **version byte** at plaintext offset `[0]` (`PROTOCOL_VERSION`, currently
+  `1`). It lives inside the authenticated plaintext and is checked only after the GCM tag verifies,
+  so it cannot be tampered with on the wire. Compatibility otherwise relies on never changing the
+  sizes or field order. The constants file is the contract.
 - `decode` returns borrowed slices into the input datagram; the server must keep that buffer alive
   while decrypting.
 - An all-zero `src_ip` is meaningful: it is the wire encoding of `None`, not of `0.0.0.0`. The

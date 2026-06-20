@@ -40,28 +40,28 @@ flowchart LR
 AES-256-GCM-SIV (RFC 8452) is an authenticated encryption mode: it provides confidentiality (the
 plaintext is hidden) and integrity/authenticity (any tampering, or use of the wrong key, fails the
 tag check). It is the nonce-misuse-resistant variant of GCM (see "Fresh IV per packet" below). The
-57-byte plaintext becomes an 85-byte blob:
+58-byte plaintext becomes an 86-byte blob:
 
 ```mermaid
 sequenceDiagram
-    participant P as plaintext (57 B)
+    participant P as plaintext (58 B)
     participant E as CryptoHandler::encrypt
-    participant Blob as ciphertext blob (85 B)
+    participant Blob as ciphertext blob (86 B)
     participant D as CryptoHandler::decrypt
-    participant Out as plaintext (57 B)
+    participant Out as plaintext (58 B)
 
     Note over E: client side (with-client)
     E->>E: generate fresh random IV (12 B)
     E->>E: AES-256-GCM-SIV encrypt with key + IV
     E->>E: read out 16-byte GCM tag
-    E->>Blob: IV(12) || tag(16) || ciphertext(57)
+    E->>Blob: IV(12) || tag(16) || ciphertext(58)
 
     Note over D: server side (with-server)
     Blob->>D: split IV, tag, ciphertext
     D->>D: AES-256-GCM-SIV decrypt with key + IV
     D->>D: set expected tag, finalize
     alt tag verifies
-        D->>Out: 57-byte plaintext
+        D->>Out: 58-byte plaintext
     else tag mismatch / wrong key / tampering
         D-->>D: error, packet dropped
     end
