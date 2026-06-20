@@ -41,7 +41,7 @@ impl Commander {
     }
 
     pub(super) fn run_command(&self, command: &str, ip: IpAddr) {
-        if !Self::is_ip_allowed(ip) {
+        if !self.allow_non_routable_ips && !Self::is_ip_allowed(ip) {
             return;
         }
 

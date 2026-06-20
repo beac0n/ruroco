@@ -24,6 +24,7 @@ pub struct Commander {
     pub(super) cmds: HashMap<u64, String>,
     pub(super) socket_user: String,
     pub(super) socket_group: String,
+    pub(super) allow_non_routable_ips: bool,
 }
 
 impl Commander {
@@ -44,6 +45,7 @@ impl Commander {
             ),
             socket_user: config.socket_user,
             socket_group: config.socket_group,
+            allow_non_routable_ips: config.allow_non_routable_ips,
         })
     }
 
@@ -98,6 +100,7 @@ mod tests {
         Commander::create(
             ConfigCommander {
                 config_dir,
+                allow_non_routable_ips: true,
                 ..Default::default()
             },
             ConfigCommands { commands },
@@ -168,6 +171,7 @@ mod tests {
                     socket_dir: None,
                     socket_user: "ruroco".to_string(),
                     socket_group: "ruroco".to_string(),
+                    allow_non_routable_ips: false,
                 },
                 ConfigCommands { commands },
             )
@@ -212,13 +216,13 @@ mod tests {
     #[test]
     fn test_run_command_success() {
         create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_cmd"))
-            .run_command("echo hello", "127.0.0.1".parse().unwrap());
+            .run_command("echo hello", "1.2.3.4".parse().unwrap());
     }
 
     #[test]
     fn test_run_command_failure() {
         create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_cmd_fail"))
-            .run_command("false", "127.0.0.1".parse().unwrap());
+            .run_command("false", "1.2.3.4".parse().unwrap());
     }
 
     #[test]
@@ -226,15 +230,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let output_file = dir.path().join("env_output.txt");
         let output_path = output_file.to_str().unwrap();
-        create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_env")).run_command(
-            &format!("echo $RUROCO_IP > {output_path}"),
-            "192.168.1.100".parse().unwrap(),
-        );
+        create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_env"))
+            .run_command(&format!("echo $RUROCO_IP > {output_path}"), "1.2.3.4".parse().unwrap());
         thread::sleep(Duration::from_millis(100));
-        assert!(fs::read_to_string(&output_file)
-            .unwrap_or_default()
-            .trim()
-            .contains("192.168.1.100"));
+        assert!(fs::read_to_string(&output_file).unwrap_or_default().trim().contains("1.2.3.4"));
     }
 
     #[test]
@@ -260,7 +259,7 @@ mod tests {
             &socket_path,
             CommanderData {
                 cmd_hash,
-                ip: "127.0.0.1".parse().unwrap(),
+                ip: "1.2.3.4".parse().unwrap(),
             },
         );
 
@@ -321,6 +320,7 @@ mod tests {
             cmds: HashMap::new(),
             socket_user: String::new(),
             socket_group: String::new(),
+            allow_non_routable_ips: false,
         };
         assert!(commander
             .create_listener()

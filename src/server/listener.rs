@@ -120,9 +120,9 @@ pub fn run_server(server: CliServer) -> anyhow::Result<()> {
 mod tests {
     use crate::client::gen::Generator;
     use crate::common::data_parser::DataParser;
-    use crate::common::get_random_range;
     use crate::common::protocol::MSG_SIZE;
     use crate::server::config::{CliServer, ConfigServer};
+    use crate::server::get_random_range;
     use crate::server::Server;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
@@ -460,6 +460,7 @@ mod tests {
             Commander::create(
                 ConfigCommander {
                     config_dir: commander_dir,
+                    allow_non_routable_ips: true,
                     ..Default::default()
                 },
                 ConfigCommands { commands: cmds },

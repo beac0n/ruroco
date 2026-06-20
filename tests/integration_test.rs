@@ -4,7 +4,6 @@ mod tests {
     use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
     use ruroco::commander::{Commander, ConfigCommander, ConfigCommands};
-    use ruroco::common::get_random_range;
     use ruroco::common::ipc::get_commander_unix_socket_path;
     use ruroco::server::blocklist::Blocklist;
     use ruroco::server::config::ConfigServer;
@@ -68,7 +67,11 @@ mod tests {
         }
 
         fn get_server_address(host: &str) -> String {
-            let server_port = get_random_range(1024, 65535).unwrap();
+            // Test-only random port in [1024, 65535); seeded from the wall clock to avoid pulling a
+            // crypto RNG into the test crate.
+            let nanos =
+                SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().subsec_nanos();
+            let server_port = 1024 + (nanos % (65535 - 1024));
             format!("{host}:{server_port}")
         }
 
@@ -115,6 +118,7 @@ mod tests {
                 Commander::create(
                     ConfigCommander {
                         config_dir,
+                        allow_non_routable_ips: true,
                         ..Default::default()
                     },
                     ConfigCommands { commands },

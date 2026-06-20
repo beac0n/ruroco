@@ -38,10 +38,14 @@ pub struct CliCommander {
 pub struct ConfigCommander {
     #[serde(default = "default_config_path")]   // /etc/ruroco
     pub config_dir: PathBuf,
+    #[serde(default)]                           // None -> falls back to config_dir
+    pub socket_dir: Option<PathBuf>,
     #[serde(default = "default_socket_user")]   // "ruroco"
     pub socket_user: String,
     #[serde(default = "default_socket_group")]  // "ruroco"
     pub socket_group: String,
+    #[serde(default)]                           // false: reject non-routable client IPs
+    pub allow_non_routable_ips: bool,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -171,7 +175,7 @@ pub(super) fn create_listener(&self) -> anyhow::Result<UnixListener> {
 const ENV_PREFIX: &str = "RUROCO_";
 
 pub(super) fn run_command(&self, command: &str, ip: IpAddr) {
-    if Self::sanitize_ip(ip) { return; }           // reject suspicious IP
+    if !self.allow_non_routable_ips && !Self::is_ip_allowed(ip) { return; } // reject non-routable
     Command::new("sh")
         .arg("-c")
         .arg(command)
@@ -184,25 +188,30 @@ pub(super) fn run_command(&self, command: &str, ip: IpAddr) {
 The configured command string is run through `sh -c`, with `RUROCO_IP` set to the client IP, so a
 command can react to who triggered it (for example `ufw allow from $RUROCO_IP`). Output is captured:
 on success both stdout and stderr are logged at info level, on a non-zero exit at error level, and a
-spawn failure is logged as `"Error executing {command}: {e}"`. A failing command is never fatal to
-the commander loop.
+spawn failure is logged as `"Error executing {command} for {ip}: {e}"` (the client IP is included in
+every execution log line for an audit trail). A failing command is never fatal to the commander loop.
 
-### IP sanitization
+### IP filtering
 
 ```rust
-fn sanitize_ip(ip: IpAddr) -> bool {
-    let ip_str = ip.to_string();
-    if !ip_str.chars().all(|c| c.is_ascii_hexdigit() || c == '.' || c == ':') {
-        error(...); // "refusing to execute with suspicious IP"
-        true        // true => abort, do not run
-    } else { false }
+fn is_ip_allowed(ip: IpAddr) -> bool {
+    let reject = ip.is_unspecified() || ip.is_loopback() || ip.is_multicast()
+        || match ip {
+            IpAddr::V4(v4) => v4.is_broadcast() || v4.is_private()
+                || v4.is_link_local() || v4.is_documentation(),
+            IpAddr::V6(v6) => v6.is_unique_local() || v6.is_unicast_link_local(),
+        };
+    if reject { error(...); } // "refusing to execute with non-routable IP"
+    !reject
 }
 ```
 
-Before the IP is placed into `RUROCO_IP`, its string form is checked to contain only hex digits,
-dots, and colons (the only characters valid in an IPv4 or IPv6 textual address). Anything else
-aborts execution. Since the value comes from a parsed `IpAddr` this is belt-and-braces defense
-against shell injection through the environment variable.
+The IP placed into `RUROCO_IP` is meant to be an outside unicast peer (for example for
+`ufw allow from $RUROCO_IP`), so by default only globally-routable addresses run the command:
+unspecified, loopback, multicast, broadcast, private/RFC1918, link-local, and documentation
+addresses are rejected. This stops a client from naming `127.0.0.1` or an internal address to
+whitelist a host it does not own. Setting `allow_non_routable_ips = true` in `config.toml` bypasses
+the filter (mainly for local testing, where the only available source address is loopback).
 
 ### `run_commander` entry point
 

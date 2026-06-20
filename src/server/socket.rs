@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_create_udp_socket_with_env_var() {
-        let port = crate::common::get_random_range(1024, 65535).unwrap();
+        let port = crate::server::get_random_range(1024, 65535).unwrap();
         env::set_var("RUROCO_LISTEN_ADDRESS", format!("127.0.0.1:{port}"));
         env::remove_var("LISTEN_FDS");
         env::remove_var("LISTEN_PID");

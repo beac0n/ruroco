@@ -43,6 +43,12 @@ pub struct ConfigCommander {
     pub socket_user: String,
     #[serde(default = "default_socket_group")]
     pub socket_group: String,
+    /// Allow non-routable client IPs (loopback, private, link-local, etc.) to reach the executed
+    /// command. Off by default: the `$RUROCO_IP` a command sees is meant to be an outside peer, so
+    /// a client must not be able to name `127.0.0.1` or an internal address. Mainly for local
+    /// testing where the only available source address is loopback.
+    #[serde(default)]
+    pub allow_non_routable_ips: bool,
 }
 
 impl ConfigCommander {
@@ -66,6 +72,7 @@ impl Default for ConfigCommander {
             socket_dir: None,
             socket_user: "".to_string(),
             socket_group: "".to_string(),
+            allow_non_routable_ips: false,
         }
     }
 }

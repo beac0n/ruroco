@@ -10,8 +10,6 @@ pub(crate) mod protocol;
 
 pub(crate) use crypto::blake2b_u64;
 #[cfg(any(feature = "with-client", feature = "with-server"))]
-pub use crypto::get_random_range;
-#[cfg(any(feature = "with-client", feature = "with-server"))]
 pub(crate) use crypto::handler as crypto_handler;
 pub(crate) use fs::change_file_ownership;
 pub(crate) use fs::resolve_path;

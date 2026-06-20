@@ -45,44 +45,6 @@ pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     Ok(u64::from_be_bytes(out))
 }
 
-/// Random integer in the half-open range `[from, to)`. Errors if the range is empty (`from >= to`)
-/// rather than panicking on the underflow/divide-by-zero.
-#[cfg(any(feature = "with-client", feature = "with-server"))]
-pub fn get_random_range(from: u16, to: u16) -> anyhow::Result<u16> {
-    use openssl::rand::rand_bytes;
-    let span = u32::from(
-        to.checked_sub(from).filter(|s| *s > 0).context("get_random_range: empty range")?,
-    );
-    let mut buf = [0u8; 4];
-    rand_bytes(&mut buf).with_context(|| "Could not generate number")?;
-    Ok(from + (u32::from_be_bytes(buf) % span) as u16)
-}
-
-#[cfg(any(feature = "with-client", feature = "with-server"))]
-#[cfg(test)]
-mod random_range_tests {
-    use super::get_random_range;
-
-    #[test]
-    fn test_empty_range_errors() {
-        assert!(get_random_range(5, 5).is_err());
-        assert!(get_random_range(10, 1).is_err());
-    }
-
-    #[test]
-    fn test_stays_within_half_open_range() {
-        for _ in 0..10_000 {
-            let v = get_random_range(1024, 65535).unwrap();
-            assert!((1024..65535).contains(&v));
-        }
-    }
-
-    #[test]
-    fn test_singleton_range() {
-        assert_eq!(get_random_range(7, 8).unwrap(), 7);
-    }
-}
-
 #[cfg(feature = "with-client")]
 #[cfg(test)]
 mod ed25519_tests {
