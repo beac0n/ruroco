@@ -25,8 +25,9 @@ It first deserializes the plaintext:
 ClientData::deserialize(plaintext_data)
 ```
 
-`ClientData::deserialize` is infallible (it reads fixed offsets out of the 58-byte buffer). The
-resulting struct is then matched against guard clauses, evaluated top to bottom. The first guard
+`ClientData::deserialize` validates the protocol version byte (the first byte of the authenticated
+plaintext) and then reads fixed offsets out of the 58-byte buffer; an unknown version is rejected.
+The resulting struct is then matched against guard clauses, evaluated top to bottom. The first guard
 that matches produces an error and the packet is dropped; if none match, the success arm runs.
 
 ### Step 1: replay check
