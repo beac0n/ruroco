@@ -5,13 +5,7 @@ use std::env;
 use std::net::UdpSocket;
 use std::os::fd::{FromRawFd, RawFd};
 
-/// Default UDP port ruroco listens on when no address is supplied via argument,
-/// `RUROCO_LISTEN_ADDRESS`, or systemd socket activation.
-///
-/// Derived from the alphabet indices of the letters in "ruroco":
-/// r=18, u=21, r=18, o=15, c=3, o=15 → distinct values multiplied together × 2:
-/// 18 × 21 × 15 × 3 × 2 = 34020
-pub(crate) const DEFAULT_PORT: u16 = 34020;
+pub(crate) use crate::common::DEFAULT_PORT;
 
 impl ConfigServer {
     pub(crate) fn create_server_udp_socket(

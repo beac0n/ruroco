@@ -18,7 +18,7 @@ pub struct Sender {
 
 impl Sender {
     pub fn create(mut cmd: SendCommand) -> anyhow::Result<Self> {
-        cmd.address = Self::ensure_port(cmd.address, 80);
+        cmd.address = Self::ensure_port(cmd.address, crate::common::DEFAULT_PORT);
         let counter_path = Self::get_counter_path()?;
         info(format!("Loading counter from {counter_path:?} ..."));
         Ok(Self {
@@ -322,7 +322,7 @@ mod tests {
             ..Default::default()
         })
         .unwrap();
-        assert_eq!(sender.cmd.address, "[::1]:80");
+        assert_eq!(sender.cmd.address, "[::1]:34020");
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
             ..Default::default()
         })
         .unwrap();
-        assert_eq!(sender.cmd.address, "127.0.0.1:80");
+        assert_eq!(sender.cmd.address, "127.0.0.1:34020");
     }
 
     #[test]
