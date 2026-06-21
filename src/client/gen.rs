@@ -10,7 +10,7 @@ impl Generator {
     /// Generate a fresh AES key, print it to stdout, and return it.
     pub fn gen(&self) -> anyhow::Result<String> {
         let key = CryptoHandler::gen_key()?;
-        print!("{}", key);
+        print!("{key}");
         Ok(key)
     }
 }
