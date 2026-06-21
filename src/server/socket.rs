@@ -5,7 +5,7 @@ use std::env;
 use std::net::UdpSocket;
 use std::os::fd::{FromRawFd, RawFd};
 
-pub(crate) use crate::common::DEFAULT_PORT;
+pub(crate) use crate::common::FALLBACK_BIND_PORT;
 
 impl ConfigServer {
     pub(crate) fn create_server_udp_socket(
@@ -53,7 +53,7 @@ impl ConfigServer {
                         .with_context(|| format!("Could not UdpSocket bind {address:?}"))
                 }
                 None => {
-                    let address = format!("[::]:{}", DEFAULT_PORT);
+                    let address = format!("[::]:{}", FALLBACK_BIND_PORT);
                     info(format!("UdpSocket bind to {address} - fallback"));
                     UdpSocket::bind(&address)
                         .with_context(|| format!("Could not UdpSocket bind {address:?}"))

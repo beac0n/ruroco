@@ -322,7 +322,7 @@ mod tests {
             ..Default::default()
         })
         .unwrap();
-        assert_eq!(sender.cmd.address, "[::1]:34020");
+        assert_eq!(sender.cmd.address, "[::1]:80");
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
             ..Default::default()
         })
         .unwrap();
-        assert_eq!(sender.cmd.address, "127.0.0.1:34020");
+        assert_eq!(sender.cmd.address, "127.0.0.1:80");
     }
 
     #[test]

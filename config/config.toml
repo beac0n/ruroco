@@ -1,6 +1,9 @@
 # MANDATORY - public IP address of your server where this service runs on
 ips = ["127.0.0.1", "dead:beef:dead:beef:dead:beef:dead:beef"]
-address = "[::]:8080"        # OPTIONAL  - address the ruroco serer listens on, if systemd/ruroco.socket is not used
+# OPTIONAL - address the server binds itself, ONLY when systemd/ruroco.socket activation is not used
+# (ignored under socket activation). Use a high, unprivileged port here: binding < 1024 in-process
+# needs CAP_NET_BIND_SERVICE. The shipped systemd setup listens on :80 via socket activation instead.
+address = "[::]:34020"
 config_dir = "/etc/ruroco/"  # OPTIONAL  - path where the configuration files (.pem and others) are saved
 blocklist_dir = "/var/lib/ruroco" # OPTIONAL - where blocklist.msgpck is persisted; defaults to config_dir. Set to the server's systemd StateDirectory so config_dir can stay read-only.
 socket_dir = "/run/ruroco"   # OPTIONAL  - where ruroco.socket lives; defaults to config_dir. Set to the commander's systemd RuntimeDirectory. Server and commander MUST use the same value.

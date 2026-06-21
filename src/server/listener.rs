@@ -152,7 +152,7 @@ mod tests {
         env::remove_var("RUROCO_LISTEN_ADDRESS");
         let socket = ConfigServer::default().create_server_udp_socket(None).unwrap();
         let result = socket.local_addr().unwrap();
-        assert_eq!(result.port(), crate::server::socket::DEFAULT_PORT);
+        assert_eq!(result.port(), crate::server::socket::FALLBACK_BIND_PORT);
     }
 
     #[test]

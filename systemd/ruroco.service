@@ -11,7 +11,7 @@ User=ruroco
 Group=ruroco
 
 RemoveIPC=true
-# No capabilities are needed: port 80 is bound by systemd (ruroco.socket) and the fd is inherited
+# No capabilities are needed: the UDP port is bound by systemd (ruroco.socket) and the fd is inherited
 # via socket activation, so the service never calls bind() in this setup. (socket.rs has a bind()
 # fallback, but it only runs without socket activation, which the shipped units never trigger.)
 CapabilityBoundingSet=

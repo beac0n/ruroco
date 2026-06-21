@@ -63,7 +63,7 @@ pub(crate) struct WizardCommand {
 impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
-            address: "127.0.0.1:1234".to_string(),
+            address: "127.0.0.1:80".to_string(),
             key: "FFFFFFFFFFFFFFFFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF"
                 .to_string(),
             command: DEFAULT_COMMAND.to_string(),

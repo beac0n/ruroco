@@ -217,7 +217,7 @@ Options:
 Pass the same base64 key string that you placed on the server. Example:
 
 ```shell
-ruroco-client send -a 127.0.0.1:34020 -k "$(secret-tool lookup token ruroco)" -c default
+ruroco-client send -a 127.0.0.1:80 -k "$(secret-tool lookup token ruroco)" -c default
 ```
 
 ### update
@@ -336,7 +336,7 @@ run_backup = "/usr/local/bin/run-backup.sh"
 then fire one from anywhere — including a CI runner, a cron job on another host, or a tap in the UI:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command deploy --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:80 --command deploy --key "$(secret-tool lookup token ruroco)"
 ```
 
 There is no tunnel to bring up and no session to maintain: the client sends a single stateless packet and the
@@ -368,7 +368,7 @@ close_port = "ufw delete allow from $RUROCO_IP proto tcp to any port 8443" # clo
 With that configured, run the client like this:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_port --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:80 --command open_port --key "$(secret-tool lookup token ruroco)"
 ```
 
 If you want to authorize a different address than the one you are sending from (for example your external IP
@@ -376,7 +376,7 @@ behind NAT), pass it with `--ip` together with `--permissive`. To make sure an a
 source IP, fetch your real external address from a service — the server verifies that the addresses match:
 
 ```shell
-ruroco-client send --address host.domain:8080 --command open_port --ip $(curl -s https://api64.ipify.org) --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:80 --command open_port --ip $(curl -s https://api64.ipify.org) --key "$(secret-tool lookup token ruroco)"
 ```
 
 The server validates that the client is authorized to run the command using the shared AES key (its id is
@@ -401,7 +401,7 @@ enable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf_disabled /et
 If you have configured ruroco on server like that and execute the following client side command
 
 ```shell
-ruroco-client send --address host.domain:8080 --command enable_file_browser --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:80 --command enable_file_browser --key "$(secret-tool lookup token ruroco)"
 ```
 
 the file browser nginx config will be enabled and nginx reloaded, effectively making the file browser accessible.

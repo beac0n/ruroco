@@ -118,7 +118,7 @@ mod tests {
     fn test_send_command_default() {
         let cmd = SendCommand::default();
         assert_eq!(cmd.command, DEFAULT_COMMAND);
-        assert_eq!(cmd.address, "127.0.0.1:1234");
+        assert_eq!(cmd.address, "127.0.0.1:80");
         assert!(!cmd.permissive);
         assert!(!cmd.ipv4);
         assert!(!cmd.ipv6);
