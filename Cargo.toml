@@ -47,6 +47,10 @@ with-commander = ["dep:toml"]
 with-gui = ["dep:eframe", "dep:toml", "with-client"]
 with-client = ["dep:ureq", "dep:tempfile", "dep:openssl"]
 fuzzing = ["with-server"]  # Exposes the public fuzz entry points in `src/fuzz_api.rs` for the libFuzzer targets in `fuzz/`.
+# Exposes test-support items (e.g. the `ConfigServer`/`ConfigCommander` `Default` impls) to the
+# integration test crate in `tests/`, which links this library normally (without `cfg(test)`). Never
+# enabled by any shipped binary, so this test scaffolding stays out of release artifacts.
+testing = []
 
 
 [[bin]]

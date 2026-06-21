@@ -56,16 +56,16 @@ release_android:
 	nix-shell nix/android.nix --pure --run ./scripts/release_android.sh
 
 coverage:
-	export TEST_UPDATER=1; cargo tarpaulin --features with-client,with-server,with-gui --timeout 360 --engine llvm --out xml --out html
+	export TEST_UPDATER=1; cargo tarpaulin --features with-client,with-server,with-gui,testing --timeout 360 --engine llvm --out xml --out html
 
 test:
-	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui
+	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui,testing
 
 test_unit:
 	cargo nextest run --retries 2 --features with-client,with-server,with-gui --filter-expr 'not binary(integration_test)'
 
 test_integration:
-	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui --filter-expr 'binary(integration_test)'
+	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui,testing --filter-expr 'binary(integration_test)'
 
 check:
 	cargo check --locked --verbose && cargo check --locked --no-default-features --verbose
@@ -89,7 +89,7 @@ audit:
 	cargo deny check
 
 format:
-	cargo fmt && cargo clippy --tests --features with-client,with-server,with-gui --verbose -- -D warnings && cargo fix --allow-dirty --features with-client,with-server,with-gui
+	cargo fmt && cargo clippy --tests --features with-client,with-server,with-gui,testing --verbose -- -D warnings && cargo fix --allow-dirty --features with-client,with-server,with-gui,testing
 
 install_client: release
 	mkdir -p ~/.local/bin/

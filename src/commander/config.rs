@@ -65,6 +65,7 @@ impl ConfigCommander {
     }
 }
 
+#[cfg(any(test, feature = "testing"))]
 impl Default for ConfigCommander {
     fn default() -> ConfigCommander {
         ConfigCommander {

@@ -1,4 +1,9 @@
-#[cfg(all(test, feature = "with-client", feature = "with-server"))]
+#[cfg(all(
+    test,
+    feature = "with-client",
+    feature = "with-server",
+    feature = "testing"
+))]
 mod tests {
     use ruroco::client::config::SendCommand;
     use ruroco::client::gen::Generator;

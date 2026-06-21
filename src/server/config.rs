@@ -10,7 +10,6 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
 use serde::Deserialize;
-use std::env;
 use std::fs;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
@@ -97,12 +96,13 @@ impl ConfigServer {
     }
 }
 
+#[cfg(any(test, feature = "testing"))]
 impl Default for ConfigServer {
     fn default() -> ConfigServer {
         ConfigServer {
             ips: vec![IpAddr::from([127, 0, 0, 1])],
             address: None,
-            config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
+            config_dir: std::env::current_dir().unwrap_or(PathBuf::from("/tmp")),
             blocklist_dir: None,
             socket_dir: None,
             max_requests_per_second: default_max_requests_per_second(),
