@@ -10,10 +10,16 @@ Restart=always
 
 # The commander is a deliberately-generic root command runner: these restrictions are inherited by
 # every shell command it spawns, so they are scoped to keep the documented examples working.
-# CAP_CHOWN: the commander chowns the Unix socket it creates (exec.rs).
+# CAP_CHOWN: the commander chowns the Unix socket it creates (exec.rs); also lets `sed -i` & co.
+#   restore the original owner when rewriting a file they do not own.
+# CAP_DAC_OVERRIDE + CAP_FOWNER: let the root commander read/write/replace files and traverse
+#   directories regardless of their owner or mode (e.g. editing configs owned by www-data/nginx,
+#   not just root) and preserve their mode on rewrite. Without these the commander is uid 0 but
+#   still bound by normal DAC, so it can only touch root-owned paths.
 # CAP_NET_ADMIN + CAP_NET_RAW: needed by the README's ufw/firewall example (editing netfilter).
-# For a systemctl/dbus-only deployment you can tighten this to just CAP_CHOWN.
-CapabilityBoundingSet=CAP_CHOWN CAP_NET_ADMIN CAP_NET_RAW
+# Trim this to the subset your commands.toml actually needs (e.g. just CAP_CHOWN for a
+# systemctl/dbus-only deployment).
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_NET_ADMIN CAP_NET_RAW
 AmbientCapabilities=
 DeviceAllow=
 LockPersonality=true
