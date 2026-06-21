@@ -23,7 +23,11 @@ impl Commander {
 
         let _ = fs::remove_file(&self.socket_path);
 
-        let mode = 0o204; // only server should be able to write, everyone else can read
+        // Connecting to a Unix socket requires *write* permission on the socket file. Owner (the
+        // server user, set via change_socket_ownership) gets write, so only it can connect; group
+        // and others get no write and therefore cannot. The `r` bit for others is inert for a
+        // socket (read perm grants nothing on connect) and is kept only for ls/debugging clarity.
+        let mode = 0o204;
         info(format!("Binding Unix Listener on {:?} with permissions {mode:o}", &self.socket_path));
         let listener = UnixListener::bind(&self.socket_path)
             .with_context(|| format!("Could not bind to socket {:?}", self.socket_path))?;
