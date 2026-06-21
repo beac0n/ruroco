@@ -1,6 +1,7 @@
+use crate::common::fs::write_atomic;
 use anyhow::Context;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -39,9 +40,9 @@ impl Counter {
     }
 
     fn write(&self) -> anyhow::Result<()> {
-        File::create(&self.path)
-            .with_context(|| format!("Could not create counter file {:?}", self.path))?
-            .write_all(&self.count.to_be_bytes())
+        // Atomic temp-file + fsync + rename so a crash mid-write can never leave a torn or
+        // truncated counter on disk (which would weaken replay protection on the next send).
+        write_atomic(&self.path, &self.count.to_be_bytes())
             .with_context(|| format!("Could not write counter file {:?}", self.path))
     }
 
@@ -106,7 +107,7 @@ mod tests {
         let path = PathBuf::from("/tmp/no_such_dir_ruroco_xyz/counter");
         let result = Counter::create_and_init(path, 0);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Could not create counter file"));
+        assert!(result.unwrap_err().to_string().contains("Could not write counter file"));
     }
 
     #[test]

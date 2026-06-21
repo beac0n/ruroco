@@ -1,14 +1,14 @@
 use crate::common::logging::error;
-#[cfg(any(feature = "with-server", feature = "with-gui"))]
+#[cfg(any(feature = "with-client", feature = "with-server"))]
 use crate::common::now_nanos;
 use anyhow::{anyhow, Context};
-#[cfg(any(feature = "with-server", feature = "with-gui"))]
+#[cfg(any(feature = "with-client", feature = "with-server"))]
 use std::io::Write;
 use std::os::unix::fs::chown;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-#[cfg(any(feature = "with-server", feature = "with-gui"))]
+#[cfg(any(feature = "with-client", feature = "with-server"))]
 pub(crate) fn write_atomic(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
     let mut tmp_os = path.as_os_str().to_owned();
     tmp_os.push(format!(".{}.tmp", now_nanos()?));
