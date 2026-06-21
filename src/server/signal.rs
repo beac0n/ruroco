@@ -1,13 +1,8 @@
+use nix::sys::signal::{self, SaFlags, SigAction, SigHandler, SigSet, Signal};
 use std::os::raw::c_int;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
-
-type SignalHandler = extern "C" fn(c_int);
-
-extern "C" {
-    fn signal(sig: c_int, handler: SignalHandler) -> SignalHandler;
-}
 
 extern "C" fn handle_signal(_sig: c_int) {
     SHUTDOWN_REQUESTED.store(true, Ordering::SeqCst);
@@ -18,9 +13,11 @@ pub(crate) fn shutdown_requested() -> bool {
 }
 
 pub(crate) fn install_signal_handlers() {
+    let action =
+        SigAction::new(SigHandler::Handler(handle_signal), SaFlags::empty(), SigSet::empty());
     unsafe {
-        signal(15, handle_signal); // SIGTERM
-        signal(2, handle_signal); // SIGINT
+        let _ = signal::sigaction(Signal::SIGTERM, &action);
+        let _ = signal::sigaction(Signal::SIGINT, &action);
     }
 }
 
