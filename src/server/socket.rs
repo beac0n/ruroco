@@ -46,12 +46,19 @@ impl ConfigServer {
             (Some(listen_pid), Some(_), _, _) if listen_pid != std::process::id().to_string() => {
                 Err(anyhow!("LISTEN_PID ({listen_pid}) does not match current PID"))
             }
-            _ => {
-                let address = format!("[::]:{}", DEFAULT_PORT);
-                info(format!("UdpSocket bind to {address} - fallback"));
-                UdpSocket::bind(&address)
-                    .with_context(|| format!("Could not UdpSocket bind {address:?}"))
-            }
+            _ => match &self.address {
+                Some(address) => {
+                    info(format!("UdpSocket bind to {address} - config.toml address"));
+                    UdpSocket::bind(address)
+                        .with_context(|| format!("Could not UdpSocket bind {address:?}"))
+                }
+                None => {
+                    let address = format!("[::]:{}", DEFAULT_PORT);
+                    info(format!("UdpSocket bind to {address} - fallback"));
+                    UdpSocket::bind(&address)
+                        .with_context(|| format!("Could not UdpSocket bind {address:?}"))
+                }
+            },
         }
     }
 }
@@ -104,6 +111,20 @@ mod tests {
         let config = ConfigServer::default();
         let socket = config.create_server_udp_socket(None).unwrap();
         env::remove_var("RUROCO_LISTEN_ADDRESS");
+        assert_eq!(socket.local_addr().unwrap().port(), port);
+    }
+
+    #[test]
+    fn test_create_udp_socket_from_config_address() {
+        env::remove_var("LISTEN_FDS");
+        env::remove_var("LISTEN_PID");
+        env::remove_var("RUROCO_LISTEN_ADDRESS");
+        let port = crate::server::get_random_range(1024, 65535).unwrap();
+        let config = ConfigServer {
+            address: Some(format!("127.0.0.1:{port}")),
+            ..Default::default()
+        };
+        let socket = config.create_server_udp_socket(None).unwrap();
         assert_eq!(socket.local_addr().unwrap().port(), port);
     }
 

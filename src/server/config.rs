@@ -26,6 +26,12 @@ pub struct CliServer {
 pub struct ConfigServer {
     #[serde(deserialize_with = "deserialize_ips")]
     pub ips: Vec<IpAddr>,
+    /// Address the server binds when systemd socket activation is NOT used. Lower priority than an
+    /// explicit CLI/arg address, `RUROCO_LISTEN_ADDRESS`, and systemd socket activation; higher than
+    /// the built-in `[::]:DEFAULT_PORT` fallback. Ignored under socket activation (the inherited fd
+    /// wins), so the shipped systemd deployment is unaffected.
+    #[serde(default)]
+    pub address: Option<String>,
     #[serde(default = "default_config_path")]
     pub config_dir: PathBuf,
     /// Directory holding the persisted blocklist (`blocklist.msgpck`). When unset it defaults to
@@ -75,6 +81,7 @@ impl Default for ConfigServer {
     fn default() -> ConfigServer {
         ConfigServer {
             ips: vec![IpAddr::from([127, 0, 0, 1])],
+            address: None,
             config_dir: env::current_dir().unwrap_or(PathBuf::from("/tmp")),
             blocklist_dir: None,
             socket_dir: None,
@@ -114,6 +121,7 @@ mod tests {
             ConfigServer::deserialize("ips = [\"127.0.0.1\"]").unwrap(),
             ConfigServer {
                 ips: vec!["127.0.0.1".parse().unwrap()],
+                address: None,
                 config_dir: default_config_path(),
                 blocklist_dir: None,
                 socket_dir: None,
