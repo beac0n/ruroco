@@ -64,8 +64,19 @@ impl Server {
         key_id: [u8; crate::common::protocol::KEY_ID_SIZE],
         counter: u128,
     ) -> anyhow::Result<()> {
-        self.blocklist.add(key_id, counter);
-        self.blocklist.save().with_context(|| "Could not update block list")
+        let previous = self.blocklist.get_counter(key_id).copied();
+        self.blocklist.upsert(key_id, counter);
+        if let Err(e) = self.blocklist.save() {
+            // Persist failed: roll the in-memory advance back so this counter is not silently
+            // consumed. The caller aborts before executing, so the client can retry the same
+            // counter once the underlying issue (e.g. disk full) clears.
+            match previous {
+                Some(prev) => self.blocklist.upsert(key_id, prev),
+                None => self.blocklist.remove(key_id),
+            }
+            return Err(e).with_context(|| "Could not update block list");
+        }
+        Ok(())
     }
 
     pub(super) fn send_command(&self, data: CommanderData) {

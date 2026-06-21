@@ -74,8 +74,13 @@ impl Blocklist {
         &self.map
     }
 
-    pub(crate) fn add(&mut self, key_id: [u8; KEY_ID_SIZE], entry: u128) {
+    /// Insert the counter for `key_id`, overwriting any existing value.
+    pub(crate) fn upsert(&mut self, key_id: [u8; KEY_ID_SIZE], entry: u128) {
         self.map.insert(key_id, entry);
+    }
+
+    pub(crate) fn remove(&mut self, key_id: [u8; KEY_ID_SIZE]) {
+        self.map.remove(&key_id);
     }
 
     pub(crate) fn save(&self) -> anyhow::Result<()> {
@@ -102,12 +107,12 @@ mod tests {
     }
 
     #[test]
-    fn test_add() {
+    fn test_upsert() {
         let mut blocklist = create_blocklist();
         let key_id = [0u8; 8];
         let number: u128 = 42;
 
-        blocklist.add(key_id, number);
+        blocklist.upsert(key_id, number);
         assert_eq!(blocklist.get().len(), 1);
 
         assert_eq!(blocklist.get().get(&key_id).unwrap().clone(), number);
@@ -120,7 +125,7 @@ mod tests {
         let mut blocklist = create_blocklist();
 
         let key_id = [0u8; 8];
-        blocklist.add(key_id, 42);
+        blocklist.upsert(key_id, 42);
         blocklist.save().unwrap();
 
         let other_blocklist = Blocklist::create(&env::current_dir().unwrap()).unwrap();
@@ -134,7 +139,7 @@ mod tests {
     fn test_is_blocked() {
         let mut blocklist = create_blocklist();
         let key_id = [0u8; 8];
-        blocklist.add(key_id, 42);
+        blocklist.upsert(key_id, 42);
 
         assert!(blocklist.is_counter_replayed(key_id, 42));
         assert!(!blocklist.is_counter_replayed(key_id, 43));
@@ -153,7 +158,7 @@ mod tests {
         let key_id = [0u8; 8];
         assert_eq!(blocklist.get_counter(key_id), None);
 
-        blocklist.add(key_id, 100);
+        blocklist.upsert(key_id, 100);
         assert_eq!(blocklist.get_counter(key_id), Some(&100));
 
         let unknown_key_id = [1u8; 8];
@@ -166,7 +171,7 @@ mod tests {
     fn test_is_blocked_lower_counter() {
         let mut blocklist = create_blocklist();
         let key_id = [0u8; 8];
-        blocklist.add(key_id, 100);
+        blocklist.upsert(key_id, 100);
 
         // Counter equal to stored value should be blocked
         assert!(blocklist.is_counter_replayed(key_id, 100));
