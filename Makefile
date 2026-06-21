@@ -119,7 +119,7 @@ clean_test_end_to_end:
 	sudo systemctl stop ruroco.service || true
 	sudo systemctl daemon-reload || true
 
-	sudo rm -rf /tmp/ruroco_test
+	sudo rm -rf /opt/ruroco_test
 	sudo rm -rf /etc/ruroco
 	sudo rm -f /run/systemd/system/ruroco-commander.service /run/systemd/system/ruroco.service /run/systemd/system/ruroco.socket
 	rm -f ~/.config/ruroco/counter

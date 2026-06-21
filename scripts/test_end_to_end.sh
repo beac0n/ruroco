@@ -18,7 +18,10 @@ sudo cp ./tests/files/config_end_to_end.toml /etc/ruroco/config.toml
 sudo cp ./tests/files/commands_end_to_end.toml /etc/ruroco/commands.toml
 sudo chmod 400 /etc/ruroco/ruroco.key
 
-sudo chown -R ruroco:ruroco /opt/ruroco_test
+# Leave /opt/ruroco_test owned by root: the commander runs as root but with a restricted
+# CapabilityBoundingSet that excludes CAP_DAC_OVERRIDE, so it can only write where it is the owner.
+# The default command writes its marker files here, so the dir must stay root-owned (mode 755 still
+# lets the unprivileged ruroco server exec its binary via the other r-x bits).
 sudo chown -R ruroco:ruroco /etc/ruroco
 
 # commands.toml is read only by commander (root); the unprivileged server user must not be able to read the command set.
