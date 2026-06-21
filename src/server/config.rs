@@ -24,6 +24,9 @@ pub struct CliServer {
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ConfigServer {
+    /// Destination IPs the server accepts (the `dst_ip` carried in a packet must be one of these).
+    /// Set to the server's own public address(es). Parsed and `normalize_ip`'d on load, so an
+    /// IPv6-mapped IPv4 entry collapses to plain IPv4.
     #[serde(deserialize_with = "deserialize_ips")]
     pub ips: Vec<IpAddr>,
     /// Address the server binds when systemd socket activation is NOT used. Lower priority than an
@@ -32,6 +35,9 @@ pub struct ConfigServer {
     /// wins), so the shipped systemd deployment is unaffected.
     #[serde(default)]
     pub address: Option<String>,
+    /// Directory the server reads its `.key` files from (and the default location for the blocklist
+    /// and socket when their dedicated dirs are unset). Shared with the commander, which must agree
+    /// on it so both resolve the same `ruroco.socket`. Defaults to `/etc/ruroco`.
     #[serde(default = "default_config_path")]
     pub config_dir: PathBuf,
     /// Directory holding the persisted blocklist (`blocklist.msgpck`). When unset it defaults to
@@ -45,8 +51,22 @@ pub struct ConfigServer {
     /// commander. Server and commander MUST resolve the same path.
     #[serde(default)]
     pub socket_dir: Option<PathBuf>,
+    /// Per-source-IP cap on accepted requests per second (~1s sliding window). Throttles a single
+    /// chatty or abusive peer; see `max_requests_per_second_global` for the all-sources cap that
+    /// covers spoofed-IP floods. In-memory only, so it resets on restart and is throttling, not
+    /// replay defense. Defaults to 2.
     #[serde(default = "default_max_requests_per_second")]
     pub max_requests_per_second: u32,
+    /// Global cap on accepted requests per second across ALL source IPs. Bounds total work (mainly
+    /// decrypt attempts) under a spoofed-source-IP flood, which the per-IP limit cannot stop because
+    /// each spoofed address looks like a fresh peer. Keep comfortably above expected legitimate
+    /// aggregate traffic.
+    #[serde(default = "default_max_requests_per_second_global")]
+    pub max_requests_per_second_global: u32,
+    /// Upper bound, in seconds, by which an accepted counter (a nanosecond timestamp) may exceed
+    /// server-local `now`. A future-dated packet beyond this is rejected without touching the
+    /// blocklist, so it can't permanently lock out a key; see `default_max_clock_skew_seconds`.
+    /// Defaults to 3600.
     #[serde(default = "default_max_clock_skew_seconds")]
     pub max_clock_skew_seconds: u64,
 }
@@ -86,6 +106,7 @@ impl Default for ConfigServer {
             blocklist_dir: None,
             socket_dir: None,
             max_requests_per_second: default_max_requests_per_second(),
+            max_requests_per_second_global: default_max_requests_per_second_global(),
             max_clock_skew_seconds: default_max_clock_skew_seconds(),
         }
     }
@@ -93,6 +114,10 @@ impl Default for ConfigServer {
 
 fn default_max_requests_per_second() -> u32 {
     2
+}
+
+fn default_max_requests_per_second_global() -> u32 {
+    100
 }
 
 /// Upper bound, in seconds, by which an accepted counter (a nanosecond timestamp) may exceed
@@ -112,7 +137,7 @@ fn default_config_path() -> PathBuf {
 mod tests {
     use super::{
         default_config_path, default_max_clock_skew_seconds, default_max_requests_per_second,
-        ConfigServer,
+        default_max_requests_per_second_global, ConfigServer,
     };
 
     #[test]
@@ -126,6 +151,7 @@ mod tests {
                 blocklist_dir: None,
                 socket_dir: None,
                 max_requests_per_second: default_max_requests_per_second(),
+                max_requests_per_second_global: default_max_requests_per_second_global(),
                 max_clock_skew_seconds: default_max_clock_skew_seconds(),
             }
         );

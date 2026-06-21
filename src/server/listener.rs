@@ -98,7 +98,11 @@ impl Server {
     }
 
     fn check_rate_limit(&mut self, src_ip: IpAddr) -> anyhow::Result<()> {
-        self.rate_limiter.check(src_ip, self.config.max_requests_per_second)
+        self.rate_limiter.check(
+            src_ip,
+            self.config.max_requests_per_second,
+            self.config.max_requests_per_second_global,
+        )
     }
 
     fn decrypt(&mut self) -> anyhow::Result<([u8; KEY_ID_SIZE], [u8; PLAINTEXT_SIZE])> {
