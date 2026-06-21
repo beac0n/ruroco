@@ -372,8 +372,12 @@ ruroco-client send --address host.domain:80 --command open_port --key "$(secret-
 ```
 
 If you want to authorize a different address than the one you are sending from (for example your external IP
-behind NAT), pass it with `--ip` together with `--permissive`. To make sure an adversary cannot spoof your
-source IP, fetch your real external address from a service — the server verifies that the addresses match:
+when sending from behind NAT, or another host entirely), pass it with `--ip` together with `--permissive`. In
+permissive mode the server does **not** check the supplied IP against the packet's real source: it trusts
+whatever `--ip` you send and uses it for `$RUROCO_IP`. Anyone holding the shared key can therefore authorize
+any routable IP, so guard the key accordingly. (Without `--permissive` the default is strict: if you pass
+`--ip` the server rejects the packet unless it matches the real source, and `$RUROCO_IP` is always the
+verified sender.) Fetch your external address from a service when you need it:
 
 ```shell
 ruroco-client send --address host.domain:80 --command open_port --ip $(curl -s https://api64.ipify.org) --key "$(secret-tool lookup token ruroco)"
