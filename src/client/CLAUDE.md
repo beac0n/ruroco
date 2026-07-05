@@ -17,4 +17,4 @@ go through the conf dir (`config::get_conf_dir`). `anyhow::Result` + `.with_cont
 no panics in production.
 
 Tests: `set_test_conf_dir()` returns a `tempfile::tempdir()` and sets `RUROCO_CONF_DIR` to isolate
-each test; update tests are gated behind the `TEST_UPDATER` env (real network).
+each test; update tests are gated behind the `TEST_ONLINE` env (real network).
