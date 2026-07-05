@@ -1,12 +1,11 @@
-use crate::client::config::CliClient;
-use crate::client::run_client_send;
-use crate::common::logging::error;
+use crate::client::config::SendCommand;
+use crate::client::send::Sender;
+use crate::common::logging::{error, info};
 use crate::ui::app::{ExecuteState, Status, StatusKey};
 use crate::ui::colors;
-use crate::ui::command_data::{data_to_command, CommandData};
+use crate::ui::command_data::CommandData;
 use crate::ui::saved_command_list::CommandsList;
 use crate::ui::tabs::widgets;
-use clap::Parser;
 use eframe::egui;
 
 pub(crate) fn render(
@@ -65,16 +64,25 @@ pub(crate) fn render(
 }
 
 fn exec_command(state: &mut ExecuteState, key: &str, cmd: CommandData) {
-    use crate::common::logging::info;
     info(format!("Executing command: {}", cmd.name));
 
-    let key = key.trim().to_string();
-    let cmd_str = data_to_command(&cmd, if key.is_empty() { None } else { Some(key) });
-    let mut cmd_vec: Vec<&str> = cmd_str.split_whitespace().collect();
-    cmd_vec.insert(0, "ruroco");
+    let ip = cmd.ip.trim();
+    let send_command = SendCommand {
+        address: cmd.address.clone(),
+        command: cmd.command.clone(),
+        permissive: cmd.permissive,
+        ip: if ip.is_empty() {
+            None
+        } else {
+            Some(ip.to_string())
+        },
+        ipv4: cmd.ipv4,
+        ipv6: cmd.ipv6,
+        key: key.trim().to_string(),
+        ..Default::default()
+    };
 
-    let result =
-        CliClient::try_parse_from(cmd_vec).map_err(anyhow::Error::from).and_then(run_client_send);
+    let result = Sender::create(send_command).and_then(|mut sender| sender.send());
 
     match result {
         Ok(_) => {

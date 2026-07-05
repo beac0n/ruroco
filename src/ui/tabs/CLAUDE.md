@@ -5,8 +5,9 @@ Three tabs, each a `render(state, commands_list, ui)` function dispatched from `
 - `dashboard.rs`: config + key management, delegating to sub-views `dashboard_config.rs` and
   `dashboard_key.rs`.
 - `create.rs`: form to build a `CommandData`; "Add" appends to `commands_list` (which auto-saves).
-- `execute.rs`: list of saved commands with run/delete; running calls the client's send path
-  **synchronously** (no async, so a slow send blocks the UI thread) and colors the row by status.
+- `execute.rs`: list of saved commands with run/delete; running builds a `SendCommand` directly
+  from `CommandData` and calls `Sender::create(..).send()` **synchronously** (no async, so a slow
+  send blocks the UI thread) and colors the row by status.
 
 Shared styling helpers live in `widgets.rs` (`bordered`, `icon_button`, `equal_buttons`,
 clipboard buttons that branch desktop vs Android).
