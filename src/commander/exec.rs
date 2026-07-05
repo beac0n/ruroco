@@ -103,9 +103,25 @@ pub fn run_commander(commander: CliCommander) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::run_commander;
-    use crate::commander::CliCommander;
+    use super::{run_commander, Commander};
+    use crate::commander::{CliCommander, ConfigCommander, ConfigCommands};
+    use std::collections::HashMap;
+    use std::net::IpAddr;
     use std::path::PathBuf;
+
+    fn create_commander(config_dir: PathBuf, allow_non_routable_ips: bool) -> Commander {
+        Commander::create(
+            ConfigCommander {
+                config_dir,
+                allow_non_routable_ips,
+                ..Default::default()
+            },
+            ConfigCommands {
+                commands: HashMap::new(),
+            },
+        )
+        .unwrap()
+    }
 
     #[test]
     fn test_run_commander_invalid_path() {
@@ -114,5 +130,70 @@ mod tests {
             commands: PathBuf::from("/nonexistent/ruroco_test_commands.toml"),
         };
         assert!(run_commander(commander).is_err());
+    }
+
+    #[test]
+    fn test_is_ip_allowed_rejects_non_routable() {
+        // Every category the guard rejects: unspecified, loopback, multicast, and the v4/v6
+        // private/link-local/ULA/broadcast/documentation ranges. run_command only consults this
+        // guard when allow_non_routable_ips is false; the flag bypasses it entirely.
+        let rejected = [
+            "0.0.0.0",         // unspecified v4
+            "::",              // unspecified v6
+            "127.0.0.1",       // loopback v4
+            "::1",             // loopback v6
+            "10.0.0.1",        // private v4 (10.0.0.0/8)
+            "172.16.0.1",      // private v4 (172.16.0.0/12)
+            "192.168.1.1",     // private v4 (192.168.0.0/16)
+            "169.254.1.1",     // link-local v4
+            "fe80::1",         // link-local v6
+            "fc00::1",         // unique local v6 (fc00::/8)
+            "fd00::1",         // unique local v6 (fd00::/8)
+            "224.0.0.1",       // multicast v4
+            "ff02::1",         // multicast v6
+            "192.0.2.1",       // documentation v4 (TEST-NET-1)
+            "198.51.100.1",    // documentation v4 (TEST-NET-2)
+            "203.0.113.1",     // documentation v4 (TEST-NET-3)
+            "255.255.255.255", // broadcast v4
+        ];
+
+        for ip in rejected {
+            let addr: IpAddr = ip.parse().unwrap();
+            assert!(!Commander::is_ip_allowed(addr), "expected {ip} to be rejected");
+        }
+    }
+
+    #[test]
+    fn test_is_ip_allowed_accepts_public_unicast() {
+        let allowed = [
+            "1.2.3.4",              // public unicast v4
+            "8.8.8.8",              // public unicast v4
+            "2606:4700:4700::1111", // public unicast v6
+        ];
+
+        for ip in allowed {
+            let addr: IpAddr = ip.parse().unwrap();
+            assert!(Commander::is_ip_allowed(addr), "expected {ip} to be accepted");
+        }
+    }
+
+    #[test]
+    fn test_run_command_rejects_loopback_when_not_allowed() {
+        let dir = tempfile::tempdir().unwrap();
+        let output_file = dir.path().join("rejected.txt");
+        let output_path = output_file.to_str().unwrap();
+        create_commander(dir.path().to_path_buf(), false)
+            .run_command(&format!("touch {output_path}"), "127.0.0.1".parse().unwrap());
+        assert!(!output_file.exists(), "command must not run for a rejected IP");
+    }
+
+    #[test]
+    fn test_run_command_accepts_loopback_when_allowed() {
+        let dir = tempfile::tempdir().unwrap();
+        let output_file = dir.path().join("accepted.txt");
+        let output_path = output_file.to_str().unwrap();
+        create_commander(dir.path().to_path_buf(), true)
+            .run_command(&format!("touch {output_path}"), "127.0.0.1".parse().unwrap());
+        assert!(output_file.exists(), "command must run when non-routable IPs are allowed");
     }
 }
