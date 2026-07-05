@@ -1,4 +1,8 @@
 #![allow(clippy::too_long_first_doc_paragraph)]
+// Unsafe is limited to two audited FFI/syscall spots (systemd socket activation, signal handler
+// registration) and the Android JNI bridge, each carrying its own `#[allow(unsafe_code)]` with a
+// SAFETY justification. Everything else must stay safe Rust.
+#![deny(unsafe_code)]
 
 /// provides functionality to sending data to the server and for generating key file
 #[cfg(feature = "with-client")]

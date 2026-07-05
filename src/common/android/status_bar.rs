@@ -1,3 +1,9 @@
+//! JNI FFI to the Android platform (JavaVM::from_raw, JObject::from_raw, and similar raw handle
+//! casts). Only compiled under cfg(target_os = "android"); the raw pointers come from ndk_context
+//! and are valid for the life of the activity, so the crate-wide `#![deny(unsafe_code)]` is
+//! relaxed here rather than annotated per call site.
+#![allow(unsafe_code)]
+
 use super::util::AndroidUtil;
 use anyhow::Context;
 use jni::objects::{JObject, JValue};

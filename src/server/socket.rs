@@ -8,6 +8,7 @@ use std::os::fd::{FromRawFd, RawFd};
 pub(crate) use crate::common::FALLBACK_BIND_PORT;
 
 impl ConfigServer {
+    #[allow(unsafe_code)]
     pub(crate) fn create_server_udp_socket(
         &self,
         address: Option<String>,

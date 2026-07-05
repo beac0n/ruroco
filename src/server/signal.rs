@@ -12,9 +12,13 @@ pub(crate) fn shutdown_requested() -> bool {
     SHUTDOWN_REQUESTED.load(Ordering::SeqCst)
 }
 
+#[allow(unsafe_code)]
 pub(crate) fn install_signal_handlers() {
     let action =
         SigAction::new(SigHandler::Handler(handle_signal), SaFlags::empty(), SigSet::empty());
+    // SAFETY: `handle_signal` only stores to an atomic (async-signal-safe) and installs no other
+    // state; replacing the default SIGTERM/SIGINT disposition here is the documented use of
+    // sigaction and does not race with any other signal-handling code in this process.
     unsafe {
         let _ = signal::sigaction(Signal::SIGTERM, &action);
         let _ = signal::sigaction(Signal::SIGINT, &action);
