@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 #[derive(Debug, PartialEq)]
 pub struct Commander {
@@ -65,6 +66,10 @@ impl Commander {
     }
 
     fn run_cycle(&self, stream: &mut UnixStream) -> anyhow::Result<()> {
+        stream
+            .set_read_timeout(Some(Duration::from_secs(1)))
+            .with_context(|| format!("Could not set read timeout for {:?}", &self.socket_path))?;
+
         let msg = Commander::read(stream)?;
         let cmdr_data: CommanderData = msg.into();
         let cmd_hash = &cmdr_data.cmd_hash;
