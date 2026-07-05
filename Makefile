@@ -59,13 +59,13 @@ coverage:
 	export TEST_UPDATER=1; cargo tarpaulin --features with-client,with-server,with-gui,testing --timeout 360 --engine llvm --out xml --out html
 
 test:
-	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui,testing
+	export TEST_UPDATER=1; cargo nextest run --features with-client,with-server,with-gui,testing
 
 test_unit:
-	cargo nextest run --retries 2 --features with-client,with-server,with-gui --filter-expr 'not binary(integration_test)'
+	cargo nextest run --features with-client,with-server,with-gui --filter-expr 'not binary(integration_test)'
 
 test_integration:
-	export TEST_UPDATER=1; cargo nextest run --retries 2 --features with-client,with-server,with-gui,testing --filter-expr 'binary(integration_test)'
+	export TEST_UPDATER=1; cargo nextest run --features with-client,with-server,with-gui,testing --filter-expr 'binary(integration_test)'
 
 check:
 	cargo check --locked --verbose && cargo check --locked --no-default-features --verbose

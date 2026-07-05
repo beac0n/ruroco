@@ -33,6 +33,21 @@ mod tests {
         false
     }
 
+    /// Poll until `path` exists (a socket bind or readiness marker), up to `timeout`, with
+    /// exponential backoff. Returns whether the path appeared before the deadline.
+    fn wait_for_path_exists(path: &Path, timeout: Duration) -> bool {
+        let deadline = Instant::now() + timeout;
+        let mut interval = Duration::from_millis(10);
+        while Instant::now() < deadline {
+            if path.exists() {
+                return true;
+            }
+            thread::sleep(interval);
+            interval = (interval * 2).min(Duration::from_millis(250));
+        }
+        false
+    }
+
     const TEST_IP_V4: &str = "192.168.178.123";
     const TEST_IP_V6: &str = "dead:beef:dead:beef:dead:beef:dead:beef";
 
@@ -42,6 +57,8 @@ mod tests {
         socket_path: PathBuf,
         blocklist_path: PathBuf,
         key_path: PathBuf,
+        counter_path: PathBuf,
+        server_ready_path: PathBuf,
         server_address: String,
         config_dir: PathBuf,
         test_file_exists: bool,
@@ -62,6 +79,8 @@ mod tests {
                 socket_path: get_commander_unix_socket_path(test_folder_path),
                 blocklist_path: Blocklist::get_blocklist_path(test_folder_path),
                 key_path: test_folder_path.join("test.key"),
+                counter_path: test_folder_path.join("counter"),
+                server_ready_path: test_folder_path.join("server.ready"),
                 server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
                 block_list_exists: true,
@@ -72,12 +91,14 @@ mod tests {
         }
 
         fn get_server_address(host: &str) -> String {
-            // Test-only random port in [1024, 65535); seeded from the wall clock to avoid pulling a
-            // crypto RNG into the test crate.
-            let nanos =
-                SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().subsec_nanos();
-            let server_port = 1024 + (nanos % (65535 - 1024));
-            format!("{host}:{server_port}")
+            // Bind an ephemeral port on `host`, read it back, then release it so the server can
+            // claim the same port. A tiny TOCTOU window remains between drop and the server's
+            // rebind, but this is far less collision-prone than a wall-clock-derived port.
+            let probe = std::net::UdpSocket::bind(format!("{host}:0"))
+                .expect("could not bind probe socket");
+            let port = probe.local_addr().expect("could not read probe address").port();
+            drop(probe);
+            format!("{host}:{port}")
         }
 
         fn run_client_gen(&self) {
@@ -132,14 +153,22 @@ mod tests {
                 .run()
                 .expect("commander terminated")
             });
-            thread::sleep(Duration::from_secs(2));
+            // The commander binds its Unix socket during startup; wait for that observable effect
+            // instead of a fixed sleep.
+            assert!(
+                wait_for_path_exists(&self.socket_path, Duration::from_secs(10)),
+                "commander socket was not created"
+            );
         }
 
         fn run_server(&self) {
             let config_dir = self.config_dir.clone();
             let server_address = self.server_address.clone();
+            let server_ready_path = self.server_ready_path.clone();
             thread::spawn(move || {
-                Server::create(
+                // `Server::create` binds the UDP socket, so once it returns Ok the server is
+                // listening. Signal that via a marker file, then enter the run loop.
+                let mut server = Server::create(
                     ConfigServer {
                         config_dir,
                         ips: vec![
@@ -151,11 +180,16 @@ mod tests {
                     },
                     Some(server_address),
                 )
-                .expect("could not create server")
-                .run()
-                .expect("server terminated")
+                .expect("could not create server");
+                fs::write(&server_ready_path, b"ready")
+                    .expect("could not write server ready marker");
+                server.run().expect("server terminated")
             });
-            thread::sleep(Duration::from_secs(2));
+            // Wait for the socket bind (marker file) before letting the client send its datagram.
+            assert!(
+                wait_for_path_exists(&self.server_ready_path, Duration::from_secs(10)),
+                "server did not become ready"
+            );
         }
 
         fn with_ipv6(&mut self) -> &mut TestData {
@@ -208,13 +242,14 @@ mod tests {
 
         test_data.run_client_send();
         let _ = fs::remove_file(&test_data.test_file_path);
-        let counter_path = Sender::get_counter_path().unwrap();
-        let bytes: [u8; 16] = fs::read(&counter_path)
+        // Read/rewrite the counter from this test's tempdir, never the developer's real config.
+        let counter_path = &test_data.counter_path;
+        let bytes: [u8; 16] = fs::read(counter_path)
             .expect("could not read counter file")
             .try_into()
             .expect("counter file has wrong size");
         let count = u128::from_be_bytes(bytes);
-        fs::write(&counter_path, (count - 1).to_be_bytes()).expect("could not write counter");
+        fs::write(counter_path, (count - 1).to_be_bytes()).expect("could not write counter");
 
         test_data.run_client_send();
         test_data.assert_file_paths();
