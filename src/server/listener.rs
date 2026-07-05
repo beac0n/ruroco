@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_loop_iteration_invalid_read_count() {
-        let mut server = create_server().expect("could not create server");
+        let (_temp_dir, mut server) = create_server().expect("could not create server");
         let success_data: io::Result<(usize, SocketAddr)> =
             Ok((0, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
 
@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_loop_iteration_decrypt_error() {
-        let mut server = create_server().expect("could not create server");
+        let (_temp_dir, mut server) = create_server().expect("could not create server");
         let success_data: io::Result<(usize, SocketAddr)> =
             Ok((MSG_SIZE, SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)));
         assert_eq!(
@@ -263,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_loop_iteration_error() {
-        let mut server = create_server().expect("could not create server");
+        let (_temp_dir, mut server) = create_server().expect("could not create server");
         let error_data: io::Result<(usize, SocketAddr)> =
             Err(io::Error::other("An error occurred"));
 
@@ -273,20 +273,24 @@ mod tests {
         );
     }
 
-    fn create_server() -> anyhow::Result<Server> {
+    /// The returned `TempDir` must be kept in scope for the server's lifetime: it backs the
+    /// server's config/blocklist dir, and dropping it would remove that directory out from under
+    /// a running server (e.g. blocklist saves would start failing).
+    fn create_server() -> anyhow::Result<(tempfile::TempDir, Server)> {
         let temp_dir = tempfile::tempdir()?;
-        let test_folder_path = temp_dir.keep();
+        let test_folder_path = temp_dir.path().to_path_buf();
 
         let key_path = test_folder_path.join("test.key");
         fs::write(&key_path, Generator::create()?.gen()?)?;
 
-        Server::create(
+        let server = Server::create(
             ConfigServer {
-                config_dir: test_folder_path.clone(),
+                config_dir: test_folder_path,
                 ..Default::default()
             },
             Some(format!("127.0.0.1:{}", get_random_range(1024, 65535)?)),
-        )
+        )?;
+        Ok((temp_dir, server))
     }
 
     fn create_server_with_key_in_dir(config_dir: PathBuf) -> anyhow::Result<(Server, String)> {
@@ -313,9 +317,12 @@ mod tests {
         assert!(super::run_server(server).is_err());
     }
 
-    fn create_server_with_key() -> anyhow::Result<(Server, String)> {
+    /// The returned `TempDir` must be kept in scope for the server's lifetime; see
+    /// `create_server`.
+    fn create_server_with_key() -> anyhow::Result<(tempfile::TempDir, Server, String)> {
         let temp_dir = tempfile::tempdir()?;
-        create_server_with_key_in_dir(temp_dir.keep())
+        let (server, key) = create_server_with_key_in_dir(temp_dir.path().to_path_buf())?;
+        Ok((temp_dir, server, key))
     }
 
     fn localhost_src(port: u16) -> io::Result<(usize, SocketAddr)> {
@@ -344,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_validate_blocked_counter() {
-        let (mut server, key) = create_server_with_key().unwrap();
+        let (_temp_dir, mut server, key) = create_server_with_key().unwrap();
         let localhost = "127.0.0.1".parse().unwrap();
         let counter =
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
@@ -368,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_validate_future_counter_rejected_and_does_not_poison_blocklist() {
-        let (mut server, key) = create_server_with_key().unwrap();
+        let (_temp_dir, mut server, key) = create_server_with_key().unwrap();
         let localhost: IpAddr = "127.0.0.1".parse().unwrap();
         let now =
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
@@ -393,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_validate_future_counter_within_skew_passes() {
-        let (mut server, key) = create_server_with_key().unwrap();
+        let (_temp_dir, mut server, key) = create_server_with_key().unwrap();
         let localhost: IpAddr = "127.0.0.1".parse().unwrap();
         let now =
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
@@ -413,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_validate_invalid_destination_ip() {
-        let (mut server, key) = create_server_with_key().unwrap();
+        let (_temp_dir, mut server, key) = create_server_with_key().unwrap();
         load_encrypted_packet(
             &mut server,
             &key,
@@ -432,7 +439,7 @@ mod tests {
 
     #[test]
     fn test_validate_invalid_source_ip() {
-        let (mut server, key) = create_server_with_key().unwrap();
+        let (_temp_dir, mut server, key) = create_server_with_key().unwrap();
         load_encrypted_packet(
             &mut server,
             &key,
@@ -471,7 +478,7 @@ mod tests {
                     allow_non_routable_ips: true,
                     ..Default::default()
                 },
-                ConfigCommands { commands: cmds },
+                ConfigCommands::from_map(cmds),
             )
             .unwrap()
             .run()
@@ -514,7 +521,7 @@ mod tests {
         use crate::common::ipc::CommanderData;
 
         let dir = tempfile::tempdir().unwrap();
-        let (mut server, _key) = create_server_with_key().unwrap();
+        let (_temp_dir, mut server, _key) = create_server_with_key().unwrap();
         server.socket_path = dir.path().join("nonexistent.socket");
 
         assert!(server
@@ -532,7 +539,7 @@ mod tests {
         use crate::common::ipc::CommanderData;
 
         let dir = tempfile::tempdir().unwrap();
-        let (mut server, _key) = create_server_with_key().unwrap();
+        let (_temp_dir, mut server, _key) = create_server_with_key().unwrap();
         server.socket_path = dir.path().join("nonexistent.socket");
         // send_command swallows the error and logs it — must not panic
         server.send_command(CommanderData {
@@ -570,7 +577,7 @@ mod tests {
 
     #[test]
     fn test_validate_ipv6_mapped_ipv4() {
-        let (mut server, key) = create_server_with_key().unwrap();
+        let (_temp_dir, mut server, key) = create_server_with_key().unwrap();
         let localhost = "127.0.0.1".parse().unwrap();
         load_encrypted_packet(
             &mut server,
@@ -593,7 +600,7 @@ mod tests {
     #[test]
     fn test_rate_limit_blocks_excess_requests() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let test_folder_path = temp_dir.keep();
+        let test_folder_path = temp_dir.path().to_path_buf();
         fs::write(test_folder_path.join("test.key"), Generator::create().unwrap().gen().unwrap())
             .unwrap();
 
@@ -617,7 +624,7 @@ mod tests {
     #[test]
     fn test_rate_limit_resets_after_window() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let test_folder_path = temp_dir.keep();
+        let test_folder_path = temp_dir.path().to_path_buf();
         fs::write(test_folder_path.join("test.key"), Generator::create().unwrap().gen().unwrap())
             .unwrap();
 
