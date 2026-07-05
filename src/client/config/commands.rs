@@ -55,10 +55,7 @@ pub(crate) struct UpdateCommand {
 }
 
 #[derive(Parser, Debug)]
-pub(crate) struct WizardCommand {
-    #[arg(short, long)]
-    pub(crate) force: bool,
-}
+pub(crate) struct WizardCommand {}
 
 impl Default for SendCommand {
     fn default() -> SendCommand {
