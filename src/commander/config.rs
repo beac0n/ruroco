@@ -15,6 +15,10 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+/// Default execution timeout for a command that doesn't specify `timeout_sec`.
+pub(crate) const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 /// The commander reads two files: the shared `config.toml` and its own `commands.toml`. Both paths
 /// are configurable so the command set can be relocated independently of the server config.
@@ -90,11 +94,51 @@ fn default_socket_group() -> String {
     "ruroco".to_string()
 }
 
+/// A single entry in `commands.toml`: either the plain shell command string (default timeout), or
+/// a table overriding the timeout. `#[serde(untagged)]` lets both forms live in the same map.
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[serde(untagged)]
+pub(crate) enum CommandValue {
+    Plain(String),
+    Detailed {
+        cmd: String,
+        #[serde(default = "default_timeout_sec")]
+        timeout_sec: u64,
+    },
+}
+
+impl CommandValue {
+    fn cmd(&self) -> &str {
+        match self {
+            CommandValue::Plain(cmd) => cmd,
+            CommandValue::Detailed { cmd, .. } => cmd,
+        }
+    }
+
+    fn timeout(&self) -> Duration {
+        match self {
+            CommandValue::Plain(_) => Duration::from_secs(DEFAULT_TIMEOUT_SECS),
+            CommandValue::Detailed { timeout_sec, .. } => Duration::from_secs(*timeout_sec),
+        }
+    }
+}
+
+fn default_timeout_sec() -> u64 {
+    DEFAULT_TIMEOUT_SECS
+}
+
+/// A resolved command: the shell command to run plus how long it may run before being killed.
+#[derive(Debug, PartialEq, Clone)]
+pub(crate) struct CommandSpec {
+    pub(crate) cmd: String,
+    pub(crate) timeout: Duration,
+}
+
 /// Commander-only configuration: the map of command name -> shell command. Kept in a separate
 /// file (`commands.toml`) so the network-facing server process never loads it.
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ConfigCommands {
-    pub commands: HashMap<String, String>,
+    pub(crate) commands: HashMap<String, CommandValue>,
 }
 
 impl ConfigCommands {
@@ -112,12 +156,27 @@ impl ConfigCommands {
             .with_context(|| format!("Could not create ConfigCommands from {data}"))
     }
 
-    pub(crate) fn get_hash_to_cmd(&self) -> anyhow::Result<HashMap<u64, String>> {
+    /// Build a `ConfigCommands` from plain name -> shell command pairs, all at the default
+    /// timeout. A one-line migration path for call sites that used to build the struct literal
+    /// directly, before per-command timeouts existed.
+    pub fn from_map(commands: HashMap<String, String>) -> ConfigCommands {
+        ConfigCommands {
+            commands: commands.into_iter().map(|(k, v)| (k, CommandValue::Plain(v))).collect(),
+        }
+    }
+
+    pub(crate) fn get_hash_to_cmd(&self) -> anyhow::Result<HashMap<u64, CommandSpec>> {
         self.commands
             .iter()
             .map(|(k, v)| {
                 let hash = blake2b_u64(k).with_context(|| format!("Could not hash {k}"))?;
-                Ok((hash, v.clone()))
+                Ok((
+                    hash,
+                    CommandSpec {
+                        cmd: v.cmd().to_string(),
+                        timeout: v.timeout(),
+                    },
+                ))
             })
             .collect()
     }
@@ -125,9 +184,10 @@ impl ConfigCommands {
 
 #[cfg(test)]
 mod tests {
-    use super::{ConfigCommander, ConfigCommands};
+    use super::{ConfigCommander, ConfigCommands, DEFAULT_TIMEOUT_SECS};
     use std::collections::HashMap;
     use std::path::PathBuf;
+    use std::time::Duration;
 
     #[test]
     fn test_config_commander_reads_shared_fields_and_ignores_server_fields() {
@@ -167,11 +227,12 @@ mod tests {
         let mut commands = HashMap::new();
         commands.insert("default".to_string(), "echo hello".to_string());
         commands.insert("restart".to_string(), "systemctl restart foo".to_string());
-        let config = ConfigCommands { commands };
+        let config = ConfigCommands::from_map(commands);
         let hash_map = config.get_hash_to_cmd().unwrap();
         assert_eq!(hash_map.len(), 2);
-        assert!(hash_map.values().any(|v| v == "echo hello"));
-        assert!(hash_map.values().any(|v| v == "systemctl restart foo"));
+        assert!(hash_map.values().any(|v| v.cmd == "echo hello"));
+        assert!(hash_map.values().any(|v| v.cmd == "systemctl restart foo"));
+        assert!(hash_map.values().all(|v| v.timeout == Duration::from_secs(DEFAULT_TIMEOUT_SECS)));
     }
 
     #[test]
@@ -183,7 +244,52 @@ mod tests {
         "#;
         let config = ConfigCommands::deserialize(toml).unwrap();
         assert_eq!(config.commands.len(), 2);
-        assert_eq!(config.commands.get("default").unwrap(), "echo hello");
+        assert_eq!(config.commands.get("default").unwrap().cmd(), "echo hello");
+        assert_eq!(
+            config.commands.get("default").unwrap().timeout(),
+            Duration::from_secs(DEFAULT_TIMEOUT_SECS)
+        );
+    }
+
+    #[test]
+    fn test_deserialize_commands_with_timeout_override() {
+        let toml = r#"
+            [commands]
+            default = "echo hello"
+            slow = { cmd = "sleep 5", timeout_sec = 1 }
+        "#;
+        let config = ConfigCommands::deserialize(toml).unwrap();
+        let slow = config.commands.get("slow").unwrap();
+        assert_eq!(slow.cmd(), "sleep 5");
+        assert_eq!(slow.timeout(), Duration::from_secs(1));
+
+        let hash_map = config.get_hash_to_cmd().unwrap();
+        assert!(hash_map
+            .values()
+            .any(|v| v.cmd == "sleep 5" && v.timeout == Duration::from_secs(1)));
+    }
+
+    #[test]
+    fn test_deserialize_commands_table_without_timeout_uses_default() {
+        let toml = r#"
+            [commands]
+            default = { cmd = "echo hello" }
+        "#;
+        let config = ConfigCommands::deserialize(toml).unwrap();
+        let entry = config.commands.get("default").unwrap();
+        assert_eq!(entry.cmd(), "echo hello");
+        assert_eq!(entry.timeout(), Duration::from_secs(DEFAULT_TIMEOUT_SECS));
+    }
+
+    #[test]
+    fn test_from_map_uses_default_timeout() {
+        let mut commands = HashMap::new();
+        commands.insert("default".to_string(), "echo hi".to_string());
+        let config = ConfigCommands::from_map(commands);
+        assert_eq!(
+            config.commands.get("default").unwrap().timeout(),
+            Duration::from_secs(DEFAULT_TIMEOUT_SECS)
+        );
     }
 
     #[test]
@@ -192,7 +298,7 @@ mod tests {
         let path = dir.path().join("commands.toml");
         std::fs::write(&path, "[commands]\ndefault = \"echo hi\"\n").unwrap();
         let commands = ConfigCommands::create_from_path(&path).unwrap();
-        assert_eq!(commands.commands.get("default").unwrap(), "echo hi");
+        assert_eq!(commands.commands.get("default").unwrap().cmd(), "echo hi");
     }
 
     #[test]

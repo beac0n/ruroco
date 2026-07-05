@@ -1,0 +1,291 @@
+use crate::commander::{Commander, ConfigCommander, ConfigCommands};
+use crate::common::ipc::{CommanderData, CMDR_DATA_SIZE};
+use std::collections::HashMap;
+use std::io::Write;
+use std::os::unix::net::UnixStream;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+use std::{env, fs, thread};
+
+// Generous enough that normal test commands never trip it, short enough that a hung test fails
+// fast.
+const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+
+fn create_commander(commands: HashMap<String, String>, config_dir: PathBuf) -> Commander {
+    Commander::create(
+        ConfigCommander {
+            config_dir,
+            allow_non_routable_ips: true,
+            ..Default::default()
+        },
+        ConfigCommands::from_map(commands),
+    )
+    .unwrap()
+}
+
+fn wait_for_path(path: &Path) {
+    for _ in 0..50 {
+        if path.exists() {
+            return;
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    panic!("path was not created at {path:?}");
+}
+
+fn send_to_socket(socket_path: &Path, data: CommanderData) {
+    let mut stream = UnixStream::connect(socket_path).unwrap();
+    let bytes: [u8; CMDR_DATA_SIZE] = data.into();
+    stream.write_all(&bytes).unwrap();
+    stream.flush().unwrap();
+}
+
+#[test]
+fn test_create_from_invalid_path() {
+    // ConfigCommander's fields are all optional, so config_invalid.toml (which merely omits the
+    // server-only `ips`) parses fine here; a malformed-syntax file is what the commander rejects.
+    let path = env::current_dir()
+        .unwrap_or(PathBuf::from("/tmp"))
+        .join("tests")
+        .join("files")
+        .join("config_invalid_syntax.toml");
+
+    let commands = PathBuf::from("/tmp/unused_commands.toml");
+    let msg = Commander::create_from_paths(&path, &commands).unwrap_err().to_string();
+    assert!(msg.contains("Could not create ConfigCommander from"), "unexpected error: {msg}");
+}
+
+#[test]
+fn test_create_from_invalid_toml_path() {
+    let commands = PathBuf::from("/tmp/unused_commands.toml");
+    assert_eq!(
+        Commander::create_from_paths(&PathBuf::from("/tmp/path/does/not/exist"), &commands)
+            .unwrap_err()
+            .to_string(),
+        r#"Could not read "/tmp/path/does/not/exist": No such file or directory (os error 2)"#
+    );
+}
+
+#[test]
+fn test_create_from_path() {
+    let mut commands = HashMap::new();
+    commands.insert(
+        "default".to_string(),
+        "touch /tmp/ruroco_test/start.test /tmp/ruroco_test/stop.test".to_string(),
+    );
+
+    let base = env::current_dir().unwrap_or(PathBuf::from("/tmp"));
+    let path = base.join("tests").join("files").join("config.toml");
+    let commands_path = base.join("tests").join("conf_dir").join("commands.toml");
+
+    assert_eq!(
+        Commander::create_from_paths(&path, &commands_path).unwrap(),
+        Commander::create(
+            ConfigCommander {
+                config_dir: PathBuf::from("tests/conf_dir"),
+                socket_dir: None,
+                socket_user: "ruroco".to_string(),
+                socket_group: "ruroco".to_string(),
+                allow_non_routable_ips: false,
+            },
+            ConfigCommands::from_map(commands),
+        )
+        .unwrap()
+    );
+}
+
+#[test]
+fn test_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket_dir = dir.path().to_path_buf();
+    let socket_file_path = socket_dir.join("ruroco.socket");
+
+    let mut commands = HashMap::new();
+    commands.insert("default".to_string(), "true".to_string());
+    thread::spawn(move || {
+        create_commander(commands, socket_dir).run().expect("commander terminated")
+    });
+
+    wait_for_path(&socket_file_path);
+    assert!(socket_file_path.exists());
+}
+
+#[test]
+fn test_create_with_empty_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    let commander = create_commander(HashMap::new(), dir.path().to_path_buf());
+    assert!(commander.cmds.is_empty());
+}
+
+#[test]
+fn test_create_with_multiple_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut commands = HashMap::new();
+    commands.insert("cmd1".to_string(), "echo 1".to_string());
+    commands.insert("cmd2".to_string(), "echo 2".to_string());
+    assert_eq!(create_commander(commands, dir.path().to_path_buf()).cmds.len(), 2);
+}
+
+#[test]
+fn test_run_command_success() {
+    let dir = tempfile::tempdir().unwrap();
+    create_commander(HashMap::new(), dir.path().to_path_buf()).run_command(
+        "echo hello",
+        TEST_TIMEOUT,
+        "1.2.3.4".parse().unwrap(),
+    );
+}
+
+#[test]
+fn test_run_command_failure() {
+    let dir = tempfile::tempdir().unwrap();
+    create_commander(HashMap::new(), dir.path().to_path_buf()).run_command(
+        "false",
+        TEST_TIMEOUT,
+        "1.2.3.4".parse().unwrap(),
+    );
+}
+
+#[test]
+fn test_run_command_sets_env_var() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_file = dir.path().join("env_output.txt");
+    let output_path = output_file.to_str().unwrap();
+    create_commander(HashMap::new(), dir.path().to_path_buf()).run_command(
+        &format!("echo $RUROCO_IP > {output_path}"),
+        TEST_TIMEOUT,
+        "1.2.3.4".parse().unwrap(),
+    );
+    wait_for_path(&output_file);
+    assert_eq!(fs::read_to_string(&output_file).unwrap().trim(), "1.2.3.4");
+}
+
+#[test]
+fn test_run_command_timeout_kills_slow_command() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_file = dir.path().join("should_not_exist.txt");
+    let output_path = output_file.to_str().unwrap();
+
+    let start = Instant::now();
+    create_commander(HashMap::new(), dir.path().to_path_buf()).run_command(
+        &format!("sleep 5 && touch {output_path}"),
+        Duration::from_secs(1),
+        "1.2.3.4".parse().unwrap(),
+    );
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < Duration::from_secs(4),
+        "command should have been killed near the timeout, took {elapsed:?}"
+    );
+    assert!(!output_file.exists(), "command must not complete once killed");
+}
+
+#[test]
+fn test_run_command_within_timeout_completes() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_file = dir.path().join("completed.txt");
+    let output_path = output_file.to_str().unwrap();
+
+    create_commander(HashMap::new(), dir.path().to_path_buf()).run_command(
+        &format!("touch {output_path}"),
+        Duration::from_secs(1),
+        "1.2.3.4".parse().unwrap(),
+    );
+
+    wait_for_path(&output_file);
+    assert!(output_file.exists());
+}
+
+#[test]
+fn test_run_cycle_over_socket() {
+    use crate::common::blake2b_u64;
+
+    let dir = tempfile::tempdir().unwrap();
+    let output_file = dir.path().join("cycle_output.txt");
+    let output_path_str = output_file.to_str().unwrap().to_string();
+
+    let cmd_name = "test_cycle_cmd";
+    let cmd_hash = blake2b_u64(cmd_name).unwrap();
+    let mut commands = HashMap::new();
+    commands.insert(cmd_name.to_string(), format!("touch {output_path_str}"));
+
+    let socket_dir = dir.path().to_path_buf();
+    let commander = create_commander(commands, socket_dir.clone());
+    thread::spawn(move || commander.run());
+
+    let socket_path = socket_dir.join("ruroco.socket");
+    wait_for_path(&socket_path);
+    send_to_socket(
+        &socket_path,
+        CommanderData {
+            cmd_hash,
+            ip: "1.2.3.4".parse().unwrap(),
+        },
+    );
+
+    thread::sleep(Duration::from_millis(500));
+    assert!(output_file.exists(), "command was not executed");
+    let _ = fs::remove_file(&socket_path);
+}
+
+#[test]
+fn test_run_cycle_unknown_command() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket_dir = dir.path().to_path_buf();
+    let commander = create_commander(HashMap::new(), socket_dir.clone());
+    thread::spawn(move || commander.run());
+
+    let socket_path = socket_dir.join("ruroco.socket");
+    wait_for_path(&socket_path);
+    send_to_socket(
+        &socket_path,
+        CommanderData {
+            cmd_hash: 99999,
+            ip: "127.0.0.1".parse().unwrap(),
+        },
+    );
+
+    thread::sleep(Duration::from_millis(200));
+    assert!(socket_path.exists(), "commander should still be running");
+    let _ = fs::remove_file(&socket_path);
+}
+
+#[test]
+fn test_read_from_stream() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket_path = dir.path().join("test_read.socket");
+
+    let listener = std::os::unix::net::UnixListener::bind(&socket_path).unwrap();
+    let socket_path_clone = socket_path.clone();
+    let writer = thread::spawn(move || {
+        send_to_socket(
+            &socket_path_clone,
+            CommanderData {
+                cmd_hash: 42,
+                ip: "10.0.0.1".parse().unwrap(),
+            },
+        );
+    });
+
+    let (mut stream, _) = listener.accept().unwrap();
+    let parsed: CommanderData = Commander::read(&mut stream).unwrap().into();
+    assert_eq!(parsed.cmd_hash, 42);
+    writer.join().unwrap();
+}
+
+#[test]
+fn test_create_listener_no_parent_dir() {
+    let commander = Commander {
+        socket_path: PathBuf::from("/"),
+        cmds: HashMap::new(),
+        socket_user: String::new(),
+        socket_group: String::new(),
+        allow_non_routable_ips: false,
+    };
+    assert!(commander
+        .create_listener()
+        .unwrap_err()
+        .to_string()
+        .contains("Could not get parent dir"));
+}

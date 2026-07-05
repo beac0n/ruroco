@@ -4,6 +4,10 @@
 # the same config_dir as the keys.
 #
 # $RUROCO_IP is set to the source IP of the client request.
+#
+# Each command is killed (SIGKILL) if it runs longer than 30 seconds. To override the
+# timeout for a single command, use the table form:
+#   slow_task = { cmd = "some-long-running-script", timeout_sec = 120 }
 [commands]                   # MANDATORY - but can be empty
 open_port = "ufw allow from $RUROCO_IP proto tcp to any port 8443"         # open the service for the requesting IP
 close_port = "ufw delete allow from $RUROCO_IP proto tcp to any port 8443" # close it again
