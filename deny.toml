@@ -14,6 +14,13 @@ ignore = [
     # proc-macro-error2: unmaintained, no safe upgrade. Dev-only transitive dep
     # (test-with -> test-with-derive); never ships in any binary. Not a vuln.
     "RUSTSEC-2026-0173",
+    # quick-xml < 0.41 (quadratic duplicate-attribute check / unbounded namespace
+    # allocation): transitive via wayland-scanner, which pins quick-xml 0.39 and
+    # only uses it at BUILD TIME to generate code from static Wayland protocol
+    # XML shipped inside the crates. No untrusted XML is ever parsed at runtime.
+    # Remove once wayland-scanner moves to quick-xml >= 0.41.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
 ]
 
 [licenses]
