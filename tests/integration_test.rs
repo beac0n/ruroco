@@ -114,7 +114,7 @@ mod tests {
             blocklist.get().clone()
         }
 
-        fn run_client_send(&self) {
+        fn run_client_send(&self, expect_file: bool) {
             let mut sender = Sender::create(SendCommand {
                 address: self.server_address.to_string(),
                 key: fs::read_to_string(&self.key_path).expect("failed to read key"),
@@ -129,7 +129,17 @@ mod tests {
 
             let before = SystemTime::now();
             sender.send().expect("could not send command");
-            wait_for_file(&self.test_file_path, before, Duration::from_secs(10));
+            if expect_file {
+                assert!(
+                    wait_for_file(&self.test_file_path, before, Duration::from_secs(10)),
+                    "command output did not appear"
+                );
+            } else {
+                assert!(
+                    !wait_for_file(&self.test_file_path, before, Duration::from_secs(3)),
+                    "command ran but must not have"
+                );
+            }
         }
 
         fn run_commander(&self) {
@@ -147,7 +157,7 @@ mod tests {
                         allow_non_routable_ips: true,
                         ..Default::default()
                     },
-                    ConfigCommands { commands },
+                    ConfigCommands::from_map(commands),
                 )
                 .unwrap()
                 .run()
@@ -240,7 +250,7 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        test_data.run_client_send();
+        test_data.run_client_send(true);
         let _ = fs::remove_file(&test_data.test_file_path);
         // Read/rewrite the counter from this test's tempdir, never the developer's real config.
         let counter_path = &test_data.counter_path;
@@ -251,7 +261,7 @@ mod tests {
         let count = u128::from_be_bytes(bytes);
         fs::write(counter_path, (count - 1).to_be_bytes()).expect("could not write counter");
 
-        test_data.run_client_send();
+        test_data.run_client_send(false);
         test_data.assert_file_paths();
     }
 
@@ -272,7 +282,7 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        test_data.with_ip(ip).run_client_send();
+        test_data.with_ip(ip).run_client_send(false);
         test_data.assert_file_paths();
     }
 
@@ -293,7 +303,7 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        test_data.with_ip(ip).with_strict(false).run_client_send();
+        test_data.with_ip(ip).with_strict(false).run_client_send(true);
 
         assert_eq!(
             fs::read_to_string(&test_data.test_file_path).expect("could not read file"),
@@ -321,7 +331,7 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        test_data.with_ip(ip).run_client_send();
+        test_data.with_ip(ip).run_client_send(true);
 
         assert_eq!(
             fs::read_to_string(&test_data.test_file_path).expect("could not read file"),
@@ -347,10 +357,10 @@ mod tests {
         test_data.run_commander();
         test_data.run_server();
 
-        test_data.run_client_send();
+        test_data.run_client_send(true);
         let blocked_list_0 = test_data.get_blocked_list();
 
-        test_data.run_client_send();
+        test_data.run_client_send(true);
         let blocked_list_1 = test_data.get_blocked_list();
 
         test_data.with_test_file_exists().assert_file_paths();

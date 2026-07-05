@@ -61,22 +61,25 @@ impl Counter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
-    fn make_counter(initial: u128) -> Counter {
+    fn make_counter(initial: u128) -> (TempDir, Counter) {
         let dir = tempfile::tempdir().unwrap();
-        Counter::create_and_init(dir.keep().join("counter"), initial).unwrap()
+        let path = dir.path().join("counter");
+        let counter = Counter::create_and_init(path, initial).unwrap();
+        (dir, counter)
     }
 
     #[test]
     fn test_inc_normal() {
-        let mut c = make_counter(0);
+        let (_dir, mut c) = make_counter(0);
         c.inc().unwrap();
         assert_eq!(c.count(), 1);
     }
 
     #[test]
     fn test_inc_overflow_returns_error() {
-        let mut c = make_counter(u128::MAX);
+        let (_dir, mut c) = make_counter(u128::MAX);
         assert!(c.inc().is_err());
         let err = c.inc().unwrap_err().to_string();
         assert!(err.contains("counter overflow"), "unexpected error: {err}");
@@ -84,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_inc_near_max_does_not_overflow() {
-        let mut c = make_counter(u128::MAX - 1);
+        let (_dir, mut c) = make_counter(u128::MAX - 1);
         c.inc().unwrap();
         assert_eq!(c.count(), u128::MAX);
     }
@@ -92,7 +95,7 @@ mod tests {
     #[test]
     fn test_reseed_overwrites_existing() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.keep().join("counter");
+        let path = dir.path().join("counter");
         let mut c = Counter::create_and_init(path.clone(), 100).unwrap();
         c.inc().unwrap(); // persists 101
         drop(c);
@@ -113,7 +116,7 @@ mod tests {
     #[test]
     fn test_create_and_init_reads_existing_file() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.keep().join("counter");
+        let path = dir.path().join("counter");
         let mut c1 = Counter::create_and_init(path.clone(), 10).unwrap();
         c1.inc().unwrap(); // persists count=11
         drop(c1);
