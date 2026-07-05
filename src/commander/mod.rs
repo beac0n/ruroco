@@ -113,14 +113,14 @@ mod tests {
         .unwrap()
     }
 
-    fn wait_for_socket(socket_path: &Path) {
+    fn wait_for_path(path: &Path) {
         for _ in 0..50 {
-            if socket_path.exists() {
+            if path.exists() {
                 return;
             }
             thread::sleep(Duration::from_millis(100));
         }
-        panic!("socket was not created at {socket_path:?}");
+        panic!("path was not created at {path:?}");
     }
 
     fn send_to_socket(socket_path: &Path, data: CommanderData) {
@@ -186,47 +186,47 @@ mod tests {
 
     #[test]
     fn test_run() {
-        let socket_file_path = Path::new("/tmp/ruroco/ruroco.socket");
-        let _ = fs::remove_file(socket_file_path);
+        let dir = tempfile::tempdir().unwrap();
+        let socket_dir = dir.path().to_path_buf();
+        let socket_file_path = socket_dir.join("ruroco.socket");
 
         let mut commands = HashMap::new();
-        commands.insert("default".to_string(), "touch /tmp/ruroco_test.test".to_string());
+        commands.insert("default".to_string(), "true".to_string());
         thread::spawn(move || {
-            create_commander(commands, PathBuf::from("/tmp/ruroco"))
-                .run()
-                .expect("commander terminated")
+            create_commander(commands, socket_dir).run().expect("commander terminated")
         });
 
-        thread::sleep(Duration::from_secs(1));
+        wait_for_path(&socket_file_path);
         assert!(socket_file_path.exists());
     }
 
     #[test]
     fn test_create_with_empty_commands() {
-        let commander = create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_empty"));
+        let dir = tempfile::tempdir().unwrap();
+        let commander = create_commander(HashMap::new(), dir.path().to_path_buf());
         assert!(commander.cmds.is_empty());
     }
 
     #[test]
     fn test_create_with_multiple_commands() {
+        let dir = tempfile::tempdir().unwrap();
         let mut commands = HashMap::new();
         commands.insert("cmd1".to_string(), "echo 1".to_string());
         commands.insert("cmd2".to_string(), "echo 2".to_string());
-        assert_eq!(
-            create_commander(commands, PathBuf::from("/tmp/ruroco_test_multi")).cmds.len(),
-            2
-        );
+        assert_eq!(create_commander(commands, dir.path().to_path_buf()).cmds.len(), 2);
     }
 
     #[test]
     fn test_run_command_success() {
-        create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_cmd"))
+        let dir = tempfile::tempdir().unwrap();
+        create_commander(HashMap::new(), dir.path().to_path_buf())
             .run_command("echo hello", "1.2.3.4".parse().unwrap());
     }
 
     #[test]
     fn test_run_command_failure() {
-        create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_cmd_fail"))
+        let dir = tempfile::tempdir().unwrap();
+        create_commander(HashMap::new(), dir.path().to_path_buf())
             .run_command("false", "1.2.3.4".parse().unwrap());
     }
 
@@ -235,10 +235,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let output_file = dir.path().join("env_output.txt");
         let output_path = output_file.to_str().unwrap();
-        create_commander(HashMap::new(), PathBuf::from("/tmp/ruroco_test_env"))
+        create_commander(HashMap::new(), dir.path().to_path_buf())
             .run_command(&format!("echo $RUROCO_IP > {output_path}"), "1.2.3.4".parse().unwrap());
-        thread::sleep(Duration::from_millis(100));
-        assert!(fs::read_to_string(&output_file).unwrap_or_default().trim().contains("1.2.3.4"));
+        wait_for_path(&output_file);
+        assert_eq!(fs::read_to_string(&output_file).unwrap().trim(), "1.2.3.4");
     }
 
     #[test]
@@ -259,7 +259,7 @@ mod tests {
         thread::spawn(move || commander.run());
 
         let socket_path = socket_dir.join("ruroco.socket");
-        wait_for_socket(&socket_path);
+        wait_for_path(&socket_path);
         send_to_socket(
             &socket_path,
             CommanderData {
@@ -281,7 +281,7 @@ mod tests {
         thread::spawn(move || commander.run());
 
         let socket_path = socket_dir.join("ruroco.socket");
-        wait_for_socket(&socket_path);
+        wait_for_path(&socket_path);
         send_to_socket(
             &socket_path,
             CommanderData {
