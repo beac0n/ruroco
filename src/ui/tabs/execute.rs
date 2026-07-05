@@ -1,4 +1,4 @@
-use crate::client::config::SendCommand;
+use crate::client::config::{get_conf_dir, SendCommand};
 use crate::client::send::Sender;
 use crate::common::logging::{error, info};
 use crate::ui::app::{ExecuteState, Status, StatusKey};
@@ -104,8 +104,15 @@ fn exec_command(state: &mut ExecuteState, key: &str, cmd: CommandData) {
 
 /// Writes `key` to a temporary file (auto-deleted on drop) so it can be passed to `Sender::create`
 /// via `key_file`. The GUI holds the key in memory; `SendCommand` only ever accepts one via a file.
+///
+/// Created inside the conf dir rather than the platform temp dir: on Android there is no writable
+/// `/tmp` (the sandboxed app has no `$TMPDIR`, so `NamedTempFile::new()` would resolve to an
+/// unwritable `/tmp` and fail every send), whereas `get_conf_dir()` already resolves to a writable,
+/// per-platform location (JNI `getFilesDir()` on Android, `$HOME/.config/ruroco` elsewhere).
 fn write_key_file(key: &str) -> anyhow::Result<NamedTempFile> {
-    let mut file = NamedTempFile::new().with_context(|| "Could not create temporary key file")?;
+    let conf_dir = get_conf_dir().with_context(|| "Could not determine conf dir")?;
+    let mut file = NamedTempFile::new_in(&conf_dir)
+        .with_context(|| format!("Could not create temporary key file in {conf_dir:?}"))?;
     file.write_all(key.trim().as_bytes()).with_context(|| "Could not write temporary key file")?;
     Ok(file)
 }
