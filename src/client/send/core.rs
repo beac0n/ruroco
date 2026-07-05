@@ -52,13 +52,13 @@ impl Sender {
     /// Send data to the server to execute a predefined command
     pub fn send(&mut self) -> anyhow::Result<()> {
         info(format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
-        let destination_ips_validated = self.get_destination_ips()?;
-        info(format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
-        for (i, destination_ip) in destination_ips_validated.iter().enumerate() {
+        let destination_addrs = self.get_destination_ips()?;
+        info(format!("Found addresses {destination_addrs:?} for {}", &self.cmd.address));
+        for (i, destination_addr) in destination_addrs.iter().enumerate() {
             if i > 0 && self.cmd.send_delay_ms > 0 {
                 std::thread::sleep(Duration::from_millis(self.cmd.send_delay_ms));
             }
-            self.send_data(*destination_ip)?;
+            self.send_data(*destination_addr)?;
         }
 
         Ok(())
@@ -89,7 +89,7 @@ mod tests {
     use crate::client::send::Sender;
     use std::fs;
     use std::fs::File;
-    use std::net::IpAddr;
+    use std::net::SocketAddr;
     use tempfile::TempDir;
 
     const IP: &str = "192.168.178.123";
@@ -223,7 +223,7 @@ mod tests {
         sender?.send()
     }
 
-    fn get_ip_addresses(host: &str) -> Vec<IpAddr> {
+    fn get_ip_addresses(host: &str) -> Vec<SocketAddr> {
         let _conf_dir = set_test_conf_dir();
         let sender = Sender::create(SendCommand {
             address: host.to_string(),
