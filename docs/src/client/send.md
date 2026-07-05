@@ -69,14 +69,16 @@ Normalizes the destination string so it always carries a port:
 
 - If `address` starts with `[` (an IPv6 literal): keep it as-is when it already
   contains `]:` (a port is present), otherwise append `:<default_port>`. So
-  `[::1]` becomes `[::1]:34020`, while `[::1]:1234` is unchanged.
+  `[::1]` becomes `[::1]:80`, while `[::1]:1234` is unchanged.
 - Else if `address` contains `:` (an IPv4 with port like `1.2.3.4:5678`, or a
   bare IPv6): keep it as-is.
 - Else (a hostname or a bare IPv4): append `:<default_port>`, so `127.0.0.1`
-  becomes `127.0.0.1:34020`.
+  becomes `127.0.0.1:80`.
 
-The default port passed in `create` is `34020` (`common::DEFAULT_PORT`), matching the server's
-default listen port.
+The default port passed in `create` is `80` (`common::DEFAULT_PORT`), the canonical ruroco port
+that the shipped systemd `ruroco.socket` unit listens on. Note that a server started without
+socket activation and without a configured `address` binds to `34020`
+(`common::FALLBACK_BIND_PORT`) instead; clients must then name the port explicitly.
 
 ### `Sender::get_counter_path`
 

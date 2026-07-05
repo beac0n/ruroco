@@ -87,7 +87,7 @@ by the Unix-socket interface.
 
 ```mermaid
 flowchart TB
-    Net["Internet"] -->|UDP 93 B| Srv["server<br/>unprivileged"]
+    Net["Internet"] -->|UDP 94 B| Srv["server<br/>unprivileged"]
     Srv -->|"24 B CommanderData<br/>(local Unix socket only)"| Cmd["commander<br/>root"]
     Cmd --> Sh["sh -c command"]
     style Srv fill:#2d4

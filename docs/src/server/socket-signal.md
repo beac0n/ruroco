@@ -11,14 +11,17 @@ Decides which UDP socket the server will listen on. It supports three sources, i
 an explicit address argument, the `RUROCO_LISTEN_ADDRESS` environment variable, systemd socket
 activation, and finally a hardcoded fallback bind to `[::]`.
 
-### Default port
+### Fallback port
 
 ```rust
-pub(crate) const DEFAULT_PORT: u16 = 34020;
+pub(crate) const FALLBACK_BIND_PORT: u16 = 34020;
 ```
 
-Used only by the fallback bind. The value is derived from the alphabet indices of the letters in
-"ruroco" (r=18, u=21, o=15, c=3) multiplied together and doubled: `18 * 21 * 15 * 3 * 2 = 34020`.
+Used only by the fallback bind (no socket activation, no configured address). A high, unprivileged
+port, so a direct `ruroco-server` run needs no capability to bind. The value is derived from the
+alphabet indices of the letters in "ruroco" (r=18, u=21, o=15, c=3) multiplied together and
+doubled: `18 * 21 * 15 * 3 * 2 = 34020`. The canonical port clients default to is `80`
+(`common::DEFAULT_PORT`), which the shipped `ruroco.socket` unit listens on.
 
 ### Signature
 
