@@ -52,6 +52,11 @@ binary builds with `--no-default-features` plus its own feature (`with-client`/`
 - `ConfigServer` implements `Default`: use struct update syntax in tests.
 - HTTP download tests: local `TcpListener` on port 0.
 - Locale gotcha: don't parse `id` output, system locale affects error messages.
+- **No Android CI/e2e coverage.** `android-build` only compiles under `target_os = "android"`; no
+  workflow cross-compiles it or runs it on an emulator/device, so a change that compiles and passes
+  every test here can still be silently broken on Android (e.g. code that assumes a writable
+  platform temp dir - see `src/common/android/CLAUDE.md`). Reason explicitly about Android code
+  paths when touching anything under `with-gui`/`android-build`; don't rely on this suite to catch it.
 
 ## Repo etiquette
 
