@@ -142,8 +142,8 @@ jobs:
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - name: Check formatting
-        run: nix-shell nix/linux.nix --pure --run 'make format'
+      - name: Check formatting and lints
+        run: nix-shell nix/linux.nix --pure --run 'make format && make lint_fix'
 
   release:
     name: Create Release

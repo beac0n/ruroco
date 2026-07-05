@@ -46,11 +46,12 @@ The `Makefile` is the source of truth for commands. The ones you use most:
 | Target | What it does |
 | --- | --- |
 | `make build` | builds all four binaries (debug, `x86_64-unknown-linux-gnu`), each with its own feature |
-| `make test` | `cargo nextest` with all features and `TEST_UPDATER=1` (runs networked update tests) |
+| `make test` | `cargo nextest` with all features and `TEST_ONLINE=1` (runs networked tests: DNS resolution, GitHub API) |
 | `make test_unit` | tests excluding the integration binary |
 | `make test_integration` | only the integration test (spins a real commander thread) |
 | `make check` | `cargo check --locked` and `cargo check --locked --no-default-features` |
-| `make format` | `cargo fmt`, then `clippy -D warnings`, then `cargo fix` |
+| `make format` | `cargo fmt` only |
+| `make lint_fix` | `clippy -D warnings`, then `cargo fix` |
 | `make coverage` | `cargo tarpaulin` (llvm engine), xml + html output |
 | `make release` | `release_android` + `release_linux` |
 | `make release_linux` | release build of all binaries (client/server/ui add `with-vendored-openssl` for static OpenSSL; commander uses `with-commander`, no OpenSSL) |
@@ -157,6 +158,6 @@ rather than a file (see [Android integration](../ui/android.md)).
   send an actual packet, and assert the configured command runs and that replays are rejected.
 - **End-to-end** (`scripts/test_end_to_end.sh`): exercises the real systemd units with sudo.
 
-Tests isolate state with `tempfile::tempdir()` and `RUROCO_CONF_DIR`; update tests are gated behind
-`TEST_UPDATER` because they hit a real (local) HTTP server. See the per-module chapters for the test
-hooks each subsystem exposes.
+Tests isolate state with `tempfile::tempdir()` and `RUROCO_CONF_DIR`; tests that hit a real network
+service (DNS resolution, the GitHub releases API) are gated behind `TEST_ONLINE`. See the per-module
+chapters for the test hooks each subsystem exposes.

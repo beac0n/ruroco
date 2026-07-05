@@ -3,6 +3,10 @@ name = "ruroco"
 version = "0.14.2"
 edition = "2021"
 repository = "https://github.com/beac0n/ruroco"
+# Determined empirically: the highest rust-version among all resolved dependencies (including
+# dev-dependencies, e.g. egui_kittest/kittest), via `cargo metadata --format-version 1`. Bump
+# alongside dependency updates that raise this floor.
+rust-version = "1.92"
 
 [dependencies]
 rmp-serde = "=1.3.1"
@@ -78,7 +82,8 @@ opt-level = 0
 
 [profile.release]
 opt-level = "z"       # Optimize for binary size
-strip = true          # Automatically strip symbols from the binary
+# Debug info is kept in the shipped binary (not stripped) so a crash can be symbolized directly
+# from the release artifact; this trades a larger binary for that.
 debug = true          # debug information
 lto = true            # Enable Link Time Optimization
 codegen-units = 1     # Optimize for single codegen unit (better performance)

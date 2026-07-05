@@ -11,9 +11,9 @@ commander over a Unix socket.
 
 ## Commands
 
-`make build` (all binaries) · `make test` · `make format` · `make check`. Full target list is in the `Makefile`; feature
-flags and binary mapping are in `Cargo.toml`. Each binary builds with `--no-default-features` plus its own feature (
-`with-client`/`with-gui`/`with-server`).
+`make build` (all binaries) · `make test` · `make format` (fmt only) · `make lint_fix` (clippy -D warnings + cargo fix)
+· `make check`. Full target list is in the `Makefile`; feature flags and binary mapping are in `Cargo.toml`. Each
+binary builds with `--no-default-features` plus its own feature (`with-client`/`with-gui`/`with-server`).
 
 ## Code Rules
 
@@ -22,9 +22,12 @@ flags and binary mapping are in `Cargo.toml`. Each binary builds with `--no-defa
   only in tests.
 - `pub(crate)` over `pub` for internal items.
 - Max line width 100, 4-space indent (`rustfmt.toml`). All clippy warnings are errors.
-- Logging: `info()`/`error()` from `src/common/logging.rs` (custom logger). Both take
-  `impl Display`: `info(format!(...))` or `info("literal")`, never `&format!(...)`.
-- No unsafe code.
+- Logging: `info()`/`debug()`/`error()` from `src/common/logging.rs` (custom logger). All take
+  `impl Display`: `info(format!(...))` or `info("literal")`, never `&format!(...)`. `debug()` only
+  prints when `RUROCO_LOG=debug`.
+- No unsafe code, except the handful of audited FFI/syscall spots each carrying its own
+  `#[allow(unsafe_code)]` with a SAFETY comment (systemd socket activation, signal handler
+  registration, the Android JNI bridge); enforced by `#![deny(unsafe_code)]` in `src/lib.rs`.
 
 ## Architecture invariants
 
@@ -36,9 +39,16 @@ flags and binary mapping are in `Cargo.toml`. Each binary builds with `--no-defa
 
 ## Testing
 
-- Unit tests: inline `#[cfg(test)]` modules. Integration: `tests/integration_test.rs`.
+- Unit tests: inline `#[cfg(test)]` modules (some moved to a sibling `<mod>_tests.rs` via `#[path]`
+  when the inline module got large). Integration: `tests/integration_test.rs`.
   E2E: `scripts/test_end_to_end.sh` (systemd, sudo).
-- Use `tempfile::tempdir()` for isolation; never hardcode paths.
+- Run tests via `make test` (nextest, process-per-test). Many tests mutate process-global env vars
+  (`RUROCO_CONF_DIR`, `LISTEN_PID`, ...); plain `cargo test`'s in-process thread-per-test racing
+  will flake on those. Integration tests additionally require the `testing` feature.
+- Network-dependent tests (DNS resolution, GitHub API) are gated behind
+  `#[test_with::env(TEST_ONLINE)]`; `make test` sets it, so they run by default there.
+- Use `tempfile::tempdir()` for isolation; never hardcode paths. Keep the `TempDir` guard alive for
+  as long as anything on disk under it is used (e.g. a `Server` holding an open blocklist).
 - `ConfigServer` implements `Default`: use struct update syntax in tests.
 - HTTP download tests: local `TcpListener` on port 0.
 - Locale gotcha: don't parse `id` output, system locale affects error messages.

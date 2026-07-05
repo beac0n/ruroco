@@ -10,12 +10,15 @@ Code shared by client, server, commander, and ui. Subdirs: `crypto/`, `protocol/
 
 Cross-cutting helpers worth knowing:
 
-- `logging.rs`: the project's own logger. `info()`/`error()` take `impl Display`, so pass owned
-  values: `info(format!(...))` or `info("literal")`, never `info(&format!(...))` (that borrows a
-  temporary and reads worse). No external log crate.
+- `logging.rs`: the project's own logger. `info()`/`debug()`/`error()` take `impl Display`, so
+  pass owned values: `info(format!(...))` or `info("literal")`, never `info(&format!(...))` (that
+  borrows a temporary and reads worse). `debug()` only prints when `RUROCO_LOG=debug`
+  (case-insensitive, read once). ANSI colors only on a TTY; millisecond UTC timestamps. No
+  external log crate.
 - `fs.rs`: `write_atomic()`/`write_atomic_with_mode()` (temp file + `fsync` + rename, optional
   permission bits; used for counter/blocklist/commands list and the self-update binary swap; gated
   behind `any(with-client, with-server)`, and their tests carry the same gate),
   `resolve_path()`, and ownership helpers (`nix`).
-- `mod.rs`: `blake2b_u64()` (command-name hashing, shared by client and server) and
-  `normalize_ip()` (collapse IPv6-mapped IPv4 back to v4).
+- `blake2b_u64()` (command-name hashing, shared by client and server) lives in `crypto/mod.rs`
+  and is re-exported via `common`; `mod.rs` has `normalize_ip()` (collapse IPv6-mapped IPv4 back
+  to v4).
