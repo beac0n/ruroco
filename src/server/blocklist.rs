@@ -84,8 +84,8 @@ impl Blocklist {
     }
 
     pub(crate) fn save(&self) -> anyhow::Result<()> {
-        let vec = rmp_serde::to_vec(&self).with_context(|| "Error serializing blacklist")?;
-        write_atomic(&self.path, vec.as_slice()).with_context(|| "Error persisting blacklist")?;
+        let vec = rmp_serde::to_vec(&self).with_context(|| "Error serializing blocklist")?;
+        write_atomic(&self.path, vec.as_slice()).with_context(|| "Error persisting blocklist")?;
         Ok(())
     }
 }
@@ -232,7 +232,7 @@ mod tests {
         fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o700)).unwrap();
         if !nix::unistd::getuid().is_root() {
             assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("Error persisting blacklist"));
+            assert!(result.unwrap_err().to_string().contains("Error persisting blocklist"));
         }
     }
 }

@@ -90,7 +90,8 @@ impl Server {
                 info(format!("Successfully received {count} bytes from {src}"));
                 let src_ip = normalize_ip(src.ip());
                 self.check_rate_limit(src_ip)?;
-                let (key_id, plaintext) = self.decrypt()?;
+                let received_data = self.client_recv_data;
+                let (key_id, plaintext) = self.decrypt(&received_data)?;
                 self.validate_and_send_command(key_id, plaintext, src_ip)
             }
             Err(e) => bail!("Could not receive bytes from socket: {e}"),
@@ -105,8 +106,11 @@ impl Server {
         )
     }
 
-    fn decrypt(&mut self) -> anyhow::Result<([u8; KEY_ID_SIZE], [u8; PLAINTEXT_SIZE])> {
-        let (key_id, encrypted_data) = DataParser::decode(&self.client_recv_data)?;
+    fn decrypt(
+        &self,
+        data: &[u8; MSG_SIZE],
+    ) -> anyhow::Result<([u8; KEY_ID_SIZE], [u8; PLAINTEXT_SIZE])> {
+        let (key_id, encrypted_data) = DataParser::decode(data)?;
         let plaintext = self
             .crypto_handlers
             .get(key_id)
