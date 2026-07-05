@@ -18,11 +18,9 @@ impl<'a> Widgets<'a> {
     }
 
     pub(crate) fn icon_button(&mut self, color: egui::Color32, label: &str) -> egui::Response {
-        let mut resp = None;
-        Self::bordered(color, 1.0).show(self.ui, |ui| {
-            resp = Some(ui.add_sized([46.0, 46.0], egui::Button::new(label)));
-        });
-        resp.expect("frame body always runs")
+        Self::bordered(color, 1.0)
+            .show(self.ui, |ui| ui.add_sized([46.0, 46.0], egui::Button::new(label)))
+            .inner
     }
 
     pub(crate) fn equal_buttons(&mut self, labels: &[&str]) -> Vec<bool> {
