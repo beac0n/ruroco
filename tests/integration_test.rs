@@ -117,7 +117,7 @@ mod tests {
         fn run_client_send(&self, expect_file: bool) {
             let mut sender = Sender::create(SendCommand {
                 address: self.server_address.to_string(),
-                key: fs::read_to_string(&self.key_path).expect("failed to read key"),
+                key_file: self.key_path.clone(),
                 command: "default".to_string(),
                 permissive: !self.strict,
                 ip: self.client_sent_ip.clone(),

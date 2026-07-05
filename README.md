@@ -200,11 +200,11 @@ ruroco-client send --help
 ```text
 Send a command to a specific address
 
-Usage: ruroco-client send [OPTIONS] --address <ADDRESS> --key <KEY>
+Usage: ruroco-client send [OPTIONS] --address <ADDRESS> --key-file <KEY_FILE>
 
 Options:
   -a, --address <ADDRESS>          Address to send the command to
-  -k, --key <KEY>                  Base64 key with id (output of `ruroco-client gen` or the UI)
+  -k, --key-file <KEY_FILE>        Path to a file containing the base64 key with id (output of `ruroco-client gen` or the UI)
   -c, --command <COMMAND>          Command to send [default: default]
   -e, --permissive                 Allow permissive IP validation - source IP does not have to match provided IP
   -i, --ip <IP>                    Optional IP address from which the command was sent. Use -6ei "dead:beef:dead:beef::/64" to allow you whole current IPv6 network. To do this automatically, use -6ei $(curl -s6 https://api64.ipify.org | awk -F: '{print $1":"$2":"$3":"$4"::/64"}')
@@ -214,10 +214,12 @@ Options:
   -h, --help                       Print help
 ```
 
-Pass the same base64 key string that you placed on the server. Example:
+Pass the path to a file holding the same base64 key string that you placed on the server (never
+the key itself on the command line: that would leak it via `ps` and shell history). Example:
 
 ```shell
-ruroco-client send -a 127.0.0.1:80 -k "$(secret-tool lookup token ruroco)" -c default
+secret-tool lookup token ruroco > /run/user/$(id -u)/ruroco.key
+ruroco-client send -a 127.0.0.1:80 -k /run/user/$(id -u)/ruroco.key -c default
 ```
 
 ### update
@@ -311,7 +313,7 @@ Options:
 4. add the commands to `/etc/ruroco/commands.toml` -> see [commands.toml](config/commands.toml). This file is read
    only by the commander (root) and must be installed `root`-owned with mode `0600` so the unprivileged server process
    cannot read the command set.
-5. call `ruroco-client send` with `-k "$(secret-tool lookup token ruroco)"` so client and server share the identical key
+5. call `ruroco-client send` with `-k ~/.config/ruroco/user.key` so client and server share the identical key
 
 # use cases
 
@@ -336,7 +338,7 @@ run_backup = "/usr/local/bin/run-backup.sh"
 then fire one from anywhere — including a CI runner, a cron job on another host, or a tap in the UI:
 
 ```shell
-ruroco-client send --address host.domain:80 --command deploy --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:80 --command deploy --key-file ~/.config/ruroco/user.key
 ```
 
 There is no tunnel to bring up and no session to maintain: the client sends a single stateless packet and the
@@ -368,7 +370,7 @@ close_port = "ufw delete allow from $RUROCO_IP proto tcp to any port 8443" # clo
 With that configured, run the client like this:
 
 ```shell
-ruroco-client send --address host.domain:80 --command open_port --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:80 --command open_port --key-file ~/.config/ruroco/user.key
 ```
 
 If you want to authorize a different address than the one you are sending from (for example your external IP
@@ -380,7 +382,7 @@ any routable IP, so guard the key accordingly. (Without `--permissive` the defau
 verified sender.) Fetch your external address from a service when you need it:
 
 ```shell
-ruroco-client send --address host.domain:80 --command open_port --ip $(curl -s https://api64.ipify.org) --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:80 --command open_port --ip $(curl -s https://api64.ipify.org) --key-file ~/.config/ruroco/user.key
 ```
 
 The server validates that the client is authorized to run the command using the shared AES key (its id is
@@ -405,7 +407,7 @@ enable_file_browser = "mv /etc/nginx/conf.d/https_file_browser.conf_disabled /et
 If you have configured ruroco on server like that and execute the following client side command
 
 ```shell
-ruroco-client send --address host.domain:80 --command enable_file_browser --key "$(secret-tool lookup token ruroco)"
+ruroco-client send --address host.domain:80 --command enable_file_browser --key-file ~/.config/ruroco/user.key
 ```
 
 the file browser nginx config will be enabled and nginx reloaded, effectively making the file browser accessible.

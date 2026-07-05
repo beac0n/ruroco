@@ -80,7 +80,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[test_with::env(TEST_UPDATER)]
+    #[test_with::env(TEST_ONLINE)]
     #[test]
     fn test_update() {
         let _conf_dir = set_test_conf_dir();
@@ -92,10 +92,17 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    fn write_key_file(conf_dir: &TempDir) -> (String, std::path::PathBuf) {
+        let key = Generator::create().unwrap().gen().unwrap();
+        let key_path = conf_dir.path().join("test.key");
+        std::fs::write(&key_path, &key).unwrap();
+        (key, key_path)
+    }
+
     #[test]
     fn test_send() {
-        let _conf_dir = set_test_conf_dir();
-        let key = Generator::create().unwrap().gen().unwrap();
+        let conf_dir = set_test_conf_dir();
+        let (_key, key_path) = write_key_file(&conf_dir);
 
         let result = run_client(CliClient::parse_from(vec![
             "ruroco",
@@ -103,7 +110,7 @@ mod tests {
             "-a",
             "127.0.0.1:1234",
             "-k",
-            &key,
+            key_path.to_str().unwrap(),
             "-i",
             "192.168.178.123",
         ]));
@@ -113,15 +120,15 @@ mod tests {
 
     #[test]
     fn test_run_client_send_with_send_command() {
-        let _conf_dir = set_test_conf_dir();
-        let key = Generator::create().unwrap().gen().unwrap();
+        let conf_dir = set_test_conf_dir();
+        let (_key, key_path) = write_key_file(&conf_dir);
         let cli = CliClient::parse_from(vec![
             "ruroco",
             "send",
             "-a",
             "127.0.0.1:1234",
             "-k",
-            &key,
+            key_path.to_str().unwrap(),
             "-i",
             "192.168.178.123",
         ]);

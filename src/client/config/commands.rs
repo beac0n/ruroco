@@ -13,9 +13,11 @@ pub struct SendCommand {
     /// Address to send the command to.
     #[arg(short, long)]
     pub address: String,
-    /// Base64 key with id (output of `ruroco-client gen` or the UI)
-    #[arg(short, long)]
-    pub key: String,
+    /// Path to a file containing the base64 key with id (output of `ruroco-client gen` or the
+    /// UI). The key itself is never accepted directly (CLI arg or otherwise): that would leak it
+    /// via `ps`, shell history, or in-memory copies outliving their need.
+    #[arg(short = 'k', long = "key-file")]
+    pub key_file: PathBuf,
     /// Command to send
     #[arg(short, long, default_value = DEFAULT_COMMAND)]
     pub command: String,
@@ -61,8 +63,7 @@ impl Default for SendCommand {
     fn default() -> SendCommand {
         SendCommand {
             address: "127.0.0.1:80".to_string(),
-            key: "FFFFFFFFFFFFFFFFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF"
-                .to_string(),
+            key_file: PathBuf::new(),
             command: DEFAULT_COMMAND.to_string(),
             permissive: false,
             ip: None,

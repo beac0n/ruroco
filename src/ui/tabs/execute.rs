@@ -6,7 +6,10 @@ use crate::ui::colors;
 use crate::ui::command_data::CommandData;
 use crate::ui::saved_command_list::CommandsList;
 use crate::ui::tabs::widgets;
+use anyhow::Context;
 use eframe::egui;
+use std::io::Write;
+use tempfile::NamedTempFile;
 
 pub(crate) fn render(
     state: &mut ExecuteState,
@@ -66,23 +69,27 @@ pub(crate) fn render(
 fn exec_command(state: &mut ExecuteState, key: &str, cmd: CommandData) {
     info(format!("Executing command: {}", cmd.name));
 
-    let ip = cmd.ip.trim();
-    let send_command = SendCommand {
-        address: cmd.address.clone(),
-        command: cmd.command.clone(),
-        permissive: cmd.permissive,
-        ip: if ip.is_empty() {
-            None
-        } else {
-            Some(ip.to_string())
-        },
-        ipv4: cmd.ipv4,
-        ipv6: cmd.ipv6,
-        key: key.trim().to_string(),
-        ..Default::default()
-    };
+    let result = write_key_file(key).and_then(|key_file| {
+        let ip = cmd.ip.trim();
+        let send_command = SendCommand {
+            address: cmd.address.clone(),
+            command: cmd.command.clone(),
+            permissive: cmd.permissive,
+            ip: if ip.is_empty() {
+                None
+            } else {
+                Some(ip.to_string())
+            },
+            ipv4: cmd.ipv4,
+            ipv6: cmd.ipv6,
+            key_file: key_file.path().to_path_buf(),
+            ..Default::default()
+        };
 
-    let result = Sender::create(send_command).and_then(|mut sender| sender.send());
+        // key_file (a NamedTempFile) is kept alive until Sender::create has read it, then
+        // dropped, which removes it from disk. The key never lives in a SendCommand field.
+        Sender::create(send_command).and_then(|mut sender| sender.send())
+    });
 
     match result {
         Ok(_) => {
@@ -93,6 +100,14 @@ fn exec_command(state: &mut ExecuteState, key: &str, cmd: CommandData) {
             state.set(&cmd, Status::Err);
         }
     }
+}
+
+/// Writes `key` to a temporary file (auto-deleted on drop) so it can be passed to `Sender::create`
+/// via `key_file`. The GUI holds the key in memory; `SendCommand` only ever accepts one via a file.
+fn write_key_file(key: &str) -> anyhow::Result<NamedTempFile> {
+    let mut file = NamedTempFile::new().with_context(|| "Could not create temporary key file")?;
+    file.write_all(key.trim().as_bytes()).with_context(|| "Could not write temporary key file")?;
+    Ok(file)
 }
 
 #[cfg(all(test, feature = "with-gui"))]
