@@ -2,11 +2,16 @@ use crate::client::update::Updater;
 use crate::common::crypto::verify_ed25519;
 use crate::common::fs::write_atomic_with_mode;
 use crate::common::{change_file_ownership, info};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
+
+/// Hard ceiling on a single downloaded asset (binary or signature). Release binaries are a few
+/// MB; this only guards against a misbehaving or compromised server making the client allocate
+/// unbounded memory.
+const MAX_DOWNLOAD_BYTES: u64 = 100 * 1024 * 1024;
 
 impl Updater {
     pub(super) fn check_if_writable(path: &Path) -> anyhow::Result<bool> {
@@ -14,10 +19,16 @@ impl Updater {
     }
 
     fn download_bytes(url: &str) -> anyhow::Result<Vec<u8>> {
-        let mut reader =
+        let reader =
             ureq::get(url).call().map_err(|e| anyhow!("Could not get binary: {e}"))?.into_reader();
         let mut bytes = Vec::new();
-        reader.read_to_end(&mut bytes).with_context(|| "Could not get bytes")?;
+        reader
+            .take(MAX_DOWNLOAD_BYTES + 1)
+            .read_to_end(&mut bytes)
+            .with_context(|| "Could not get bytes")?;
+        if bytes.len() as u64 > MAX_DOWNLOAD_BYTES {
+            bail!("Download from {url} exceeded the {MAX_DOWNLOAD_BYTES} byte limit");
+        }
         Ok(bytes)
     }
 

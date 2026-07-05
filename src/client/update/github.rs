@@ -42,21 +42,27 @@ impl Updater {
         releases_url: &str,
         version_to_download: Option<&String>,
     ) -> anyhow::Result<GithubApiData> {
+        let separator = if releases_url.contains('?') { '&' } else { '?' };
+        let paged_url = format!("{releases_url}{separator}per_page=100");
+
         let agent = ureq::AgentBuilder::new().user_agent("rust-client").build();
         let response_data: Vec<GithubApiData> = agent
-            .get(releases_url)
+            .get(&paged_url)
             .call()
             .map_err(|e| anyhow!("Could not get API response: {e}"))?
             .into_json()
             .with_context(|| "Could not parse json")?;
 
+        let fetched_count = response_data.len();
         let data = match version_to_download {
             None => response_data.first().cloned(),
             Some(v) => response_data.into_iter().find(|d| d.tag_name == *v),
         };
 
         match data {
-            None => Err(anyhow!("Could not find version {version_to_download:?}")),
+            None => Err(anyhow!(
+                "Could not find version {version_to_download:?} among the latest {fetched_count} fetched releases"
+            )),
             Some(d) => Ok(d),
         }
     }
