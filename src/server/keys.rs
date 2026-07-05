@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::ReadDir;
 use std::path::PathBuf;
+use zeroize::Zeroizing;
 
 impl ConfigServer {
     pub(crate) fn create_blocklist(&self) -> anyhow::Result<Blocklist> {
@@ -24,20 +25,21 @@ impl ConfigServer {
         let key_paths = self.get_key_paths()?;
         info(format!("Creating server, loading keys from {key_paths:?}, using {} ...", version()));
 
-        let content_to_path = Self::get_content_to_path(&key_paths)?;
-        if key_paths.len() != content_to_path.len() {
-            bail!("Duplicate key files detected; refusing to start");
+        let mut handlers = HashMap::with_capacity(key_paths.len());
+        for path in &key_paths {
+            let content: Zeroizing<String> = fs::read_to_string(path)
+                .with_context(|| format!("Could not read key file {}", path.display()))?
+                .into();
+            let handler = CryptoHandler::create(&content)
+                .with_context(|| format!("load key {}", path.display()))?;
+            info(format!("loading key with id {:X?}", &handler.id));
+
+            if handlers.insert(handler.id, handler).is_some() {
+                bail!("Duplicate key files detected; refusing to start");
+            }
         }
 
-        content_to_path
-            .into_iter()
-            .map(|(content, p)| {
-                let h = CryptoHandler::create(&content)
-                    .with_context(|| format!("load key {}", p.display()))?;
-                info(format!("loading key with id {:X?}", &h.id));
-                Ok((h.id, h))
-            })
-            .collect()
+        Ok(handlers)
     }
 
     pub(crate) fn get_commander_unix_socket_path(&self) -> PathBuf {
@@ -49,17 +51,6 @@ impl ConfigServer {
 
     pub(crate) fn resolve_config_dir(&self) -> PathBuf {
         resolve_path(&self.config_dir)
-    }
-
-    fn get_content_to_path(key_paths: &[PathBuf]) -> anyhow::Result<HashMap<String, PathBuf>> {
-        key_paths
-            .iter()
-            .map(|p| {
-                fs::read_to_string(p)
-                    .with_context(|| format!("Could not read key file {}", p.display()))
-                    .map(|content| (content, p.clone()))
-            })
-            .collect::<anyhow::Result<HashMap<String, PathBuf>>>()
     }
 
     pub(crate) fn get_key_paths(&self) -> anyhow::Result<Vec<PathBuf>> {
@@ -127,12 +118,17 @@ mod tests {
         assert!(paths[0].extension().unwrap() == "key");
     }
 
+    #[cfg(feature = "with-client")]
     #[test]
     fn test_create_crypto_handlers_duplicate_keys() {
+        use crate::common::crypto_handler::CryptoHandler;
+
         let dir = tempfile::tempdir().unwrap();
-        let content = "duplicate_key_content";
-        std::fs::write(dir.path().join("a.key"), content).unwrap();
-        std::fs::write(dir.path().join("b.key"), content).unwrap();
+        // Must be a validly-formatted key: the dedup check now runs after parsing, on the
+        // resulting key id, so it needs two files that actually parse as the same key.
+        let content = CryptoHandler::gen_key().unwrap();
+        std::fs::write(dir.path().join("a.key"), &content).unwrap();
+        std::fs::write(dir.path().join("b.key"), &content).unwrap();
         let config = ConfigServer {
             config_dir: dir.path().to_path_buf(),
             ..Default::default()
