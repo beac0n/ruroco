@@ -1,7 +1,7 @@
 use crate::client::update::Updater;
 use crate::client::wizard::Wizard;
 use crate::common::info;
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use std::process::Command;
 
 pub(super) const CONFIG_TOML_PATH: &str = "/etc/ruroco/config.toml";
@@ -26,46 +26,56 @@ impl Wizard {
 
     pub(super) fn start_systemd_services() -> anyhow::Result<()> {
         info("Starting systemd services ...");
-        Command::new("systemctl")
+        let status = Command::new("systemctl")
             .arg("start")
             .arg("ruroco.service")
             .arg("ruroco-commander.service")
             .arg("ruroco.socket")
             .status()
             .with_context(|| "Failed to start ruroco systemd services")?;
+        ensure!(status.success(), "'systemctl start' failed with {status}");
         Ok(())
     }
 
     pub(super) fn enable_systemd_services() -> anyhow::Result<()> {
         info("Enabling systemd services ...");
-        Command::new("systemctl")
+        let status = Command::new("systemctl")
             .arg("enable")
             .arg("ruroco.service")
             .arg("ruroco-commander.service")
             .arg("ruroco.socket")
             .status()
             .with_context(|| "Failed to enable ruroco systemd services")?;
+        ensure!(status.success(), "'systemctl enable' failed with {status}");
         Ok(())
     }
 
     pub(super) fn reload_systemd_daemon() -> anyhow::Result<()> {
         info("Reloading systemd daemon ...");
-        Command::new("systemctl")
+        let status = Command::new("systemctl")
             .arg("daemon-reload")
             .status()
             .with_context(|| "Failed to reload systemd")?;
+        ensure!(status.success(), "'systemctl daemon-reload' failed with {status}");
         Ok(())
     }
 
     pub(super) fn create_ruroco_user() -> anyhow::Result<()> {
         info("Creating user 'ruroco' ...");
-        Command::new("useradd")
+        let status = Command::new("useradd")
             .arg("--system")
             .arg("ruroco")
             .arg("--shell")
             .arg("/bin/false")
             .status()
             .with_context(|| "Failed to create ruroco user")?;
+        // useradd exit code 9 means the user already exists: treat as success so wizard re-runs
+        // (reinstall/upgrade) stay idempotent
+        if status.code() == Some(9) {
+            info("user ruroco already exists, skipping creation");
+            return Ok(());
+        }
+        ensure!(status.success(), "'useradd ruroco' failed with {status}");
         Ok(())
     }
 }
