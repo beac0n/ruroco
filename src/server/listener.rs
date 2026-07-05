@@ -495,7 +495,12 @@ mod tests {
         );
 
         assert!(server.run_loop_iteration(localhost_src(8080)).is_ok());
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        for _ in 0..100 {
+            if output_file.exists() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
         assert!(output_file.exists(), "commander did not execute the command");
         let _ = fs::remove_file(&socket_path);
     }

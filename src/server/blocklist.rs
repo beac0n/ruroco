@@ -92,23 +92,22 @@ impl Blocklist {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs};
+    use std::fs;
 
     use crate::server::blocklist::Blocklist;
 
-    fn create_blocklist() -> Blocklist {
-        remove_blocklist();
-        Blocklist::create(&env::current_dir().unwrap()).unwrap()
-    }
-
-    fn remove_blocklist() {
-        let blocklist_path = Blocklist::get_blocklist_path(&env::current_dir().unwrap());
-        let _ = fs::remove_file(&blocklist_path);
+    /// Each test gets its own tempdir so the persisted blocklist.msgpck is fully isolated. The
+    /// returned `TempDir` must be kept in scope for the duration of the test: dropping it removes
+    /// the directory and would break `save()`.
+    fn create_blocklist() -> (tempfile::TempDir, Blocklist) {
+        let dir = tempfile::tempdir().unwrap();
+        let blocklist = Blocklist::create(dir.path()).unwrap();
+        (dir, blocklist)
     }
 
     #[test]
     fn test_upsert() {
-        let mut blocklist = create_blocklist();
+        let (_dir, mut blocklist) = create_blocklist();
         let key_id = [0u8; 8];
         let number: u128 = 42;
 
@@ -116,28 +115,24 @@ mod tests {
         assert_eq!(blocklist.get().len(), 1);
 
         assert_eq!(blocklist.get().get(&key_id).unwrap().clone(), number);
-
-        remove_blocklist();
     }
 
     #[test]
     fn test_save() {
-        let mut blocklist = create_blocklist();
+        let (dir, mut blocklist) = create_blocklist();
 
         let key_id = [0u8; 8];
         blocklist.upsert(key_id, 42);
         blocklist.save().unwrap();
 
-        let other_blocklist = Blocklist::create(&env::current_dir().unwrap()).unwrap();
+        let other_blocklist = Blocklist::create(dir.path()).unwrap();
         assert_eq!(other_blocklist.get().len(), 1);
-        assert_eq!(blocklist.get().get(&key_id).unwrap().clone(), 42);
-
-        remove_blocklist();
+        assert_eq!(other_blocklist.get().get(&key_id).unwrap().clone(), 42);
     }
 
     #[test]
     fn test_is_blocked() {
-        let mut blocklist = create_blocklist();
+        let (_dir, mut blocklist) = create_blocklist();
         let key_id = [0u8; 8];
         blocklist.upsert(key_id, 42);
 
@@ -148,13 +143,11 @@ mod tests {
         key_id[0] = 1;
 
         assert!(blocklist.is_counter_replayed(key_id, 42));
-
-        remove_blocklist();
     }
 
     #[test]
     fn test_get_counter() {
-        let mut blocklist = create_blocklist();
+        let (_dir, mut blocklist) = create_blocklist();
         let key_id = [0u8; 8];
         assert_eq!(blocklist.get_counter(key_id), None);
 
@@ -163,13 +156,11 @@ mod tests {
 
         let unknown_key_id = [1u8; 8];
         assert_eq!(blocklist.get_counter(unknown_key_id), None);
-
-        remove_blocklist();
     }
 
     #[test]
     fn test_is_blocked_lower_counter() {
-        let mut blocklist = create_blocklist();
+        let (_dir, mut blocklist) = create_blocklist();
         let key_id = [0u8; 8];
         blocklist.upsert(key_id, 100);
 
@@ -179,8 +170,6 @@ mod tests {
         assert!(blocklist.is_counter_replayed(key_id, 50));
         // Counter greater than stored value should not be blocked
         assert!(!blocklist.is_counter_replayed(key_id, 101));
-
-        remove_blocklist();
     }
 
     #[test]
