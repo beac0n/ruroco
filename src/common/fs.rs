@@ -5,11 +5,22 @@ use anyhow::{anyhow, Context};
 #[cfg(any(feature = "with-client", feature = "with-server"))]
 use std::io::Write;
 use std::os::unix::fs::chown;
+#[cfg(any(feature = "with-client", feature = "with-server"))]
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 #[cfg(any(feature = "with-client", feature = "with-server"))]
 pub(crate) fn write_atomic(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
+    write_atomic_with_mode(path, contents, None)
+}
+
+#[cfg(any(feature = "with-client", feature = "with-server"))]
+pub(crate) fn write_atomic_with_mode(
+    path: &Path,
+    contents: &[u8],
+    mode: Option<u32>,
+) -> anyhow::Result<()> {
     let mut tmp_os = path.as_os_str().to_owned();
     tmp_os.push(format!(".{}.tmp", now_nanos()?));
     let tmp_path = PathBuf::from(tmp_os);
@@ -24,6 +35,15 @@ pub(crate) fn write_atomic(path: &Path, contents: &[u8]) -> anyhow::Result<()> {
 
         f.write_all(contents).with_context(|| format!("write tmp {}", tmp_path.display()))?;
         f.sync_all().with_context(|| format!("fsync tmp {}", tmp_path.display()))?;
+    }
+
+    if let Some(mode) = mode {
+        let mut perms = fs::metadata(&tmp_path)
+            .with_context(|| format!("stat tmp {}", tmp_path.display()))?
+            .permissions();
+        perms.set_mode(mode);
+        fs::set_permissions(&tmp_path, perms)
+            .with_context(|| format!("set mode on tmp {}", tmp_path.display()))?;
     }
 
     fs::rename(&tmp_path, path)
@@ -99,7 +119,6 @@ fn get_gid_by_name(name: &str) -> anyhow::Result<u32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::fs::write_atomic;
     use crate::common::fs::{
         change_file_ownership, get_gid_by_name, get_uid_by_name, resolve_path,
     };
@@ -193,29 +212,55 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_write_atomic_creates_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("atomic_test");
-        write_atomic(&path, b"hello atomic").unwrap();
-        assert_eq!(fs::read(&path).unwrap(), b"hello atomic");
-    }
+    // write_atomic is only compiled for these features, so its tests must be gated the same way,
+    // otherwise `--no-default-features --features with-commander` fails to build the test crate.
+    #[cfg(any(feature = "with-client", feature = "with-server"))]
+    mod write_atomic {
+        use crate::common::fs::{write_atomic, write_atomic_with_mode};
+        use std::fs;
+        use std::path::PathBuf;
 
-    #[test]
-    fn test_write_atomic_overwrites_existing() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("atomic_test");
-        fs::write(&path, b"old content").unwrap();
-        write_atomic(&path, b"new content").unwrap();
-        assert_eq!(fs::read(&path).unwrap(), b"new content");
-    }
+        #[test]
+        fn test_write_atomic_creates_file() {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("atomic_test");
+            write_atomic(&path, b"hello atomic").unwrap();
+            assert_eq!(fs::read(&path).unwrap(), b"hello atomic");
+        }
 
-    #[test]
-    fn test_write_atomic_fails_on_nonexistent_parent() {
-        let path = PathBuf::from("/nonexistent_ruroco_dir_xyz/file.txt");
-        let result = write_atomic(&path, b"content");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("open "));
+        #[test]
+        fn test_write_atomic_overwrites_existing() {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("atomic_test");
+            fs::write(&path, b"old content").unwrap();
+            write_atomic(&path, b"new content").unwrap();
+            assert_eq!(fs::read(&path).unwrap(), b"new content");
+        }
+
+        #[test]
+        fn test_write_atomic_with_mode_sets_permissions() {
+            use std::os::unix::fs::PermissionsExt;
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("atomic_mode");
+            write_atomic_with_mode(&path, b"exec me", Some(0o755)).unwrap();
+            assert_eq!(fs::read(&path).unwrap(), b"exec me");
+            assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o755);
+            // no temp files must survive the rename
+            let leftover: Vec<_> = fs::read_dir(dir.path())
+                .unwrap()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+                .collect();
+            assert!(leftover.is_empty(), "temp files left behind: {leftover:?}");
+        }
+
+        #[test]
+        fn test_write_atomic_fails_on_nonexistent_parent() {
+            let path = PathBuf::from("/nonexistent_ruroco_dir_xyz/file.txt");
+            let result = write_atomic(&path, b"content");
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("open "));
+        }
     }
 
     #[test]

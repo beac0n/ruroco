@@ -431,6 +431,75 @@ mod tests {
     }
 
     #[test]
+    fn test_download_and_save_bin_replaced_binary_is_executable() {
+        let (pub_pem, key) = test_keypair();
+        let content = b"new-executable".to_vec();
+        let sig = sign_bytes(&key, &content);
+        let (bin_port, bin_handle) = serve_payload(content.clone());
+        let (sig_port, sig_handle) = serve_payload(sig);
+        let dir = tempfile::tempdir().unwrap();
+        // start with a non-executable existing binary so we know the mode was set on replace
+        fs::write(dir.path().join("tb"), b"old-binary").unwrap();
+        fs::set_permissions(dir.path().join("tb"), fs::Permissions::from_mode(0o600)).unwrap();
+
+        let updater = updater_with_key(dir.path(), pub_pem);
+        let result = updater.download_and_save_bin(
+            format!("http://127.0.0.1:{bin_port}/bin"),
+            format!("http://127.0.0.1:{sig_port}/sig"),
+            "tb",
+            0o755,
+            None,
+        );
+        bin_handle.join().unwrap();
+        sig_handle.join().unwrap();
+        assert!(result.is_ok(), "download_and_save_bin failed: {result:?}");
+
+        let target = dir.path().join("tb");
+        assert_eq!(fs::read(&target).unwrap(), content);
+        let mode = fs::metadata(&target).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o755);
+        // owner execute bit must be set on the replaced binary
+        assert_ne!(mode & 0o100, 0, "replaced binary is not executable");
+    }
+
+    #[test]
+    fn test_download_and_save_bin_target_never_missing_and_no_temp_leftover() {
+        // The atomic temp-file + rename flow must never leave the target absent: after a
+        // successful replace both the new target and its `.old` backup exist, and no partial
+        // temp file survives. There is no code path that fs::write()s directly onto the target.
+        let (pub_pem, key) = test_keypair();
+        let content = b"brand-new-binary".to_vec();
+        let sig = sign_bytes(&key, &content);
+        let (bin_port, bin_handle) = serve_payload(content.clone());
+        let (sig_port, sig_handle) = serve_payload(sig);
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("tb"), b"old-binary").unwrap();
+
+        let updater = updater_with_key(dir.path(), pub_pem);
+        let result = updater.download_and_save_bin(
+            format!("http://127.0.0.1:{bin_port}/bin"),
+            format!("http://127.0.0.1:{sig_port}/sig"),
+            "tb",
+            0o755,
+            None,
+        );
+        bin_handle.join().unwrap();
+        sig_handle.join().unwrap();
+        assert!(result.is_ok(), "download_and_save_bin failed: {result:?}");
+
+        // target present with new contents, backup present with old contents
+        assert_eq!(fs::read(dir.path().join("tb")).unwrap(), content);
+        assert_eq!(fs::read(dir.path().join("tb.old")).unwrap(), b"old-binary");
+        // no stray temp files from the atomic write remain in the directory
+        let leftover: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp"))
+            .collect();
+        assert!(leftover.is_empty(), "temp files left behind: {leftover:?}");
+    }
+
+    #[test]
     fn test_download_and_save_bin_download_failure() {
         let dir = tempfile::tempdir().unwrap();
         let result = create_updater(dir.path()).download_and_save_bin(

@@ -1,8 +1,8 @@
 use crate::client::update::Updater;
-use crate::client::util::set_permissions;
 use crate::common::crypto::verify_ed25519;
+use crate::common::fs::write_atomic_with_mode;
 use crate::common::{change_file_ownership, info};
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, Context};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -43,7 +43,7 @@ impl Updater {
     ) -> anyhow::Result<()> {
         info(format!("downloading from {bin_url}"));
 
-        let target_bin_path = &self.bin_path.join(bin_name);
+        let target_bin_path = self.bin_path.join(bin_name);
 
         let bin_resp_bytes = Self::download_bytes(&bin_url)?;
         let sig_bytes = Self::download_bytes(&sig_url)?;
@@ -51,32 +51,29 @@ impl Updater {
         verify_ed25519(&self.public_key_pem, &bin_resp_bytes, &sig_bytes)
             .with_context(|| format!("Signature verification failed for {bin_name}"))?;
 
-        let target_bin_path_str = target_bin_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Could not convert {target_bin_path:?} to str"))?;
-
+        // Snapshot the current binary to a `.old` sibling for manual rollback. This is done
+        // before the swap while the target is still present, so a crash here never removes it.
         if target_bin_path.exists() {
-            fs::rename(target_bin_path_str, format!("{target_bin_path_str}.old"))
-                .with_context(|| "Could not rename existing binary")?;
+            let backup_path = Self::old_backup_path(&target_bin_path);
+            fs::copy(&target_bin_path, &backup_path)
+                .with_context(|| format!("Could not back up existing binary to {backup_path:?}"))?;
         }
 
-        match fs::write(target_bin_path_str, bin_resp_bytes) {
-            Ok(_) => {}
-            Err(_) => {
-                fs::rename(format!("{target_bin_path_str}.old"), target_bin_path_str)
-                    .with_context(|| "Could not recover old binary")?;
+        // Write the new binary (with exec bits) to a temp file in the same directory, then a
+        // single atomic rename over the target. Renaming a running binary is fine on Linux, and
+        // the target always holds either the old or the new complete binary, never nothing.
+        write_atomic_with_mode(&target_bin_path, &bin_resp_bytes, Some(permissions_mode))
+            .with_context(|| format!("Could not write new binary to {target_bin_path:?}"))?;
 
-                bail!("Could not write new binary to {target_bin_path_str}");
-            }
-        }
-
-        #[cfg(unix)]
-        {
-            set_permissions(target_bin_path_str, permissions_mode)?;
-            if let Some(ug) = user_and_group {
-                change_file_ownership(target_bin_path, ug, ug)?
-            }
+        if let Some(ug) = user_and_group {
+            change_file_ownership(&target_bin_path, ug, ug)?
         }
         Ok(())
+    }
+
+    fn old_backup_path(target: &Path) -> PathBuf {
+        let mut os = target.as_os_str().to_owned();
+        os.push(".old");
+        PathBuf::from(os)
     }
 }
