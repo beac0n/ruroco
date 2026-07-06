@@ -5,6 +5,9 @@ use crate::common::info;
 use android_activity::AndroidApp;
 use anyhow::anyhow;
 
+// SAFETY: `#[no_mangle]` is required so `android_activity`'s native glue can find this entry
+// point by symbol name; the function body itself contains no unsafe code.
+#[allow(unsafe_code)]
 #[no_mangle]
 fn android_main(app: AndroidApp) {
     let status_bar_dp = crate::common::android::AndroidStatusBar::height_dp().unwrap_or(0.0);

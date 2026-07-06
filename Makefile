@@ -89,7 +89,10 @@ audit:
 	cargo deny check
 
 format:
-	cargo fmt && cargo clippy --tests --features with-client,with-server,with-gui,testing --verbose -- -D warnings && cargo fix --allow-dirty --features with-client,with-server,with-gui,testing
+	cargo fmt
+
+lint_fix:
+	cargo clippy --tests --features with-client,with-server,with-gui,testing --verbose -- -D warnings && cargo fix --allow-dirty --features with-client,with-server,with-gui,testing
 
 install_client: release
 	mkdir -p ~/.local/bin/

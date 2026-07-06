@@ -4,6 +4,7 @@ set -euxo pipefail
 sudo useradd --system ruroco --shell /bin/false || true
 RUROCO_KEY="$(./target/x86_64-unknown-linux-gnu/debug/client gen)"
 echo "$RUROCO_KEY" > ruroco.key
+cp ruroco.key client.key
 
 # Binaries and the command output dir live under /opt, not /tmp: both units set PrivateTmp=true, so
 # systemd replaces /tmp with a private tmpfs before exec — a binary under /tmp would not be found,
@@ -46,7 +47,7 @@ sudo systemctl start ruroco.service
 # counter to be rejected as "on blocklist".
 sleep 1
 
-./target/x86_64-unknown-linux-gnu/debug/client send -a 127.0.0.1:80 -k "$RUROCO_KEY"
+./target/x86_64-unknown-linux-gnu/debug/client send -a 127.0.0.1:80 -k ./client.key
 
 sleep 2
 
