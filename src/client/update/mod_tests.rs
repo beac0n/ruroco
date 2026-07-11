@@ -213,6 +213,35 @@ fn test_get_github_api_data_nonexistent_version() {
 }
 
 #[test]
+fn test_get_github_api_data_skips_prerelease_when_no_version_given() {
+    let api_json = r#"[
+        {"tag_name":"v2.0.0-rc1","assets":[],"prerelease":true},
+        {"tag_name":"v1.0.0","assets":[],"prerelease":false}
+    ]"#;
+    let (port, _handle) = serve_payload(api_json.as_bytes().to_vec());
+    let releases_url = format!("http://127.0.0.1:{port}");
+
+    let data = Updater::get_github_api_data_from(&releases_url, None).unwrap();
+
+    assert_eq!(data.tag_name, "v1.0.0");
+}
+
+#[test]
+fn test_get_github_api_data_explicit_version_allows_prerelease() {
+    let api_json = r#"[
+        {"tag_name":"v2.0.0-rc1","assets":[],"prerelease":true},
+        {"tag_name":"v1.0.0","assets":[],"prerelease":false}
+    ]"#;
+    let (port, _handle) = serve_payload(api_json.as_bytes().to_vec());
+    let releases_url = format!("http://127.0.0.1:{port}");
+
+    let data =
+        Updater::get_github_api_data_from(&releases_url, Some(&"v2.0.0-rc1".to_string())).unwrap();
+
+    assert_eq!(data.tag_name, "v2.0.0-rc1");
+}
+
+#[test]
 fn test_create_with_readonly_bin_path() {
     let dir = tempfile::tempdir().unwrap();
     let readonly_dir = create_readonly_dir(dir.path());

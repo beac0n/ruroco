@@ -25,6 +25,8 @@ pub(crate) struct GithubApiAsset {
 pub(crate) struct GithubApiData {
     pub(crate) tag_name: String,
     pub(crate) assets: Vec<GithubApiAsset>,
+    #[serde(default)]
+    pub(crate) prerelease: bool,
 }
 
 impl Updater {
@@ -55,7 +57,8 @@ impl Updater {
 
         let fetched_count = response_data.len();
         let data = match version_to_download {
-            None => response_data.first().cloned(),
+            // An explicit --version always does exactly what was asked, prerelease or not.
+            None => response_data.into_iter().find(|d| !d.prerelease),
             Some(v) => response_data.into_iter().find(|d| d.tag_name == *v),
         };
 
