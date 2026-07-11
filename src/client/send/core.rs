@@ -13,6 +13,7 @@ use std::time::Duration;
 #[derive(Debug)]
 pub struct Sender {
     pub(super) cmd: SendCommand,
+    pub(super) src_ip: Option<IpAddr>,
     pub(super) data_parser: DataParser,
     pub(super) counter: Counter,
 }
@@ -20,6 +21,11 @@ pub struct Sender {
 impl Sender {
     pub fn create(mut cmd: SendCommand) -> anyhow::Result<Self> {
         cmd.address = Self::ensure_port(cmd.address, crate::common::DEFAULT_PORT);
+        let src_ip = cmd
+            .ip
+            .clone()
+            .map(|ip| ip.parse().with_context(|| format!("Invalid --ip value {ip:?}")))
+            .transpose()?;
         let key = std::fs::read_to_string(&cmd.key_file)
             .with_context(|| format!("Could not read key file {:?}", cmd.key_file))?;
         let counter_path = Self::get_counter_path()?;
@@ -27,6 +33,7 @@ impl Sender {
         Ok(Self {
             data_parser: DataParser::create(key.trim())?,
             cmd,
+            src_ip,
             counter: Counter::create_and_init(counter_path, now_nanos()?)?,
         })
     }
@@ -74,7 +81,7 @@ impl Sender {
         ClientData::create(
             &self.cmd.command,
             !self.cmd.permissive,
-            self.cmd.ip.clone().and_then(|d| d.parse().ok()),
+            self.src_ip,
             destination_ip,
             self.counter.count(),
         )?
@@ -137,6 +144,20 @@ mod tests {
         let _conf_dir = set_test_conf_dir();
         let result = CliClient::try_parse_from(vec!["ruroco", "send", "--help"]);
         assert_eq!(result.unwrap_err().kind(), DisplayHelp);
+    }
+
+    #[test]
+    fn test_send_invalid_ip() {
+        let conf_dir = set_test_conf_dir();
+        let key_file = write_key_file(conf_dir.path());
+
+        let result = Sender::create(SendCommand {
+            key_file,
+            ip: Some("not-an-ip".to_string()),
+            ..Default::default()
+        });
+
+        assert!(result.unwrap_err().to_string().contains("Invalid --ip value"));
     }
 
     #[test]
