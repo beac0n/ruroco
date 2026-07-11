@@ -44,23 +44,36 @@ impl Updater {
         }
     }
 
-    pub(super) fn download_and_save_bin(
+    /// Download and Ed25519-verify one binary, without touching disk. Used so all targets of an
+    /// update can be fetched and verified before any of them is swapped in.
+    pub(super) fn download_and_verify_bin(
         &self,
         bin_url: String,
         sig_url: String,
         bin_name: &str,
-        permissions_mode: u32,
-        user_and_group: Option<&str>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Vec<u8>> {
         info(format!("downloading from {bin_url}"));
-
-        let target_bin_path = self.bin_path.join(bin_name);
 
         let bin_resp_bytes = Self::download_bytes(&bin_url)?;
         let sig_bytes = Self::download_bytes(&sig_url)?;
 
         verify_ed25519(&self.public_key_pem, &bin_resp_bytes, &sig_bytes)
             .with_context(|| format!("Signature verification failed for {bin_name}"))?;
+
+        Ok(bin_resp_bytes)
+    }
+
+    /// Swap an already-verified binary onto disk. Called only after every target of an update has
+    /// been downloaded and verified, so a failure partway through downloading never leaves some
+    /// binaries updated and others not.
+    pub(super) fn save_bin(
+        &self,
+        bin_bytes: &[u8],
+        bin_name: &str,
+        permissions_mode: u32,
+        user_and_group: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let target_bin_path = self.bin_path.join(bin_name);
 
         // Snapshot the current binary to a `.old` sibling for manual rollback. This is done
         // before the swap while the target is still present, so a crash here never removes it.
@@ -73,7 +86,7 @@ impl Updater {
         // Write the new binary (with exec bits) to a temp file in the same directory, then a
         // single atomic rename over the target. Renaming a running binary is fine on Linux, and
         // the target always holds either the old or the new complete binary, never nothing.
-        write_atomic_with_mode(&target_bin_path, &bin_resp_bytes, Some(permissions_mode))
+        write_atomic_with_mode(&target_bin_path, bin_bytes, Some(permissions_mode))
             .with_context(|| format!("Could not write new binary to {target_bin_path:?}"))?;
 
         if let Some(ug) = user_and_group {

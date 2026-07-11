@@ -25,6 +25,21 @@ fn updater_with_key(dir: &Path, public_key_pem: Vec<u8>) -> Updater {
     }
 }
 
+/// Test-only composition of the two update steps `Updater::update` now runs separately (verify
+/// every target, then swap every target), matching the pre-split `download_and_save_bin` shape
+/// so the existing tests below don't need to be rewritten one by one.
+fn download_and_save_bin(
+    updater: &Updater,
+    bin_url: String,
+    sig_url: String,
+    bin_name: &str,
+    permissions_mode: u32,
+    user_and_group: Option<&str>,
+) -> anyhow::Result<()> {
+    let bin_bytes = updater.download_and_verify_bin(bin_url, sig_url, bin_name)?;
+    updater.save_bin(&bin_bytes, bin_name, permissions_mode, user_and_group)
+}
+
 fn test_keypair() -> (Vec<u8>, PKey<Private>) {
     let key = PKey::generate_ed25519().unwrap();
     (key.public_key_to_pem().unwrap(), key)
@@ -239,7 +254,8 @@ fn test_download_and_save_bin_creates_file() {
     let (sig_port, sig_handle) = serve_payload(sig);
     let dir = tempfile::tempdir().unwrap();
     let updater = updater_with_key(dir.path(), pub_pem);
-    let result = updater.download_and_save_bin(
+    let result = download_and_save_bin(
+        &updater,
         format!("http://127.0.0.1:{bin_port}/bin"),
         format!("http://127.0.0.1:{sig_port}/sig"),
         "tb",
@@ -266,7 +282,8 @@ fn test_download_and_save_bin_renames_existing_to_old() {
     fs::write(dir.path().join("tb"), b"old-binary").unwrap();
 
     let updater = updater_with_key(dir.path(), pub_pem);
-    let result = updater.download_and_save_bin(
+    let result = download_and_save_bin(
+        &updater,
         format!("http://127.0.0.1:{bin_port}/bin"),
         format!("http://127.0.0.1:{sig_port}/sig"),
         "tb",
@@ -294,7 +311,8 @@ fn test_download_and_save_bin_replaced_binary_is_executable() {
     fs::set_permissions(dir.path().join("tb"), fs::Permissions::from_mode(0o600)).unwrap();
 
     let updater = updater_with_key(dir.path(), pub_pem);
-    let result = updater.download_and_save_bin(
+    let result = download_and_save_bin(
+        &updater,
         format!("http://127.0.0.1:{bin_port}/bin"),
         format!("http://127.0.0.1:{sig_port}/sig"),
         "tb",
@@ -327,7 +345,8 @@ fn test_download_and_save_bin_target_never_missing_and_no_temp_leftover() {
     fs::write(dir.path().join("tb"), b"old-binary").unwrap();
 
     let updater = updater_with_key(dir.path(), pub_pem);
-    let result = updater.download_and_save_bin(
+    let result = download_and_save_bin(
+        &updater,
         format!("http://127.0.0.1:{bin_port}/bin"),
         format!("http://127.0.0.1:{sig_port}/sig"),
         "tb",
@@ -353,7 +372,8 @@ fn test_download_and_save_bin_target_never_missing_and_no_temp_leftover() {
 #[test]
 fn test_download_and_save_bin_download_failure() {
     let dir = tempfile::tempdir().unwrap();
-    let result = create_updater(dir.path()).download_and_save_bin(
+    let result = download_and_save_bin(
+        &create_updater(dir.path()),
         "http://127.0.0.1:1/nonexistent".to_string(),
         "http://127.0.0.1:1/nonexistent.sig".to_string(),
         "tb",
@@ -375,7 +395,8 @@ fn test_download_and_save_bin_invalid_signature_aborts() {
     fs::write(dir.path().join("tb"), b"old-binary").unwrap();
 
     let updater = updater_with_key(dir.path(), pub_pem);
-    let result = updater.download_and_save_bin(
+    let result = download_and_save_bin(
+        &updater,
         format!("http://127.0.0.1:{bin_port}/bin"),
         format!("http://127.0.0.1:{sig_port}/sig"),
         "tb",
@@ -400,7 +421,8 @@ fn test_download_and_save_bin_with_empty_user_group() {
     let (sig_port, sig_handle) = serve_payload(sig);
     let dir = tempfile::tempdir().unwrap();
     let updater = updater_with_key(dir.path(), pub_pem);
-    let result = updater.download_and_save_bin(
+    let result = download_and_save_bin(
+        &updater,
         format!("http://127.0.0.1:{bin_port}/bin"),
         format!("http://127.0.0.1:{sig_port}/sig"),
         "tb",
@@ -431,6 +453,68 @@ fn test_update_no_force_version_matches_skips_network() {
         Updater::create(false, Some(current_version), Some(dir.path().to_path_buf()), false)
             .unwrap();
     assert!(updater.update().is_ok());
+}
+
+#[test]
+fn test_update_verifies_all_targets_before_swapping_any() {
+    use crate::client::update::{CLIENT_BIN_NAME, CLIENT_UI_BIN_NAME};
+    use std::env::consts::{ARCH, OS};
+
+    let (pub_pem, key) = test_keypair();
+    let tag = "v9.9.9";
+
+    // client: valid content + matching signature.
+    let client_content = b"new-client".to_vec();
+    let client_sig = sign_bytes(&key, &client_content);
+    // client-ui: signature does not match its content, so verification fails.
+    let ui_content = b"new-client-ui".to_vec();
+    let ui_sig = sign_bytes(&key, b"some-other-bytes");
+
+    let (client_bin_port, client_bin_handle) = serve_payload(client_content);
+    let (client_sig_port, client_sig_handle) = serve_payload(client_sig);
+    let (ui_bin_port, ui_bin_handle) = serve_payload(ui_content);
+    let (ui_sig_port, ui_sig_handle) = serve_payload(ui_sig);
+
+    let client_bin_name = format!("client-{tag}-{ARCH}-{OS}");
+    let ui_bin_name = format!("client-ui-{tag}-{ARCH}-{OS}");
+    let api_json = format!(
+        r#"[{{"tag_name":"{tag}","assets":[
+            {{"name":"{client_bin_name}","browser_download_url":"http://127.0.0.1:{client_bin_port}/bin"}},
+            {{"name":"{client_bin_name}.sig","browser_download_url":"http://127.0.0.1:{client_sig_port}/sig"}},
+            {{"name":"{ui_bin_name}","browser_download_url":"http://127.0.0.1:{ui_bin_port}/bin"}},
+            {{"name":"{ui_bin_name}.sig","browser_download_url":"http://127.0.0.1:{ui_sig_port}/sig"}}
+        ]}}]"#
+    );
+    let (api_port, api_handle) = serve_payload(api_json.into_bytes());
+
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join(CLIENT_BIN_NAME), b"old-client").unwrap();
+    fs::write(dir.path().join(CLIENT_UI_BIN_NAME), b"old-client-ui").unwrap();
+
+    let updater = Updater {
+        force: true,
+        version: None,
+        bin_path: dir.path().to_path_buf(),
+        server: false,
+        public_key_pem: pub_pem,
+        releases_url: format!("http://127.0.0.1:{api_port}/releases"),
+    };
+
+    let result = updater.update();
+
+    api_handle.join().unwrap();
+    client_bin_handle.join().unwrap();
+    client_sig_handle.join().unwrap();
+    ui_bin_handle.join().unwrap();
+    ui_sig_handle.join().unwrap();
+
+    assert!(result.unwrap_err().to_string().contains("Signature verification failed"));
+    // client's signature verified fine, but client-ui's did not: neither must be swapped in, since
+    // every target is verified before any of them is written to disk.
+    assert_eq!(fs::read(dir.path().join(CLIENT_BIN_NAME)).unwrap(), b"old-client");
+    assert_eq!(fs::read(dir.path().join(CLIENT_UI_BIN_NAME)).unwrap(), b"old-client-ui");
+    assert!(!dir.path().join(format!("{CLIENT_BIN_NAME}.old")).exists());
+    assert!(!dir.path().join(format!("{CLIENT_UI_BIN_NAME}.old")).exists());
 }
 
 #[test]

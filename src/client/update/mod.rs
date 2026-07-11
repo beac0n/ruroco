@@ -101,15 +101,21 @@ impl Updater {
         let assets = &api_data.assets;
         let tag = &api_data.tag_name;
 
+        // Resolve, download, and verify every target before swapping any of them in, so a missing
+        // or failing asset can never leave some binaries updated and others on the old version.
+        let mut verified = Vec::new();
         for (prefix, target_name, mode, owner) in self.binary_targets() {
             let bin_name = format!("{prefix}-{tag}-{ARCH}-{OS}");
-            self.download_and_save_bin(
+            let bin_bytes = self.download_and_verify_bin(
                 Self::get_download_url(assets, &bin_name)?,
                 Self::get_download_url(assets, &format!("{bin_name}.sig"))?,
                 target_name,
-                mode,
-                owner,
             )?;
+            verified.push((bin_bytes, target_name, mode, owner));
+        }
+
+        for (bin_bytes, target_name, mode, owner) in verified {
+            self.save_bin(&bin_bytes, target_name, mode, owner)?;
         }
 
         Ok(())
