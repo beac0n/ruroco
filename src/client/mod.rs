@@ -19,13 +19,6 @@ pub(crate) mod update;
 pub(crate) mod util;
 mod wizard;
 
-pub fn run_client_send(client: CliClient) -> anyhow::Result<()> {
-    match client.command {
-        CommandsClient::Send(send_command) => Sender::create(send_command)?.send(),
-        _ => Err(anyhow::anyhow!("Invalid command for run_client_send")),
-    }
-}
-
 pub fn run_client(client: CliClient) -> anyhow::Result<()> {
     let conf_dir = config::get_conf_dir()?;
     let _lock = ClientLock::acquire(conf_dir.join("client.lock"))?;
@@ -116,33 +109,6 @@ mod tests {
         ]));
 
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_run_client_send_with_send_command() {
-        let conf_dir = set_test_conf_dir();
-        let (_key, key_path) = write_key_file(&conf_dir);
-        let cli = CliClient::parse_from(vec![
-            "ruroco",
-            "send",
-            "-a",
-            "127.0.0.1:1234",
-            "-k",
-            key_path.to_str().unwrap(),
-            "-i",
-            "192.168.178.123",
-        ]);
-        let result = crate::client::run_client_send(cli);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_run_client_send_with_gen_command() {
-        let _conf_dir = set_test_conf_dir();
-        let cli = CliClient::parse_from(vec!["ruroco", "gen"]);
-        let result = crate::client::run_client_send(cli);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Invalid command for run_client_send");
     }
 
     #[test]
