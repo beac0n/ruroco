@@ -95,6 +95,13 @@ unprivileged server; only a fixed-size message of `(command hash, IP)` crosses t
   server's last-seen counter will have packets rejected until reseeded (`ruroco-client reseed`).
 - **Traffic analysis / metadata.** Packet size is fixed and contents are encrypted, but an observer can still see that
   a 94-byte UDP packet was sent to the server, and when.
+- **Rate limiting keyed on a spoofable source IP.** The server never replies, so nothing prevents an attacker from
+  spoofing a UDP source address. This means the per-IP and global caps in `src/server/rate_limiter.rs` can themselves
+  be abused pre-authentication: spoofing a legitimate client's address can burn that client's per-IP budget, and
+  spraying enough distinct spoofed sources can trip the global cap and rate-limit all knocks. We accept this because
+  the limiter's job is to bound decrypt work under a flood, not to defend a specific IP's availability; the packet's
+  own authentication and replay protection are unaffected either way, since a spoofed packet still cannot decrypt or
+  replay successfully.
 
 ### Key lifecycle
 
