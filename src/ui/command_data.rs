@@ -12,7 +12,7 @@ pub(crate) struct CommandData {
     pub(crate) name: String,
 }
 
-pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String {
+pub(crate) fn data_to_command(data: &CommandData) -> String {
     let mut command = String::new();
 
     command.push_str("send ");
@@ -41,11 +41,6 @@ pub(crate) fn data_to_command(data: &CommandData, key: Option<String>) -> String
     }
     if data.permissive {
         command.push_str("--permissive ");
-    }
-
-    if let Some(k) = key {
-        command.push_str("--key ");
-        command.push_str(&k);
     }
 
     command.trim_end().to_string()
@@ -134,31 +129,31 @@ mod tests {
     #[test]
     fn test_data_to_command_full() {
         let data = make_cmd("127.0.0.1:80", "restart", "10.0.0.1", true, true, true);
-        let result = data_to_command(&data, Some("mykey123".to_string()));
+        let result = data_to_command(&data);
         assert_eq!(
             result,
-            "send --address 127.0.0.1:80 --command restart --ip 10.0.0.1 --ipv4 --ipv6 --permissive --key mykey123"
+            "send --address 127.0.0.1:80 --command restart --ip 10.0.0.1 --ipv4 --ipv6 --permissive"
         );
     }
 
     #[test]
     fn test_data_to_command_minimal() {
         let data = make_cmd("", "", "", false, false, false);
-        let result = data_to_command(&data, None);
+        let result = data_to_command(&data);
         assert_eq!(result, "send");
     }
 
     #[test]
     fn test_data_to_command_no_key() {
         let data = make_cmd("host:80", "default", "", false, false, false);
-        let result = data_to_command(&data, None);
+        let result = data_to_command(&data);
         assert_eq!(result, "send --address host:80 --command default");
     }
 
     #[test]
     fn test_data_to_command_ipv4_only() {
         let data = make_cmd("host:80", "cmd", "", true, false, false);
-        let result = data_to_command(&data, None);
+        let result = data_to_command(&data);
         assert!(result.contains("--ipv4"));
         assert!(!result.contains("--ipv6"));
     }
@@ -166,7 +161,7 @@ mod tests {
     #[test]
     fn test_data_to_command_ipv6_only() {
         let data = make_cmd("host:80", "cmd", "", false, true, false);
-        let result = data_to_command(&data, None);
+        let result = data_to_command(&data);
         assert!(!result.contains("--ipv4"));
         assert!(result.contains("--ipv6"));
     }
@@ -213,7 +208,7 @@ mod tests {
     #[test]
     fn test_roundtrip_data_to_command_to_data() {
         let original = make_cmd("host:8080", "deploy", "192.168.1.1", true, false, true);
-        let cmd_str = data_to_command(&original, None);
+        let cmd_str = data_to_command(&original);
         let parsed = command_to_data(&cmd_str);
         assert_eq!(parsed.address, "host:8080");
         assert_eq!(parsed.command, "deploy");

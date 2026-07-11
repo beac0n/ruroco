@@ -19,7 +19,7 @@ impl fmt::Display for CommandsList {
             if i > 0 {
                 writeln!(f)?;
             }
-            write!(f, "{}", data_to_command(c, None))?;
+            write!(f, "{}", data_to_command(c))?;
         }
         Ok(())
     }
