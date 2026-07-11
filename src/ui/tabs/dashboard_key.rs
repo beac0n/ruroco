@@ -10,12 +10,15 @@ use eframe::egui;
 pub(crate) fn render(dashboard: &mut DashboardState, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         ui.label("AES Key:");
-        ui.add(
+        let response = ui.add(
             egui::TextEdit::singleline(&mut dashboard.key)
                 .hint_text("Generate or paste your key here")
                 .password(!dashboard.show_key)
                 .desired_width(f32::INFINITY),
         );
+        if response.changed() {
+            dashboard.persist_key();
+        }
     });
 
     ui.add_space(6.0);

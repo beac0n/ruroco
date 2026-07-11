@@ -34,9 +34,16 @@ impl DashboardState {
         String::new()
     }
 
-    #[allow(unused_variables)]
     pub(crate) fn save_key(&mut self, key: String) {
         self.key = key;
+        self.persist_key();
+    }
+
+    /// Persists the current value of `self.key`. Called by `save_key` after Generate/Paste set
+    /// it, and by the dashboard's `TextEdit` on every change, since typing directly into the
+    /// field mutates `self.key` without going through `save_key`.
+    #[allow(unused_variables, clippy::unused_self)]
+    pub(crate) fn persist_key(&self) {
         #[cfg(target_os = "android")]
         if let Err(e) = crate::common::android::AndroidPrefs::put_string(KEY_PREF, &self.key) {
             error(format!("Failed to save AES key: {e}"));
