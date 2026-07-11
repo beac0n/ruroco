@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct Blocklist {
     map: HashMap<[u8; KEY_ID_SIZE], u128>,
+    #[serde(skip)]
     path: PathBuf,
 }
 
@@ -32,8 +33,10 @@ impl Blocklist {
                 format!("Could not read blocklist from path {blocklist_path:?}")
             })?;
 
-            rmp_serde::from_slice(&blocklist_str)
-                .with_context(|| "Could not create blocklist from vec")?
+            let mut blocklist: Blocklist = rmp_serde::from_slice(&blocklist_str)
+                .with_context(|| "Could not create blocklist from vec")?;
+            blocklist.path = blocklist_path;
+            blocklist
         } else {
             Blocklist {
                 map: HashMap::new(),
