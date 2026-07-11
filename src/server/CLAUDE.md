@@ -36,6 +36,13 @@ Gotchas:
 - `rate_limiter.rs` is in-memory only (resets on restart); it is throttling, not replay defense.
 - Strict mode only enforces src_ip when the client set `strict` and included a src_ip.
 - `signal.rs` traps SIGTERM/SIGINT into an atomic checked each loop for clean shutdown.
+- The run loop logs each successful receive at debug (not info), so a packet flood can't spam the
+  journal by default. On a `recv_from` error it classifies by kind: `WouldBlock`/`TimedOut` (no
+  packet within the read timeout) and `Interrupted` (a signal interrupted the syscall, e.g. our own
+  SIGTERM/SIGINT handler) are expected and just retry; anything else (e.g. a dead fd after a socket
+  activation issue) is treated as unrecoverable and the loop gives up immediately (`bail!`,
+  restarted by systemd's `Restart=always`) rather than spinning at 100% CPU on a socket that will
+  never un-break itself.
 
 Tests: encrypt a packet into `client_recv_data` via a helper, then assert validation/replay; an
 integration test spins a commander thread and checks the command actually runs.

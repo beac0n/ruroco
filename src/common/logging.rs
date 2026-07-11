@@ -8,8 +8,6 @@ pub(crate) fn info(msg: impl std::fmt::Display) {
     let _ = writeln!(std::io::stdout().lock(), "{line}");
 }
 
-// No call sites yet in this crate; wired up incrementally as modules add debug-level logging.
-#[allow(dead_code)]
 pub(crate) fn debug(msg: impl std::fmt::Display) {
     if debug_enabled() {
         let line = format!(

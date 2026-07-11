@@ -4,7 +4,7 @@
 
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data_parser::DataParser;
-use crate::common::logging::{error, info};
+use crate::common::logging::{debug, error, info};
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
 use crate::common::{normalize_ip, now_nanos};
 use crate::server::blocklist::Blocklist;
@@ -67,8 +67,16 @@ impl Server {
             }
             let data = self.socket.recv_from(&mut self.client_recv_data);
             if let Err(e) = &data {
-                if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut {
-                    continue;
+                match e.kind() {
+                    // No packet within the read timeout, or a signal interrupted the syscall
+                    // (e.g. our own SIGTERM/SIGINT handler): both are expected, not failures.
+                    ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted => {
+                        continue;
+                    }
+                    // Anything else (e.g. a dead fd after a socket activation issue) will not
+                    // recover on retry - give up immediately rather than spin on it. systemd's
+                    // `Restart=always` brings the server back up with a fresh socket.
+                    _ => bail!("Could not receive bytes from socket, giving up: {e}"),
                 }
             }
             if let Err(e) = self.run_loop_iteration(data) {
@@ -87,7 +95,7 @@ impl Server {
                 Err(anyhow!("Invalid read count {count}, expected {MSG_SIZE} from {src}"))
             }
             Ok((count, src)) => {
-                info(format!("Successfully received {count} bytes from {src}"));
+                debug(format!("Successfully received {count} bytes from {src}"));
                 let src_ip = normalize_ip(src.ip());
                 self.check_rate_limit(src_ip)?;
                 let received_data = self.client_recv_data;
