@@ -1,103 +1,36 @@
-use anyhow::{bail, Context};
-use std::fs::{remove_file, File, OpenOptions};
-use std::io;
-use std::io::Write;
+use anyhow::{anyhow, Context};
+use nix::fcntl::{Flock, FlockArg};
+use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 
+/// Single-instance guard for the client, backed by an exclusive, non-blocking `flock(2)` on a
+/// persistent file (never removed) rather than a PID file. Two processes opening this
+/// concurrently can never both believe they hold the lock (unlike a create-check-remove-recreate
+/// PID file, which races), and a crashed process releases its lock automatically when the kernel
+/// closes its file descriptors, so there is no stale-lock state to detect or clean up.
 pub(crate) struct ClientLock {
-    path: PathBuf,
-    file: Option<File>,
+    _lock: Flock<File>,
 }
 
 impl ClientLock {
     pub(crate) fn acquire(path: PathBuf) -> anyhow::Result<Self> {
-        let mut file = match Self::open(&path) {
-            Ok(file) => file,
-            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                if let Some(pid) =
-                    std::fs::read_to_string(&path).ok().and_then(|s| s.trim().parse::<u32>().ok())
-                {
-                    if Self::is_pid_running(pid) {
-                        bail!("Client already running (lock at {path:?})");
-                    }
-                }
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(&path)
+            .with_context(|| format!("Client lock unavailable at {path:?}"))?;
 
-                let _ = remove_file(&path);
-                Self::open(&path)
-                    .with_context(|| format!("Client lock unavailable at {path:?} after cleanup"))?
-            }
-            Err(e) => {
-                bail!("Client lock unavailable at {path:?}: {e}");
-            }
-        };
+        let lock = Flock::lock(file, FlockArg::LockExclusiveNonblock)
+            .map_err(|(_, e)| anyhow!("Client already running (lock at {path:?}): {e}"))?;
 
-        let pid = std::process::id();
-        let _ = writeln!(file, "{pid}");
-
-        Ok(Self {
-            path,
-            file: Some(file),
-        })
-    }
-
-    fn open(path: &PathBuf) -> io::Result<File> {
-        OpenOptions::new().create_new(true).write(true).open(path)
-    }
-
-    #[cfg(target_os = "linux")]
-    fn is_pid_running(pid: u32) -> bool {
-        std::path::Path::new("/proc").join(pid.to_string()).exists()
-    }
-
-    #[cfg(target_os = "android")]
-    fn is_pid_running(_pid: u32) -> bool {
-        false // on android, the app only runs at most once, so it's always "not running"
-    }
-
-    #[cfg(target_os = "macos")]
-    fn is_pid_running(pid: u32) -> bool {
-        std::process::Command::new("ps")
-            .arg("-p")
-            .arg(pid.to_string())
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
-    }
-
-    #[cfg(target_os = "windows")]
-    fn is_pid_running(pid: u32) -> bool {
-        let output =
-            std::process::Command::new("tasklist").args(["/FI", &format!("PID eq {pid}")]).output();
-
-        match output {
-            Ok(out) => String::from_utf8_lossy(&out.stdout).contains(&pid.to_string()),
-            Err(_) => false,
-        }
-    }
-
-    #[cfg(not(any(
-        target_os = "linux",
-        target_os = "android",
-        target_os = "macos",
-        target_os = "windows"
-    )))]
-    fn is_pid_running(_pid: u32) -> bool {
-        true // only unknown platforms, we assume that the process is running if there is a file
-    }
-}
-
-impl Drop for ClientLock {
-    fn drop(&mut self) {
-        // Close file handle before removing to be Windows-friendly.
-        let _ = self.file.take();
-        let _ = remove_file(&self.path);
+        Ok(Self { _lock: lock })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::ClientLock;
-    use std::fs;
     use tempfile::TempDir;
 
     fn temp_lock_path() -> (TempDir, std::path::PathBuf) {
@@ -111,14 +44,11 @@ mod tests {
         let (_dir, path) = temp_lock_path();
         let lock = ClientLock::acquire(path.clone()).unwrap();
         assert!(path.exists());
-        let contents = fs::read_to_string(&path).unwrap();
-        assert!(contents.trim().parse::<u32>().is_ok());
         drop(lock);
-        assert!(!path.exists());
     }
 
     #[test]
-    fn test_acquire_fails_when_pid_running() {
+    fn test_acquire_fails_when_already_locked() {
         let (_dir, path) = temp_lock_path();
         let _lock = ClientLock::acquire(path.clone()).unwrap();
         let result = ClientLock::acquire(path.clone());
@@ -128,23 +58,23 @@ mod tests {
     }
 
     #[test]
-    fn test_acquire_cleans_stale_lock() {
+    fn test_acquire_succeeds_again_after_drop() {
         let (_dir, path) = temp_lock_path();
-        // Write a PID that doesn't exist
-        fs::write(&path, "999999999\n").unwrap();
         let lock = ClientLock::acquire(path.clone()).unwrap();
-        assert!(path.exists());
         drop(lock);
+        // The lock file itself is never removed, but releasing the flock must let the next
+        // process acquire it immediately - no stale-lock detection or cleanup involved.
+        assert!(path.exists());
+        assert!(ClientLock::acquire(path).is_ok());
     }
 
     #[test]
-    fn test_acquire_cleans_lock_with_invalid_pid() {
+    fn test_acquire_reuses_preexisting_lock_file() {
+        // A lock file left behind by a prior (cleanly exited) run must not block the next one:
+        // there is no PID stored in it anymore, only flock state.
         let (_dir, path) = temp_lock_path();
-        // Write invalid content - not a valid PID
-        fs::write(&path, "not_a_pid\n").unwrap();
-        let lock = ClientLock::acquire(path.clone()).unwrap();
-        assert!(path.exists());
-        drop(lock);
+        std::fs::write(&path, "leftover content").unwrap();
+        assert!(ClientLock::acquire(path).is_ok());
     }
 
     #[test]
@@ -157,11 +87,27 @@ mod tests {
     }
 
     #[test]
-    fn test_drop_removes_lock() {
+    fn test_second_acquire_fails_while_first_still_held_from_another_thread() {
+        // Simulates the race the old PID-file implementation lost: a second acquire arriving
+        // while a first is still active must fail outright, never race a stale-lock cleanup path
+        // (there is none left) into believing it succeeded too.
         let (_dir, path) = temp_lock_path();
-        let lock = ClientLock::acquire(path.clone()).unwrap();
-        assert!(path.exists());
-        drop(lock);
-        assert!(!path.exists());
+        let path2 = path.clone();
+
+        let held = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let released = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let (held1, released1) = (held.clone(), released.clone());
+
+        let holder = std::thread::spawn(move || {
+            let _lock = ClientLock::acquire(path).unwrap();
+            held1.wait();
+            released1.wait();
+        });
+
+        held.wait();
+        let result = ClientLock::acquire(path2);
+        assert!(result.is_err(), "acquire must fail while the first lock is still held");
+        released.wait();
+        holder.join().unwrap();
     }
 }
