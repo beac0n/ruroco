@@ -18,8 +18,11 @@ binary builds with `--no-default-features` plus its own feature (`with-client`/`
 ## Code Rules
 
 - `anyhow::Result<T>` everywhere. Propagate with `?`, add context with `.with_context()`.
-- **No panics in production code.** No `.unwrap()`, `.expect()`, `panic!()`, fallible indexing.  `unwrap()` is allowed
-  only in tests.
+- **No panics in production code.** No `.unwrap()`, `.expect()`, `panic!()`, `unreachable!()`, fallible indexing.
+  `unwrap()`/`expect()`/`panic!()` are allowed in tests. `unwrap_used`/`expect_used`/`panic`/`unreachable` are
+  `#![deny]`'d in `src/lib.rs`; `clippy.toml`'s `allow-*-in-tests` exempts `#[test]` fns (a helper fn merely inside a
+  `#[cfg(test)]` module needs its own `#![allow(...)]`, and compound `cfg(all(test, ...))` modules aren't recognized
+  as test code at all by that exemption).
 - `pub(crate)` over `pub` for internal items.
 - Max line width 100, 4-space indent (`rustfmt.toml`). All clippy warnings are errors.
 - Logging: `info()`/`debug()`/`error()` from `src/common/logging.rs` (custom logger). All take

@@ -58,6 +58,8 @@ pub(crate) fn render(
 
 #[cfg(all(test, feature = "with-gui"))]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
     use crate::ui::saved_command_list::CommandsList;
     use egui_kittest::Harness;

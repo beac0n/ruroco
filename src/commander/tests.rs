@@ -1,3 +1,5 @@
+#![allow(clippy::panic)]
+
 use crate::commander::{Commander, ConfigCommander, ConfigCommands};
 use crate::common::ipc::{CommanderData, CMDR_DATA_SIZE};
 use std::collections::HashMap;

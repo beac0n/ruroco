@@ -3,6 +3,14 @@
 // registration) and the Android JNI bridge, each carrying its own `#[allow(unsafe_code)]` with a
 // SAFETY justification. Everything else must stay safe Rust.
 #![deny(unsafe_code)]
+// No panics in production code (see CLAUDE.md); `clippy.toml`'s allow-*-in-tests options exempt
+// #[cfg(test)] code from unwrap_used/expect_used.
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 /// provides functionality to sending data to the server and for generating key file
 #[cfg(feature = "with-client")]
