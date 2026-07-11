@@ -3,6 +3,7 @@ use crate::commander::CliCommander;
 use crate::common::logging::error;
 use crate::common::{change_file_ownership, info};
 use anyhow::{bail, Context};
+use nix::sys::stat::{umask, Mode};
 use std::fs::Permissions;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::os::unix::fs::PermissionsExt;
@@ -38,7 +39,16 @@ impl Commander {
         // socket (read perm grants nothing on connect) and is kept only for ls/debugging clarity.
         let mode = 0o204;
         info(format!("Binding Unix Listener on {:?} with permissions {mode:o}", &self.socket_path));
-        let listener = UnixListener::bind(&self.socket_path)
+
+        // bind() creates the socket file at a permissive default (subject to umask), and we can
+        // only chmod it to `mode` afterwards - leaving a window where a connectable, wide-open
+        // socket exists (worse under a lax umask; command names like "default" are guessable).
+        // Tighten the umask first so bind() itself creates the file owner-only, then restore it
+        // regardless of outcome so no other file this process creates is affected.
+        let previous_umask = umask(Mode::from_bits_truncate(0o077));
+        let bind_result = UnixListener::bind(&self.socket_path);
+        umask(previous_umask);
+        let listener = bind_result
             .with_context(|| format!("Could not bind to socket {:?}", self.socket_path))?;
 
         fs::set_permissions(&self.socket_path, Permissions::from_mode(mode)).with_context(
@@ -197,6 +207,31 @@ mod tests {
             ConfigCommands::from_map(HashMap::new()),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn test_create_listener_sets_final_permissions_and_restores_umask() {
+        use nix::sys::stat::{umask, Mode};
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let commander = create_commander(dir.path().to_path_buf(), false);
+
+        // Reading the current umask requires setting one; restore it immediately after.
+        let before = umask(Mode::from_bits_truncate(0o022));
+        umask(before);
+
+        let _listener = commander.create_listener().unwrap();
+
+        let after = umask(Mode::from_bits_truncate(0o022));
+        umask(after);
+        assert_eq!(
+            before, after,
+            "create_listener must restore the process umask, not leave it tightened"
+        );
+
+        let mode = std::fs::metadata(&commander.socket_path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o204, "socket must end up at the documented final permissions");
     }
 
     #[test]
