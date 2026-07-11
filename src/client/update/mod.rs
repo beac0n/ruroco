@@ -7,7 +7,7 @@ use github::{
     SERVER_BIN_DIR, SERVER_BIN_NAME,
 };
 
-use crate::common::info;
+use crate::common::logging::{error, info};
 use anyhow::{bail, Context};
 use std::env;
 use std::env::consts::{ARCH, OS};
@@ -114,10 +114,43 @@ impl Updater {
             verified.push((bin_bytes, target_name, mode, owner));
         }
 
-        for (bin_bytes, target_name, mode, owner) in verified {
-            self.save_bin(&bin_bytes, target_name, mode, owner)?;
+        self.swap_all(verified)?;
+
+        if self.server {
+            info(
+                "Server binaries updated; restart the ruroco-server and ruroco-commander \
+                 services to apply the update (e.g. `systemctl restart ruroco-server \
+                 ruroco-commander`).",
+            );
         }
 
+        Ok(())
+    }
+
+    /// Swap every already-verified target onto disk. Rolls back every target swapped so far
+    /// (including the one that just failed, in case its write succeeded but its chown didn't) so
+    /// a failure partway through never leaves a mix of old and new binaries on disk.
+    fn swap_all(
+        &self,
+        verified: Vec<(Vec<u8>, &'static str, u32, Option<&'static str>)>,
+    ) -> anyhow::Result<()> {
+        let mut applied = Vec::new();
+        for (bin_bytes, target_name, mode, owner) in verified {
+            if let Err(e) = self.save_bin(&bin_bytes, target_name, mode, owner) {
+                applied.push(target_name);
+                for name in applied.iter().rev() {
+                    if let Err(rollback_err) = self.rollback_bin(name) {
+                        error(format!(
+                            "Could not roll back {name} after failed update: {rollback_err}"
+                        ));
+                    }
+                }
+                return Err(e).with_context(|| {
+                    format!("Update failed while applying {target_name}; rolled back {applied:?}")
+                });
+            }
+            applied.push(target_name);
+        }
         Ok(())
     }
 

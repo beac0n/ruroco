@@ -11,12 +11,18 @@ name, mode, chown user) driven by `binary_targets`, looping over commander+serve
 client+client-ui): download the binary and its signature and **verify Ed25519** against the
 embedded public key (`keys/ruroco-release-ed25519.pub.pem`, private key is a CI secret) -
 `download_and_verify_bin` does this without touching disk. Only once every target has downloaded
-and verified does the second loop run `save_bin` for each: copy the existing binary to `.old`
-(rollback snapshot), then atomically replace the target via `write_atomic_with_mode` (temp file +
-rename, exec bits set before the swap), so the target always holds a complete binary (client
-`0o755`, server binaries `0o500`, chowned to the `ruroco` user). Splitting verify from swap this
-way means a missing or invalid asset for one target can never leave another target already
-swapped to the new version while it stays on the old one.
+and verified does `swap_all` run `save_bin` for each: copy the existing binary to `.old` (rollback
+snapshot), then atomically replace the target via `write_atomic_with_mode` (temp file + rename,
+exec bits set before the swap), so the target always holds a complete binary (client `0o755`,
+server binaries `0o500`, chowned to the `ruroco` user). Splitting verify from swap this way means a
+missing or invalid asset for one target can never leave another target already swapped to the new
+version while it stays on the old one. If `save_bin` fails partway through `swap_all` (e.g. the
+chown to the `ruroco` user fails after the write succeeded), every target applied so far -
+including the failing one itself, since its write may have already landed - is rolled back via
+`rollback_bin`: restore from `.old` if it existed before, otherwise remove the partially-applied
+file, so disk state never ends up as a mix of old and new binaries. On a successful `--server`
+update, `update()` logs a reminder to restart `ruroco-server`/`ruroco-commander`; nothing restarts
+them automatically.
 
 `github.rs`'s release lookup requests `per_page=100` (GitHub defaults to 30) and reports how many
 releases it searched when a `--version` isn't found. Downloads are capped at `MAX_DOWNLOAD_BYTES`

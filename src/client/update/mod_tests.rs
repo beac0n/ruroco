@@ -465,6 +465,40 @@ fn test_download_and_save_bin_with_empty_user_group() {
 }
 
 #[test]
+fn test_swap_all_rolls_back_previously_applied_targets_on_failure() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("a"), b"old-a").unwrap();
+    fs::write(dir.path().join("b"), b"old-b").unwrap();
+    let updater = create_updater(dir.path());
+
+    let result = updater.swap_all(vec![
+        (b"new-a".to_vec(), "a", 0o755, None),
+        (b"new-b".to_vec(), "b", 0o755, Some("ruroco-nonexistent-test-user")),
+    ]);
+
+    assert!(result.unwrap_err().to_string().contains("rolled back"));
+    assert_eq!(fs::read(dir.path().join("a")).unwrap(), b"old-a", "target a must be rolled back");
+    assert_eq!(fs::read(dir.path().join("b")).unwrap(), b"old-b", "target b must be rolled back");
+    assert!(!dir.path().join("a.old").exists());
+    assert!(!dir.path().join("b.old").exists());
+}
+
+#[test]
+fn test_swap_all_removes_fresh_targets_with_no_prior_binary_on_failure() {
+    let dir = tempfile::tempdir().unwrap();
+    let updater = create_updater(dir.path());
+
+    let result = updater.swap_all(vec![
+        (b"new-a".to_vec(), "a", 0o755, None),
+        (b"new-b".to_vec(), "b", 0o755, Some("ruroco-nonexistent-test-user")),
+    ]);
+
+    assert!(result.is_err());
+    assert!(!dir.path().join("a").exists(), "target a had no prior binary, so it's removed");
+    assert!(!dir.path().join("b").exists(), "target b had no prior binary, so it's removed");
+}
+
+#[test]
 fn test_create_no_bin_path_client() {
     let dir = tempfile::tempdir().unwrap();
     let bin_dir = dir.path().join(".local").join("bin");

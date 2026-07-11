@@ -95,6 +95,26 @@ impl Updater {
         Ok(())
     }
 
+    /// Undo `save_bin` for `bin_name`, restoring the pre-update state: if a `.old` backup exists
+    /// (the target existed before this update), restore it; otherwise the target didn't exist
+    /// before, so remove the partially-applied new binary. Safe to call on a target whose
+    /// `save_bin` itself failed (e.g. the write succeeded but the chown didn't).
+    pub(super) fn rollback_bin(&self, bin_name: &str) -> anyhow::Result<()> {
+        let target_bin_path = self.bin_path.join(bin_name);
+        let backup_path = Self::old_backup_path(&target_bin_path);
+
+        if backup_path.exists() {
+            fs::rename(&backup_path, &target_bin_path).with_context(|| {
+                format!("Could not restore {target_bin_path:?} from {backup_path:?}")
+            })?;
+        } else if target_bin_path.exists() {
+            fs::remove_file(&target_bin_path).with_context(|| {
+                format!("Could not remove partially-applied {target_bin_path:?}")
+            })?;
+        }
+        Ok(())
+    }
+
     fn old_backup_path(target: &Path) -> PathBuf {
         let mut os = target.as_os_str().to_owned();
         os.push(".old");
