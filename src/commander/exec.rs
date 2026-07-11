@@ -129,11 +129,14 @@ impl Commander {
             .spawn()
             .with_context(|| format!("Could not spawn {command}"))?;
 
-        let deadline = Instant::now() + timeout;
+        // checked_add is None only when timeout_sec is so large that Instant::now() + timeout
+        // would overflow; treat that as "no deadline" rather than panicking or silently capping
+        // the admin-configured timeout to some arbitrary value.
+        let deadline = Instant::now().checked_add(timeout);
         loop {
             match child.try_wait().with_context(|| format!("Could not poll {command}"))? {
                 Some(status) => return Ok(CommandExit::Completed(status)),
-                None if Instant::now() >= deadline => {
+                None if deadline.is_some_and(|d| Instant::now() >= d) => {
                     // SIGKILL the `sh` process only (not its process group); then reap it so no
                     // zombie is left behind.
                     child.kill().with_context(|| format!("Could not kill {command}"))?;

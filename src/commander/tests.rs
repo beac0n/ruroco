@@ -198,6 +198,22 @@ fn test_run_command_within_timeout_completes() {
 }
 
 #[test]
+fn test_run_command_with_overflowing_timeout_does_not_panic() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_file = dir.path().join("completed.txt");
+    let output_path = output_file.to_str().unwrap();
+
+    create_commander(HashMap::new(), dir.path().to_path_buf()).run_command(
+        &format!("touch {output_path}"),
+        Duration::MAX,
+        "1.2.3.4".parse().unwrap(),
+    );
+
+    wait_for_path(&output_file);
+    assert!(output_file.exists());
+}
+
+#[test]
 fn test_run_cycle_over_socket() {
     use crate::common::blake2b_u64;
 
