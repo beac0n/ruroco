@@ -4,11 +4,12 @@
 
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data_parser::DataParser;
-use crate::common::logging::{debug, error, info};
+use crate::common::logging::{debug, info};
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
 use crate::common::{normalize_ip, now_nanos};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
+use crate::server::error_throttle::ErrorThrottle;
 use crate::server::rate_limiter::RateLimiter;
 use crate::server::signal::{install_signal_handlers, shutdown_requested};
 use anyhow::{anyhow, bail, Context};
@@ -28,6 +29,7 @@ pub struct Server {
     pub(super) socket_path: PathBuf,
     pub(super) blocklist: Blocklist,
     rate_limiter: RateLimiter,
+    error_throttle: ErrorThrottle,
 }
 
 impl Server {
@@ -51,6 +53,7 @@ impl Server {
             blocklist,
             rate_limiter: RateLimiter::new(),
             config,
+            error_throttle: ErrorThrottle::default(),
         })
     }
 
@@ -80,7 +83,7 @@ impl Server {
                 }
             }
             if let Err(e) = self.run_loop_iteration(data) {
-                error(format!("{e}"));
+                self.error_throttle.log(&e);
             }
         }
         Ok(())

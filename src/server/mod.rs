@@ -9,6 +9,7 @@
 pub mod blocklist;
 /// the server's view of `config.toml` (`ConfigServer`) and its CLI (`CliServer`)
 pub mod config;
+mod error_throttle;
 mod handler;
 mod keys;
 mod listener;

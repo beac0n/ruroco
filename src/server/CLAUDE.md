@@ -42,7 +42,10 @@ Gotchas:
   SIGTERM/SIGINT handler) are expected and just retry; anything else (e.g. a dead fd after a socket
   activation issue) is treated as unrecoverable and the loop gives up immediately (`bail!`,
   restarted by systemd's `Restart=always`) rather than spinning at 100% CPU on a socket that will
-  never un-break itself.
+  never un-break itself. Every per-packet failure (garbage, wrong-size, rate-limited, unknown-key,
+  replayed, ...) is attacker-triggerable, so `log_throttled_error` always logs it at debug but only
+  surfaces an `error` line once per `ERROR_LOG_INTERVAL` (5s), folding the suppressed count into the
+  next line - a flood can't spam the journal at error level either.
 
 Tests: encrypt a packet into `client_recv_data` via a helper, then assert validation/replay; an
 integration test spins a commander thread and checks the command actually runs.
