@@ -3,8 +3,10 @@
 Builds and sends the UDP packet. `core.rs` = `Sender` + packet assembly, `network.rs` = address
 resolution + socket send.
 
-Flow (`Sender::create`): read and trim the key from `cmd.key_file` (the only source; `SendCommand`
-has no `key` field, so a stray secret can't leak via `ps`, shell history, or an in-memory bypass).
+Flow (`Sender::create`): read the key from `cmd.key_file` into a `Zeroizing<String>` (the only
+source; `SendCommand` has no `key` field, so a stray secret can't leak via `ps`, shell history, or
+an in-memory bypass), matching the server side (`server::keys`) so the key string is wiped on drop
+rather than left in freed memory.
 Then (`Sender::send`): resolve `address` to `SocketAddr`s (filtered by
 `--ipv4`/`--ipv6`, port kept from resolution), then for each destination in turn: increment the
 counter, build `ClientData::create(cmd, !permissive, src_ip, dst_ip, counter)`, serialize to 58

@@ -9,6 +9,7 @@ use openssl::version::version;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::time::Duration;
+use zeroize::Zeroizing;
 
 #[derive(Debug)]
 pub struct Sender {
@@ -26,8 +27,9 @@ impl Sender {
             .clone()
             .map(|ip| ip.parse().with_context(|| format!("Invalid --ip value {ip:?}")))
             .transpose()?;
-        let key = std::fs::read_to_string(&cmd.key_file)
-            .with_context(|| format!("Could not read key file {:?}", cmd.key_file))?;
+        let key: Zeroizing<String> = std::fs::read_to_string(&cmd.key_file)
+            .with_context(|| format!("Could not read key file {:?}", cmd.key_file))?
+            .into();
         let counter_path = Self::get_counter_path()?;
         info(format!("Loading counter from {counter_path:?} ..."));
         Ok(Self {
