@@ -1,21 +1,30 @@
 use chrono::Utc;
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Write};
 use std::sync::OnceLock;
 
 pub(crate) fn info(msg: impl std::fmt::Display) {
-    println!("[{} {} ] {msg}", get_date_time(), colorize("INFO", "32", stdout_is_terminal()));
+    let line =
+        format!("[{} {} ] {msg}", get_date_time(), colorize("INFO", "32", stdout_is_terminal()));
+    let _ = writeln!(std::io::stdout().lock(), "{line}");
 }
 
 // No call sites yet in this crate; wired up incrementally as modules add debug-level logging.
 #[allow(dead_code)]
 pub(crate) fn debug(msg: impl std::fmt::Display) {
     if debug_enabled() {
-        println!("[{} {} ] {msg}", get_date_time(), colorize("DEBUG", "36", stdout_is_terminal()));
+        let line = format!(
+            "[{} {} ] {msg}",
+            get_date_time(),
+            colorize("DEBUG", "36", stdout_is_terminal())
+        );
+        let _ = writeln!(std::io::stdout().lock(), "{line}");
     }
 }
 
 pub(crate) fn error(msg: impl std::fmt::Display) {
-    eprintln!("[{} {} ] {msg}", get_date_time(), colorize("ERROR", "31", stderr_is_terminal()));
+    let line =
+        format!("[{} {} ] {msg}", get_date_time(), colorize("ERROR", "31", stderr_is_terminal()));
+    let _ = writeln!(std::io::stderr().lock(), "{line}");
 }
 
 fn colorize(label: &str, ansi_code: &str, use_color: bool) -> String {
