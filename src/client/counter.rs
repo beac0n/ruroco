@@ -13,9 +13,22 @@ pub struct Counter {
 impl Counter {
     pub fn create_and_init(path: PathBuf, initial: u128) -> anyhow::Result<Self> {
         let mut counter = Self { path, count: 0 };
-        if counter.read().is_err() {
-            counter.count = initial;
-            counter.write()?;
+        match counter.read() {
+            Ok(()) => {}
+            // No counter file yet (first run): seed it.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                counter.count = initial;
+                counter.write()?;
+            }
+            // Any other error (corrupt/truncated file, permission problem, ...) must not be
+            // papered over by silently reseeding: that would mask the underlying problem and,
+            // if the file held a legitimately future-dated counter, move it backwards - causing
+            // every subsequent send to be rejected as a replay by the server. Surface it instead;
+            // `ruroco-client reseed` is the explicit, deliberate way to reset the counter.
+            Err(e) => {
+                return Err(e)
+                    .with_context(|| format!("Could not read counter file {:?}", &counter.path));
+            }
         }
         Ok(counter)
     }
@@ -46,13 +59,9 @@ impl Counter {
             .with_context(|| format!("Could not write counter file {:?}", self.path))
     }
 
-    fn read(&mut self) -> anyhow::Result<()> {
+    fn read(&mut self) -> std::io::Result<()> {
         let mut buf = [0u8; 16];
-        File::open(&self.path)
-            .with_context(|| format!("Could not open counter file {:?}", &self.path))?
-            .read_exact(&mut buf)
-            .with_context(|| format!("Could not read counter file {:?}", &self.path))?;
-
+        File::open(&self.path)?.read_exact(&mut buf)?;
         self.count = u128::from_be_bytes(buf);
         Ok(())
     }
@@ -124,5 +133,41 @@ mod tests {
         // Re-init on existing file should read 11, not reset to 99
         let c2 = Counter::create_and_init(path, 99).unwrap();
         assert_eq!(c2.count(), 11);
+    }
+
+    #[test]
+    fn test_create_and_init_does_not_silently_reseed_on_corrupt_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("counter");
+        // Not 16 bytes, so read_exact fails - this must surface as an error, not a silent reseed.
+        std::fs::write(&path, b"short").unwrap();
+
+        let result = Counter::create_and_init(path.clone(), 42);
+
+        assert!(result.unwrap_err().to_string().contains("Could not read counter file"));
+        // The corrupt file must be left untouched, not silently overwritten with `initial`.
+        assert_eq!(std::fs::read(&path).unwrap(), b"short");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_create_and_init_does_not_silently_reseed_on_permission_denied() {
+        use std::os::unix::fs::PermissionsExt;
+
+        if nix::unistd::Uid::effective().is_root() {
+            // root ignores file permission bits, so the read below would succeed anyway.
+            return;
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("counter");
+        std::fs::write(&path, 999u128.to_be_bytes()).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        let result = Counter::create_and_init(path.clone(), 42);
+
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert!(result.unwrap_err().to_string().contains("Could not read counter file"));
+        assert_eq!(u128::from_be_bytes(std::fs::read(&path).unwrap().try_into().unwrap()), 999);
     }
 }
