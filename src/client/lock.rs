@@ -1,30 +1,16 @@
-use anyhow::{anyhow, Context};
-use nix::fcntl::{Flock, FlockArg};
-use std::fs::{File, OpenOptions};
+use crate::common::instance_lock::InstanceLock;
 use std::path::PathBuf;
 
-/// Single-instance guard for the client, backed by an exclusive, non-blocking `flock(2)` on a
-/// persistent file (never removed) rather than a PID file. Two processes opening this
-/// concurrently can never both believe they hold the lock (unlike a create-check-remove-recreate
-/// PID file, which races), and a crashed process releases its lock automatically when the kernel
-/// closes its file descriptors, so there is no stale-lock state to detect or clean up.
+/// Single-instance guard for the client. See `InstanceLock` for the locking mechanism.
 pub(crate) struct ClientLock {
-    _lock: Flock<File>,
+    _lock: InstanceLock,
 }
 
 impl ClientLock {
     pub(crate) fn acquire(path: PathBuf) -> anyhow::Result<Self> {
-        let file = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .write(true)
-            .open(&path)
-            .with_context(|| format!("Client lock unavailable at {path:?}"))?;
-
-        let lock = Flock::lock(file, FlockArg::LockExclusiveNonblock)
-            .map_err(|(_, e)| anyhow!("Client already running (lock at {path:?}): {e}"))?;
-
-        Ok(Self { _lock: lock })
+        Ok(Self {
+            _lock: InstanceLock::acquire(path, "Client already running")?,
+        })
     }
 }
 
@@ -83,7 +69,7 @@ mod tests {
         let result = ClientLock::acquire(path);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
-        assert!(err.contains("Client lock unavailable"), "unexpected error: {err}");
+        assert!(err.contains("Lock file unavailable"), "unexpected error: {err}");
     }
 
     #[test]

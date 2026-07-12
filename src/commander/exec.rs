@@ -1,6 +1,7 @@
 use super::Commander;
 use crate::commander::ip_filter;
 use crate::commander::CliCommander;
+use crate::common::instance_lock::InstanceLock;
 use crate::common::logging::error;
 use crate::common::{change_file_ownership, info};
 use anyhow::{bail, Context};
@@ -24,13 +25,20 @@ enum CommandExit {
 }
 
 impl Commander {
-    pub(super) fn create_listener(&self) -> anyhow::Result<UnixListener> {
+    /// Also returns an `InstanceLock` the caller must keep alive for as long as the listener is
+    /// served: without it, a second commander instance accidentally started alongside this one
+    /// would silently `remove_file` the live socket out from under it and rebind at the same
+    /// path, splitting traffic between two processes instead of failing loudly.
+    pub(super) fn create_listener(&self) -> anyhow::Result<(InstanceLock, UnixListener)> {
         let socket_dir = match self.socket_path.parent() {
             Some(socket_dir) => socket_dir,
             None => bail!("Could not get parent dir for {:?}", &self.socket_path),
         };
         fs::create_dir_all(socket_dir)
             .with_context(|| format!("Could not create parents for {socket_dir:?}"))?;
+
+        let instance_lock =
+            InstanceLock::acquire(socket_dir.join("commander.lock"), "Commander already running")?;
 
         let _ = fs::remove_file(&self.socket_path);
 
@@ -57,7 +65,7 @@ impl Commander {
         )?;
         self.change_socket_ownership()?;
 
-        Ok(listener)
+        Ok((instance_lock, listener))
     }
 
     pub(super) fn change_socket_ownership(&self) -> anyhow::Result<()> {
@@ -208,7 +216,7 @@ mod tests {
         let before = umask(Mode::from_bits_truncate(0o022));
         umask(before);
 
-        let _listener = commander.create_listener().unwrap();
+        let _lock_and_listener = commander.create_listener().unwrap();
 
         let after = umask(Mode::from_bits_truncate(0o022));
         umask(after);
@@ -219,6 +227,22 @@ mod tests {
 
         let mode = std::fs::metadata(&commander.socket_path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o204, "socket must end up at the documented final permissions");
+    }
+
+    #[test]
+    fn test_create_listener_refuses_second_instance() {
+        let dir = tempfile::tempdir().unwrap();
+        let commander = create_commander(dir.path().to_path_buf(), false);
+
+        // Held for the rest of the test so the socket stays bound.
+        let _first = commander.create_listener().unwrap();
+
+        let second = create_commander(dir.path().to_path_buf(), false);
+        let err = second.create_listener().unwrap_err().to_string();
+
+        assert!(err.contains("Commander already running"), "unexpected error: {err}");
+        // The first instance's socket must be untouched, not deleted out from under it.
+        assert!(commander.socket_path.exists());
     }
 
     #[test]

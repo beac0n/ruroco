@@ -2,6 +2,8 @@
 pub(crate) mod android;
 pub(crate) mod crypto;
 pub(crate) mod fs;
+#[cfg(any(feature = "with-client", feature = "with-commander"))]
+pub(crate) mod instance_lock;
 /// the server <-> commander IPC contract (Unix socket path + `CommanderData` wire format)
 #[cfg(any(feature = "with-server", feature = "with-commander"))]
 pub mod ipc;

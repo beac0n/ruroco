@@ -13,14 +13,13 @@ Submodules: `config/` (clap schema + conf-dir), `send/` (UDP), `update/` (self-u
   not a silent reseed - overwriting an unreadable file could mask real corruption or move a
   legitimately future-dated counter backwards, which would then have every subsequent send
   rejected as a replay by the server. `ruroco-client reseed` is the explicit way to reset it.
-- `lock.rs`: single-instance guard at `<conf_dir>/client.lock`, an exclusive non-blocking
-  `flock(2)` on a persistent file (never removed) rather than a PID file - atomic by construction,
-  so there is no stale-lock state to detect or clean up, and a crashed process releases its lock
-  automatically when the kernel closes its file descriptors. Held for the whole invocation in both
-  `run_client` and the GUI's `run_ui`/`run_ui_with_options` (not just around `send`) **by design**:
-  it guards every mutation the client can make (config edits, key gen/rotation, binary self-update,
-  the on-disk counter), so the GUI and CLI correctly refuse to run concurrently at all. Do not
-  "fix" this by scoping the lock to the send/counter path only - that reopens races on the others.
+- `lock.rs`: single-instance guard at `<conf_dir>/client.lock`, a thin wrapper over
+  `common::instance_lock::InstanceLock` (see there for the locking mechanism). Held for the whole
+  invocation in both `run_client` and the GUI's `run_ui`/`run_ui_with_options` (not just around
+  `send`) **by design**: it guards every mutation the client can make (config edits, key
+  gen/rotation, binary self-update, the on-disk counter), so the GUI and CLI correctly refuse to
+  run concurrently at all. Do not "fix" this by scoping the lock to the send/counter path only -
+  that reopens races on the others.
 
 Invariants: client only sends Blake2b-64 hashes of command names, never the commands. All paths
 go through the conf dir (`config::get_conf_dir`). `anyhow::Result` + `.with_context()` throughout;

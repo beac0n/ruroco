@@ -10,16 +10,22 @@ path (`with-server` is a superset of it). It trusts the Unix socket; see the thr
   `ConfigCommands`), and dispatches. Unknown hash -> error, no execution. Re-exports
   `run_commander`, `CliCommander`, `ConfigCommands`.
 - `exec.rs`: socket lifecycle (`create_listener`, ownership/perms) and `run_command` (spawns
-  `sh -c`, sets `$RUROCO_IP`, sanitizes the IP). `create_listener` tightens the process umask to
-  `0o077` around `bind()` so the socket is created owner-only from its first instant, restoring the
-  previous umask regardless of outcome - without this, `bind()` creates the file at a
-  umask-dependent default and the explicit `chmod` to the real mode only runs after, leaving a
-  window where the freshly bound (and world-guessable-name) socket is connectable by anyone.
-  Execution is sequential (no threads) with a timeout: stdout/stderr go to temp files (never
-  pipes, so a chatty command can't dead-lock the poll loop), `try_wait` is polled every 50ms, and
-  at the deadline the `sh` process (only, not its group) gets SIGKILL and is reaped.
-  `run_commander(CliCommander)` is the entry point. IP routability itself (which addresses may
-  reach `$RUROCO_IP`) lives in `ip_filter::is_routable`; `exec.rs` just logs and gates on it.
+  `sh -c`, sets `$RUROCO_IP`, sanitizes the IP). `create_listener` first acquires a
+  `common::instance_lock::InstanceLock` at `<socket_dir>/commander.lock`, returned alongside the
+  listener for `run()` to hold for the process's lifetime - without it, a second commander
+  instance started by mistake would silently `remove_file` the live socket out from under the
+  first and rebind at the same path, splitting traffic between two processes instead of failing
+  loudly (systemd's own single-instance service management prevents this in normal operation; this
+  guards the manual-start case). It then tightens the process umask to `0o077` around `bind()` so
+  the socket is created owner-only from its first instant, restoring the previous umask regardless
+  of outcome - without this, `bind()` creates the file at a umask-dependent default and the
+  explicit `chmod` to the real mode only runs after, leaving a window where the freshly bound (and
+  world-guessable-name) socket is connectable by anyone. Execution is sequential (no threads) with
+  a timeout: stdout/stderr go to temp files (never pipes, so a chatty command can't dead-lock the
+  poll loop), `try_wait` is polled every 50ms, and at the deadline the `sh` process (only, not its
+  group) gets SIGKILL and is reaped. `run_commander(CliCommander)` is the entry point. IP
+  routability itself (which addresses may reach `$RUROCO_IP`) lives in `ip_filter::is_routable`;
+  `exec.rs` just logs and gates on it.
 - `ip_filter.rs`: pure `is_routable(IpAddr) -> bool`, rejecting loopback/private/link-local/
   multicast/broadcast/documentation/CGNAT/benchmarking/reserved ranges for both v4 and v6 (a few
   of these mirror std methods still gated behind the unstable `ip` feature - see the doc comments

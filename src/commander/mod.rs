@@ -55,7 +55,8 @@ impl Commander {
     }
 
     pub fn run(&self) -> anyhow::Result<()> {
-        for stream in self.create_listener()?.incoming() {
+        let (_instance_lock, listener) = self.create_listener()?;
+        for stream in listener.incoming() {
             match stream {
                 Ok(mut stream) => {
                     if let Err(e) = self.run_cycle(&mut stream) {
