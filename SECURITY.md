@@ -120,6 +120,13 @@ unprivileged server; only a fixed-size message of `(command hash, IP)` crosses t
   server; packets bearing that key id will then fail to decrypt and be dropped. Rotate any client that shared the key.
 - **Counter recovery.** If a client's counter file is lost/corrupted or the clock jumped, `ruroco-client reseed`
   resets the local counter to the current nanosecond timestamp so packets are accepted again, without changing the key.
+- **GUI key storage differs by platform, and neither is at rest-encrypted.** The desktop GUI never persists the key
+  it holds in memory: it must be re-entered (typed or pasted) every launch. The Android GUI persists it in
+  `SharedPreferences` (`src/common/android/prefs.rs`) so it survives app restarts, but that store is plaintext on
+  disk - readable by anything with root or a backup of the app's private storage, same as most Android apps that
+  cache a credential for convenience. This is accepted for now (no hardware-backed Android Keystore integration),
+  traded for not having to retype the key on every launch; treat a compromised or rooted Android device as key
+  compromise and rotate.
 
 ## Cryptographic design and an accepted risk
 

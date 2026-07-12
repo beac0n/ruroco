@@ -5,8 +5,11 @@ JNI bridge to Android platform APIs, only compiled under `cfg(target_os = "andro
 and `AndroidUtil` (shared JNI call/string helpers in `jni_util.rs`).
 
 Used by the GUI (`src/ui/`) for clipboard, soft-keyboard, status-bar inset, and persisting the AES
-key in SharedPreferences (desktop has no equivalent and no-ops these). JNI calls attach the current
-thread via the VM from `ndk_context`; keep method signatures in sync with the Kotlin/Java side.
+key in SharedPreferences (desktop has no equivalent - it never persists the key, re-entered every
+launch instead). `AndroidPrefs` stores it there in plaintext, not via the Android Keystore; see
+SECURITY.md's Key lifecycle section for why this is accepted rather than fixed. JNI calls attach
+the current thread via the VM from `ndk_context`; keep method signatures in sync with the
+Kotlin/Java side.
 
 Gotcha: the app sandbox has no writable `/tmp` and no `$TMPDIR`, so `std::env::temp_dir()` and
 anything built on it (`tempfile::NamedTempFile::new()`, `tempfile::tempdir()` with no explicit
