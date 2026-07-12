@@ -2,11 +2,12 @@ use crate::client::config::{get_conf_dir, SendCommand};
 use crate::client::counter::Counter;
 use crate::common::client_data::ClientData;
 use crate::common::data_parser::DataParser;
+use crate::common::logging::error;
 use crate::common::protocol::PLAINTEXT_SIZE;
 use crate::common::{info, now_nanos, resolve_path};
-use anyhow::Context;
+use anyhow::{bail, Context};
 use openssl::version::version;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::time::Duration;
 use zeroize::Zeroizing;
@@ -66,13 +67,28 @@ impl Sender {
         info(format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
         let destination_addrs = self.get_destination_ips()?;
         info(format!("Found addresses {destination_addrs:?} for {}", &self.cmd.address));
+        self.send_to_destinations(&destination_addrs)
+    }
+
+    /// Attempts every destination in turn instead of stopping at the first failure - e.g. a
+    /// hostname resolving to both an IPv4 and an IPv6 address should still reach the server over
+    /// whichever address family actually works, rather than giving up on IPv6 just because IPv4
+    /// failed first. Only fails if every destination did.
+    fn send_to_destinations(&mut self, destination_addrs: &[SocketAddr]) -> anyhow::Result<()> {
+        let mut failures = Vec::new();
         for (i, destination_addr) in destination_addrs.iter().enumerate() {
             if i > 0 && self.cmd.send_delay_ms > 0 {
                 std::thread::sleep(Duration::from_millis(self.cmd.send_delay_ms));
             }
-            self.send_data(*destination_addr)?;
+            if let Err(e) = self.send_data(*destination_addr) {
+                error(format!("Could not send to {destination_addr}: {e}"));
+                failures.push(format!("{destination_addr}: {e}"));
+            }
         }
 
+        if !destination_addrs.is_empty() && failures.len() == destination_addrs.len() {
+            bail!("Could not send to any destination: {}", failures.join("; "));
+        }
         Ok(())
     }
 
@@ -260,6 +276,46 @@ mod tests {
         let conf_dir = set_test_conf_dir();
         let result = send_test(&conf_dir, "[::1]:1234");
         assert!(result.is_ok(), "send_ipv6 failed: {result:?}");
+    }
+
+    #[test]
+    fn test_send_to_destinations_continues_after_one_fails() {
+        let conf_dir = set_test_conf_dir();
+        let key_file = write_key_file(conf_dir.path());
+        let mut sender = Sender::create(SendCommand {
+            key_file,
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        })
+        .unwrap();
+
+        // 255.255.255.255 is the broadcast address; sending to it without SO_BROADCAST reliably
+        // fails with "Permission denied" - a deterministic stand-in for "this destination is
+        // unreachable" that doesn't depend on real network conditions.
+        let unreachable: SocketAddr = "255.255.255.255:1234".parse().unwrap();
+        let reachable: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+
+        let result = sender.send_to_destinations(&[unreachable, reachable]);
+
+        assert!(result.is_ok(), "one working destination must be enough: {result:?}");
+    }
+
+    #[test]
+    fn test_send_to_destinations_fails_when_all_destinations_fail() {
+        let conf_dir = set_test_conf_dir();
+        let key_file = write_key_file(conf_dir.path());
+        let mut sender = Sender::create(SendCommand {
+            key_file,
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        })
+        .unwrap();
+
+        let unreachable: SocketAddr = "255.255.255.255:1234".parse().unwrap();
+
+        let result = sender.send_to_destinations(&[unreachable, unreachable]);
+
+        assert!(result.unwrap_err().to_string().contains("Could not send to any destination"));
     }
 
     fn send_test(conf_dir: &TempDir, address: &str) -> anyhow::Result<()> {
