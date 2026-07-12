@@ -22,7 +22,7 @@ pub struct Sender {
 
 impl Sender {
     pub fn create(mut cmd: SendCommand) -> anyhow::Result<Self> {
-        cmd.address = Self::ensure_port(cmd.address, crate::common::DEFAULT_PORT);
+        cmd.address = Self::ensure_port(cmd.address, crate::common::DEFAULT_PORT)?;
         let src_ip = cmd
             .ip
             .clone()
@@ -41,20 +41,29 @@ impl Sender {
         })
     }
 
-    fn ensure_port(address: String, default_port: u16) -> String {
-        if address.starts_with('[') {
-            // IPv6 literal: [::1] or [::1]:port
-            if address.contains("]:") {
-                address
-            } else {
-                format!("{address}:{default_port}")
-            }
-        } else if address.contains(':') {
-            // IPv4 with port (1.2.3.4:port) or bare IPv6 — keep as-is
-            address
-        } else {
-            // hostname or IPv4 without port
-            format!("{address}:{default_port}")
+    /// Normalize the destination address: a complete socket address ("1.2.3.4:80", "[::1]:80")
+    /// is kept as-is, a bare IP ("127.0.0.1", "::1") or bare hostname gets the default port
+    /// appended, and "host:port" is kept for DNS resolution later. Everything else (non-numeric
+    /// port, bracketed IPv6 without port) is rejected here instead of surfacing as a misleading
+    /// resolution error.
+    fn ensure_port(address: String, default_port: u16) -> anyhow::Result<String> {
+        if address.parse::<SocketAddr>().is_ok() {
+            return Ok(address);
+        }
+
+        if let Ok(ip) = address.parse::<IpAddr>() {
+            return Ok(SocketAddr::new(ip, default_port).to_string());
+        }
+
+        match address.rsplit_once(':') {
+            None if !address.is_empty() => Ok(format!("{address}:{default_port}")),
+            Some((host, port)) if !host.is_empty() && !host.contains(':') => port
+                .parse::<u16>()
+                .map(|_| address.clone())
+                .with_context(|| format!("Invalid port {port:?} in address {address:?}")),
+            _ => bail!(
+                "Invalid address {address:?}, expected \"host\", \"host:port\", \"ip\" or \"ip:port\""
+            ),
         }
     }
 
@@ -210,21 +219,16 @@ mod tests {
     fn test_send_invalid_port_value() {
         let conf_dir = set_test_conf_dir();
         let key_file = write_key_file(conf_dir.path());
-        let address = "127.0.0.1:asd".to_string();
-        let mut sender = Sender::create(SendCommand {
-            address: address.clone(),
+
+        let result = Sender::create(SendCommand {
+            address: "127.0.0.1:asd".to_string(),
             key_file,
             ip: Some(IP.to_string()),
             ..Default::default()
-        })
-        .unwrap();
+        });
 
-        let result = sender.send();
-
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            format!("Could not resolve hostname for {address}")
-        );
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Invalid port"), "unexpected error: {err}");
     }
 
     #[test]
@@ -427,13 +431,41 @@ mod tests {
         let conf_dir = set_test_conf_dir();
         let key_file = write_key_file(conf_dir.path());
         let sender = Sender::create(SendCommand {
-            address: "[::1]".to_string(),
+            address: "::1".to_string(),
             key_file,
             ip: Some(IP.to_string()),
             ..Default::default()
         })
         .unwrap();
         assert_eq!(sender.cmd.address, "[::1]:80");
+    }
+
+    #[test]
+    fn test_ensure_port_bracketed_ipv6_without_port_is_rejected() {
+        let conf_dir = set_test_conf_dir();
+        let key_file = write_key_file(conf_dir.path());
+        let result = Sender::create(SendCommand {
+            address: "[::1]".to_string(),
+            key_file,
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        });
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Invalid address"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn test_ensure_port_hostname_without_port() {
+        let conf_dir = set_test_conf_dir();
+        let key_file = write_key_file(conf_dir.path());
+        let sender = Sender::create(SendCommand {
+            address: "schempp.dev".to_string(),
+            key_file,
+            ip: Some(IP.to_string()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(sender.cmd.address, "schempp.dev:80");
     }
 
     #[test]
