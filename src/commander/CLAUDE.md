@@ -18,7 +18,12 @@ path (`with-server` is a superset of it). It trusts the Unix socket; see the thr
   Execution is sequential (no threads) with a timeout: stdout/stderr go to temp files (never
   pipes, so a chatty command can't dead-lock the poll loop), `try_wait` is polled every 50ms, and
   at the deadline the `sh` process (only, not its group) gets SIGKILL and is reaped.
-  `run_commander(CliCommander)` is the entry point.
+  `run_commander(CliCommander)` is the entry point. IP routability itself (which addresses may
+  reach `$RUROCO_IP`) lives in `ip_filter::is_routable`; `exec.rs` just logs and gates on it.
+- `ip_filter.rs`: pure `is_routable(IpAddr) -> bool`, rejecting loopback/private/link-local/
+  multicast/broadcast/documentation/CGNAT/benchmarking/reserved ranges for both v4 and v6 (a few
+  of these mirror std methods still gated behind the unstable `ip` feature - see the doc comments
+  for which, and swap to std once stabilized).
 - `config.rs`: `ConfigCommander` (the commander's view of the shared `config.toml`: `config_dir` +
   `socket_user`/`socket_group`, ignoring the server-only fields), `ConfigCommands` (the
   `commands.toml` name -> shell map, looked up by `blake2b_u64`), and `CliCommander` (`--config` and

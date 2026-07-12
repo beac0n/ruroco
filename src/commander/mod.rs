@@ -5,6 +5,7 @@
 
 mod config;
 mod exec;
+mod ip_filter;
 #[cfg(test)]
 mod tests;
 
