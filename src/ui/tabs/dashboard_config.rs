@@ -31,7 +31,12 @@ pub(crate) fn render(
         dashboard.config_text = commands_list.to_string();
     }
     if r[1] {
-        let cmds: Vec<_> = dashboard.config_text.lines().map(command_to_data).collect();
+        let cmds: Vec<_> = dashboard
+            .config_text
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(command_to_data)
+            .collect();
         commands_list.set(cmds);
         dashboard.config_text = commands_list.to_string();
     }
@@ -99,6 +104,26 @@ mod tests {
         harness.get_by_label("💾").click();
         harness.run();
         assert_eq!(harness.state().1.get().len(), 1);
+    }
+
+    #[test]
+    fn test_save_button_ignores_blank_lines() {
+        let dir = tempfile::tempdir().unwrap();
+        let config_text = "send --address 127.0.0.1:80 --command default\n\n   \n";
+        let state = (make_state(config_text), CommandsList::create(dir.path()));
+        let mut harness = Harness::new_ui_state(
+            |ui, (dashboard, cl): &mut (DashboardState, CommandsList)| {
+                render(dashboard, cl, ui, 200.0);
+            },
+            state,
+        );
+        harness.get_by_label("💾").click();
+        harness.run();
+        assert_eq!(
+            harness.state().1.get().len(),
+            1,
+            "blank/whitespace-only lines must not become empty entries"
+        );
     }
 
     #[test]

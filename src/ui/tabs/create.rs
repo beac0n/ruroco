@@ -14,6 +14,10 @@ pub(crate) fn render(
 
         arg_row_text(ui, "server", &mut form.address);
         arg_row_text(ui, "command", &mut form.command);
+        // Command names are matched by hash against a commands.toml key and round-tripped through
+        // a plain-whitespace-split text line elsewhere (saved_command_list.rs); spaces would break
+        // both, so strip them immediately rather than let one ever be typed in.
+        form.command.retain(|c| !c.is_whitespace());
         arg_row_text(ui, "ip sent to server", &mut form.ip);
         arg_row(ui, "source IP doesn't have to match provided IP", |ui| {
             ui.checkbox(&mut form.permissive, "")
@@ -94,6 +98,22 @@ mod tests {
             render(&mut form, &mut commands_list, &mut config_text, ui);
         });
         harness.run();
+    }
+
+    #[test]
+    fn test_command_field_strips_whitespace() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut form = make_form();
+        form.command = "restart server".to_string();
+        let state = (form, CommandsList::create(dir.path()), String::new());
+        let mut harness = Harness::new_ui_state(
+            |ui, (form, cl, config_text): &mut (CreateForm, CommandsList, String)| {
+                render(form, cl, config_text, ui);
+            },
+            state,
+        );
+        harness.run();
+        assert_eq!(harness.state().0.command, "restartserver");
     }
 
     #[test]
