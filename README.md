@@ -308,8 +308,11 @@ Options:
 
 1. run `ruroco-client gen > ~/.config/ruroco/user.key` to create a shared base64 key (includes key id)
 2. copy the same `.key` file to the server config dir (default `/etc/ruroco/user.key`); the server loads every `*.key`
-   file there
-3. add server config to `/etc/ruroco/config.toml` -> see [config.toml](config/config.toml)
+   file there. It must be readable by the user the server runs as, so install it `root:ruroco` with mode `0640`
+   (`chown root:ruroco /etc/ruroco/user.key && chmod 640 /etc/ruroco/user.key`). Leaving it `root:root` `0600` makes
+   the server crash-loop on EACCES.
+3. add server config to `/etc/ruroco/config.toml` -> see [config.toml](config/config.toml). Same ownership as the key
+   (`root:ruroco`, mode `0640`): the commander reads it as root, the server as `ruroco`, and neither needs to write it
 4. add the commands to `/etc/ruroco/commands.toml` -> see [commands.toml](config/commands.toml). This file is read
    only by the commander (root) and must be installed `root`-owned with mode `0600` so the unprivileged server process
    cannot read the command set.

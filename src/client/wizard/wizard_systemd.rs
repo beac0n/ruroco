@@ -4,6 +4,11 @@ use crate::common::info;
 use anyhow::{ensure, Context};
 use std::process::Command;
 
+/// The unprivileged account the server runs under (`User=`/`Group=` in `ruroco.service`).
+/// `useradd --user-group` guarantees the group has the same name, so both are the same string.
+pub(super) const SERVICE_USER: &str = "ruroco";
+pub(super) const SERVICE_GROUP: &str = SERVICE_USER;
+
 pub(super) const CONFIG_DIR_PATH: &str = "/etc/ruroco";
 pub(super) const CONFIG_TOML_PATH: &str = "/etc/ruroco/config.toml";
 pub(super) const COMMANDS_TOML_PATH: &str = "/etc/ruroco/commands.toml";
@@ -63,11 +68,14 @@ impl Wizard {
 
     pub(super) fn create_ruroco_user() -> anyhow::Result<()> {
         info("Creating user 'ruroco' ...");
+        // --user-group forces a matching 'ruroco' group: ruroco.service sets Group=ruroco, and the
+        // config dir/file are chowned to that group so the server can read them.
         let status = Command::new("useradd")
             .arg("--system")
-            .arg("ruroco")
+            .arg("--user-group")
             .arg("--shell")
             .arg("/bin/false")
+            .arg(SERVICE_USER)
             .status()
             .with_context(|| "Failed to create ruroco user")?;
         // useradd exit code 9 means the user already exists: treat as success so wizard re-runs
