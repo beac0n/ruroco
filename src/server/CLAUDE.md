@@ -30,7 +30,19 @@ Config: `ConfigServer` (the server's view of `config.toml`, in `server::config`:
 Gotchas:
 - Blocklist (`blocklist.rs`, msgpack-persisted) stores the max counter per key_id and blocks
   `counter <= last_seen` (the check is `>=`, so an *equal* counter is a replay). On startup every
-  key's floor is seeded to `now_nanos()`, so packets older than process start are rejected.
+  key's floor is seeded to `UNSEEN_KEY_FLOOR` (0), i.e. the first packet from a key with no
+  blocklist entry is accepted whatever its counter, and monotonic enforcement starts from there.
+  **Do not "harden" this by seeding to `now_nanos()`.** The counter is a *sequence*, not a
+  timestamp: the client seeds it from the clock once and then only does `+1` per send, so it never
+  meaningfully leaves its seed. A wall-clock floor is therefore newer than any long-installed
+  client's counter, and every packet is rejected as a replay, permanently and (the protocol being
+  unidirectional) with no client-side signal, until a manual `reseed`. That is what a fresh
+  install, a lost blocklist, a second server, or a key added after the client's first run all look
+  like. Commit 4626c19 did exactly this and had to be reverted. The cost of floor 0 is accepted
+  and deliberate: a server with no blocklist entry for a key will accept a captured packet once.
+  Two clients sharing one key locking each other out is likewise **intended**, not a bug: one
+  sequence per key means a second writer is indistinguishable from a replay, so key sharing fails
+  loudly. Don't "fix" that either; see SECURITY.md's "One key per client".
   `handler.rs` also rejects `counter > now_nanos() + max_clock_skew_seconds` (default 3600) without
   touching the blocklist, so a future-dated packet can't permanently lock out a key.
 - `rate_limiter.rs` is in-memory only (resets on restart); it is throttling, not replay defense.

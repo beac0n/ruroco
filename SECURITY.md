@@ -53,10 +53,17 @@ unprivileged server; only a fixed-size message of `(command hash, IP)` crosses t
 
 ### In-scope attacks (defended)
 
-- **Replay.** Every accepted packet's counter (a u128 nanosecond timestamp) is recorded per key id in a persisted
-  blocklist (`blocklist.msgpck`). A packet is accepted only if its counter is strictly greater than the last one seen
-  for that key. Identical packets (retransmits, captures, adversarial replays) are rejected. See
-  `src/server/blocklist.rs`.
+- **Replay.** Every accepted packet's counter (a u128, seeded from a nanosecond timestamp and incremented per send) is
+  recorded per key id in a persisted blocklist (`blocklist.msgpck`). A packet is accepted only if its counter is
+  strictly greater than the last one seen for that key. Identical packets (retransmits, captures, adversarial replays)
+  are rejected. See `src/server/blocklist.rs`.
+  The one gap: a key with **no blocklist entry at all** has a floor of 0, so its first packet is accepted whatever its
+  counter, and only then does monotonic enforcement begin. A captured packet can therefore be replayed once against a
+  server that has never seen that key: a fresh install, a rebuilt host, or a wiped/relocated `blocklist_dir`. This is
+  accepted deliberately. The counter is a sequence rather than a wall-clock value, so seeding new keys to "now"
+  instead would reject every packet from any client whose counter predates the server, permanently and with no
+  client-side signal, since the protocol sends nothing back. Keep `blocklist_dir` on persistent storage
+  (the shipped unit uses `StateDirectory=ruroco`, i.e. `/var/lib/ruroco`) and this window never opens.
 - **Forward-dated / clock-jump packets.** A counter further in the future than `now + max_clock_skew_seconds` is
   rejected and does *not* advance the blocklist, so a single bogus far-future packet cannot lock out a key.
 - **Packet forgery without the key.** Packets are sealed with AES-256-GCM-SIV (RFC 8452). Without the 256-bit key an
@@ -91,8 +98,10 @@ unprivileged server; only a fixed-size message of `(command hash, IP)` crosses t
 - **Compromised client.** A stolen client key lets an attacker fire the whitelisted actions for that deployment. It
   does not grant a network position or reveal the command strings. Limit blast radius by scoping commands narrowly and
   using one key per client (see below).
-- **Local clock dependency.** Replay protection is timestamp-based. A client whose clock is rolled back below the
-  server's last-seen counter will have packets rejected until reseeded (`ruroco-client reseed`).
+- **Local clock dependency.** The counter is seeded from the client's clock on first use. A client that is reseeded
+  (or freshly installed) while its clock is rolled back below the server's last-seen counter for that key will have
+  packets rejected until reseeded again with a correct clock (`ruroco-client reseed`). Once seeded, ordinary sends
+  only increment, so a later clock change does not affect them.
 - **Traffic analysis / metadata.** Packet size is fixed and contents are encrypted, but an observer can still see that
   a 94-byte UDP packet was sent to the server, and when.
 - **Rate limiting keyed on a spoofable source IP.** The server never replies, so nothing prevents an attacker from
@@ -111,8 +120,12 @@ unprivileged server; only a fixed-size message of `(command hash, IP)` crosses t
   every `*.key` there) and keep the matching string on the client, ideally in a password manager or the keyring via
   `secret-tool`. Treat the key as a shared secret in transit: move it over an already-secure channel.
 - **One key per client.** Each client must have its own key. Sharing a key across clients desynchronizes the per-key
-  counter and causes the server to reject the lagging client (see README troubleshooting). Per-client keys also bound
-  the blast radius of a single compromise and allow targeted revocation.
+  counter and causes the server to reject the lagging client (see README troubleshooting). That rejection is the
+  intended behaviour, not a limitation to be worked around: the counter is a single monotonic sequence per key, so two
+  clients writing to it are indistinguishable from a replay, and the server refuses the older one by design. It is
+  what makes key sharing fail loudly instead of silently letting two devices act as one identity. Any change that
+  lets concurrent clients share a key would have to weaken the strict-ordering rule that replay protection depends on.
+  Per-client keys also bound the blast radius of a single compromise and allow targeted revocation.
 - **Rotation.** Generate a new key, copy it to the server config dir alongside the old one, switch the client to the
   new key, then delete the retired `.key` file from the server and the client store. The server loads all `*.key`
   files, so rotation is a drop-in/drop-out with no downtime.

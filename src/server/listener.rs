@@ -5,8 +5,8 @@
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data_parser::DataParser;
 use crate::common::logging::{debug, info};
+use crate::common::normalize_ip;
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
-use crate::common::{normalize_ip, now_nanos};
 use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::error_throttle::ErrorThrottle;
@@ -18,6 +18,8 @@ use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+const UNSEEN_KEY_FLOOR: u128 = 0;
 
 #[derive(Debug)]
 pub struct Server {
@@ -40,9 +42,8 @@ impl Server {
     pub fn create(config: ConfigServer, address: Option<String>) -> anyhow::Result<Server> {
         let crypto_handlers = config.create_crypto_handlers()?;
         let mut blocklist = config.create_blocklist()?;
-        let floor = now_nanos()?;
         for key_id in crypto_handlers.keys() {
-            blocklist.seed_if_absent(*key_id, floor);
+            blocklist.seed_if_absent(*key_id, UNSEEN_KEY_FLOOR);
         }
         blocklist.save()?;
         Ok(Server {
@@ -382,6 +383,29 @@ mod tests {
         server.client_recv_data = encoded;
         let err = server.run_loop_iteration(localhost_src(8080)).unwrap_err().to_string();
         assert!(err.contains("blocklist"), "expected blocklist error, got: {err}");
+    }
+
+    #[test]
+    fn test_validate_accepts_counter_older_than_server_start() {
+        let (_temp_dir, mut server, key) = create_server_with_key().unwrap();
+        let localhost: IpAddr = "127.0.0.1".parse().unwrap();
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        // A client seeded long ago barely advances its counter, so its packets are always older
+        // than a freshly started server. Seeding unseen keys to `now` rejected those forever.
+        let long_before_server_start = now - 365 * 24 * 3600 * 1_000_000_000;
+
+        load_encrypted_packet(
+            &mut server,
+            &key,
+            "default",
+            false,
+            Some(localhost),
+            localhost,
+            long_before_server_start,
+        );
+
+        assert!(server.run_loop_iteration(localhost_src(8080)).is_ok());
     }
 
     #[test]
