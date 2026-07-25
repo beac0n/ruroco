@@ -39,7 +39,11 @@ path (`with-server` is a superset of it). It trusts the Unix socket; see the thr
 - `config.rs`: `ConfigCommander` (the commander's view of the shared `config.toml`: `config_dir` +
   `socket_user`/`socket_group`, ignoring the server-only fields), `ConfigCommands` (the
   `commands.toml` name -> shell map, looked up by `blake2b_u64`), and `CliCommander` (`--config` and
-  `--commands`). The command set is read **only** by the commander. A commands.toml value is either
+  `--commands`). Parse errors must never embed the file contents: `commands.toml` is root-only
+  `0600` precisely so the unprivileged server can't read the command set, and a syntax error used
+  to dump the whole file into stderr/journald, handing it to anyone with journal access. The path
+  context is added by `create_from_path`, so the message names the file; the `toml` crate's own
+  error already reports only the offending line plus position, which keeps it debuggable. The command set is read **only** by the commander. A commands.toml value is either
   a plain string (default 30s timeout) or `{ cmd = "...", timeout_sec = N }` (untagged serde enum);
   `get_hash_to_cmd` resolves both into `CommandSpec { cmd, timeout }`. Tests build the map via
   `ConfigCommands::from_map`.

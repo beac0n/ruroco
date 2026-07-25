@@ -58,14 +58,16 @@ pub struct ConfigCommander {
 impl ConfigCommander {
     pub(crate) fn create_from_path(path: &Path) -> anyhow::Result<ConfigCommander> {
         match fs::read_to_string(path) {
-            Ok(data) => Self::deserialize(&data),
+            Ok(data) => {
+                Self::deserialize(&data).with_context(|| format!("Could not load {path:?}"))
+            }
             Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
         }
     }
 
     pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigCommander> {
         toml::from_str::<ConfigCommander>(data)
-            .with_context(|| format!("Could not create ConfigCommander from {data}"))
+            .with_context(|| "Could not deserialize ConfigCommander")
     }
 }
 
@@ -146,14 +148,16 @@ impl ConfigCommands {
     /// `root`-readable only so the unprivileged server process cannot read the commands.
     pub(crate) fn create_from_path(path: &Path) -> anyhow::Result<ConfigCommands> {
         match fs::read_to_string(path) {
-            Ok(data) => Self::deserialize(&data),
+            Ok(data) => {
+                Self::deserialize(&data).with_context(|| format!("Could not load {path:?}"))
+            }
             Err(e) => Err(anyhow!("Could not read {path:?}: {e}")),
         }
     }
 
     pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigCommands> {
         toml::from_str::<ConfigCommands>(data)
-            .with_context(|| format!("Could not create ConfigCommands from {data}"))
+            .with_context(|| "Could not deserialize ConfigCommands")
     }
 
     /// Build a `ConfigCommands` from plain name -> shell command pairs, all at the default
@@ -233,6 +237,35 @@ mod tests {
         assert!(hash_map.values().any(|v| v.cmd == "echo hello"));
         assert!(hash_map.values().any(|v| v.cmd == "systemctl restart foo"));
         assert!(hash_map.values().all(|v| v.timeout == Duration::from_secs(DEFAULT_TIMEOUT_SECS)));
+    }
+
+    #[test]
+    fn test_deserialize_error_does_not_leak_file_contents() {
+        // commands.toml is root-only 0600 so the unprivileged server can never read the command
+        // set; a parse error must not hand that same content to anyone who can read the journal.
+        let toml = "[commands]\n\
+                    deploy = \"deploy.sh --token hunter2\"\n\
+                    backup = \"restic -r sftp:backup:/srv --password-file /root/.restic\"\n\
+                    broken line here\n";
+
+        let err = format!("{:#}", ConfigCommands::deserialize(toml).unwrap_err());
+
+        assert!(!err.contains("hunter2"), "leaked a secret: {err}");
+        assert!(!err.contains("restic"), "leaked a command: {err}");
+        // the offending line and position are still reported, so this stays debuggable
+        assert!(err.contains("line 4"), "lost the parse position: {err}");
+    }
+
+    #[test]
+    fn test_create_from_path_error_names_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("commands.toml");
+        std::fs::write(&path, "[commands]\nsecret = \"tok hunter2\"\nbroken line here\n").unwrap();
+
+        let err = format!("{:#}", ConfigCommands::create_from_path(&path).unwrap_err());
+
+        assert!(err.contains("commands.toml"), "missing path: {err}");
+        assert!(!err.contains("hunter2"), "leaked a secret: {err}");
     }
 
     #[test]

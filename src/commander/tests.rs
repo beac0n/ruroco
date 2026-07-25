@@ -54,7 +54,7 @@ fn test_create_from_invalid_path() {
 
     let commands = PathBuf::from("/tmp/unused_commands.toml");
     let msg = Commander::create_from_paths(&path, &commands).unwrap_err().to_string();
-    assert!(msg.contains("Could not create ConfigCommander from"), "unexpected error: {msg}");
+    assert!(msg.contains("config_invalid_syntax.toml"), "unexpected error: {msg}");
 }
 
 #[test]
