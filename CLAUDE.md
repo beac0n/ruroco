@@ -24,6 +24,12 @@ binary builds with `--no-default-features` plus its own feature (`with-client`/`
   `#[cfg(test)]` module needs its own `#![allow(...)]`, and compound `cfg(all(test, ...))` modules aren't recognized
   as test code at all by that exemption).
 - `pub(crate)` over `pub` for internal items.
+- **Barely any comments on functions.** Do not write doc-comment essays explaining rationale, threat
+  models, or "why not X" above a fn. Make the name and signature carry the meaning instead. Rationale
+  and design decisions belong in the nearest `CLAUDE.md` (and user-facing behaviour in `README.md`/
+  `SECURITY.md`), where they stay readable and don't bloat the code. A single short line is the
+  ceiling, and only where the code is genuinely surprising. This applies to new code and to code you
+  touch: if you feel the urge to explain a fn, write it in the `CLAUDE.md` of that directory.
 - Max line width 100, 4-space indent (`rustfmt.toml`). All clippy warnings are errors.
 - Logging: `info()`/`debug()`/`error()` from `src/common/logging.rs` (custom logger). All take
   `impl Display`: `info(format!(...))` or `info("literal")`, never `&format!(...)`. `debug()` only

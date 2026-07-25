@@ -118,9 +118,8 @@ impl Updater {
 
         if self.server {
             info(
-                "Server binaries updated; restart the ruroco-server and ruroco-commander \
-                 services to apply the update (e.g. `systemctl restart ruroco-server \
-                 ruroco-commander`).",
+                "Server binaries updated; restart the services to apply the update: \
+                 `systemctl restart ruroco-commander.service ruroco.service`.",
             );
         }
 

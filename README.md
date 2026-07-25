@@ -111,6 +111,9 @@ See make goal `install_server`, which
 - After running the make goal, you have to
     - generate a shared `.key` file and copy it to the right place
     - setup the `config.toml`
+    - start the server with `systemctl start ruroco.service`. The wizard deliberately leaves it stopped until a
+      `.key` exists, since a keyless server exits at startup and `Restart=always` would crash-loop it into systemd's
+      start limit
 
 #### Pre-build
 

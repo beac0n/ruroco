@@ -4,10 +4,15 @@ use crate::common::info;
 use anyhow::{ensure, Context};
 use std::process::Command;
 
-/// The unprivileged account the server runs under (`User=`/`Group=` in `ruroco.service`).
-/// `useradd --user-group` guarantees the group has the same name, so both are the same string.
 pub(super) const SERVICE_USER: &str = "ruroco";
 pub(super) const SERVICE_GROUP: &str = SERVICE_USER;
+
+pub(super) const RUROCO_SERVICE: &str = "ruroco.service";
+pub(super) const COMMANDER_SERVICE: &str = "ruroco-commander.service";
+pub(super) const RUROCO_SOCKET: &str = "ruroco.socket";
+
+const KEYLESS_UNITS: [&str; 2] = [COMMANDER_SERVICE, RUROCO_SOCKET];
+const ALL_UNITS: [&str; 3] = [COMMANDER_SERVICE, RUROCO_SOCKET, RUROCO_SERVICE];
 
 pub(super) const CONFIG_DIR_PATH: &str = "/etc/ruroco";
 pub(super) const CONFIG_TOML_PATH: &str = "/etc/ruroco/config.toml";
@@ -30,46 +35,44 @@ impl Wizard {
         Updater::create(true, None, None, true)?.update()
     }
 
-    pub(super) fn start_systemd_services() -> anyhow::Result<()> {
-        info("Starting systemd services ...");
-        let status = Command::new("systemctl")
-            .arg("start")
-            .arg("ruroco.service")
-            .arg("ruroco-commander.service")
-            .arg("ruroco.socket")
-            .status()
-            .with_context(|| "Failed to start ruroco systemd services")?;
-        ensure!(status.success(), "'systemctl start' failed with {status}");
-        Ok(())
+    pub(super) fn restart_systemd_services(with_server: bool) -> anyhow::Result<()> {
+        let units: &[&str] = if with_server {
+            &ALL_UNITS
+        } else {
+            &KEYLESS_UNITS
+        };
+        info(format!("Restarting systemd units {units:?} ..."));
+        Self::systemctl("restart", units)
     }
 
     pub(super) fn enable_systemd_services() -> anyhow::Result<()> {
         info("Enabling systemd services ...");
+        Self::systemctl("enable", &ALL_UNITS)
+    }
+
+    pub(super) fn reset_failed_systemd_services() {
+        if let Err(e) = Self::systemctl("reset-failed", &ALL_UNITS) {
+            info(format!("Could not reset failed state (ignored): {e:#}"));
+        }
+    }
+
+    fn systemctl(verb: &str, units: &[&str]) -> anyhow::Result<()> {
         let status = Command::new("systemctl")
-            .arg("enable")
-            .arg("ruroco.service")
-            .arg("ruroco-commander.service")
-            .arg("ruroco.socket")
+            .arg(verb)
+            .args(units)
             .status()
-            .with_context(|| "Failed to enable ruroco systemd services")?;
-        ensure!(status.success(), "'systemctl enable' failed with {status}");
+            .with_context(|| format!("Failed to run 'systemctl {verb}'"))?;
+        ensure!(status.success(), "'systemctl {verb}' failed with {status}");
         Ok(())
     }
 
     pub(super) fn reload_systemd_daemon() -> anyhow::Result<()> {
         info("Reloading systemd daemon ...");
-        let status = Command::new("systemctl")
-            .arg("daemon-reload")
-            .status()
-            .with_context(|| "Failed to reload systemd")?;
-        ensure!(status.success(), "'systemctl daemon-reload' failed with {status}");
-        Ok(())
+        Self::systemctl("daemon-reload", &[])
     }
 
     pub(super) fn create_ruroco_user() -> anyhow::Result<()> {
         info("Creating user 'ruroco' ...");
-        // --user-group forces a matching 'ruroco' group: ruroco.service sets Group=ruroco, and the
-        // config dir/file are chowned to that group so the server can read them.
         let status = Command::new("useradd")
             .arg("--system")
             .arg("--user-group")

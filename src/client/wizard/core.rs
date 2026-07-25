@@ -1,7 +1,7 @@
 use crate::client::util::set_permissions;
 use crate::client::wizard::wizard_systemd::{
     COMMANDER_SERVICE_FILE_DATA, COMMANDER_SERVICE_FILE_PATH, COMMANDS_TOML_FILE_DATA,
-    COMMANDS_TOML_PATH, CONFIG_DIR_PATH, CONFIG_TOML_FILE_DATA, CONFIG_TOML_PATH,
+    COMMANDS_TOML_PATH, CONFIG_DIR_PATH, CONFIG_TOML_FILE_DATA, CONFIG_TOML_PATH, RUROCO_SERVICE,
     RUROCO_SERVICE_FILE_DATA, RUROCO_SERVICE_FILE_PATH, SERVICE_GROUP, SERVICE_USER,
     SOCKET_FILE_DATA, SOCKET_FILE_PATH,
 };
@@ -30,13 +30,27 @@ impl Wizard {
         Self::init_config_dir()?;
         Self::init_config_file()?;
         Self::init_commands_file()?;
+        let has_key = Self::has_key_file(CONFIG_DIR_PATH)?;
         Self::reload_systemd_daemon()?;
         Self::enable_systemd_services()?;
-        Self::start_systemd_services()?;
+        Self::reset_failed_systemd_services();
+        Self::restart_systemd_services(has_key)?;
 
         info("=========================================");
         info("Ruroco Server Side installed successfully");
         info(format!("Please check the config in {CONFIG_TOML_PATH} and edit it accordingly"));
+        if has_key {
+            info(format!("{RUROCO_SERVICE} is running the freshly installed binary"));
+            info(format!(
+                "Restart it yourself after adding or rotating a key: keys are loaded once at \
+                 startup, so a new {CONFIG_DIR_PATH}/<name>.key does nothing until \
+                 'systemctl restart {RUROCO_SERVICE}'"
+            ));
+            info("=========================================");
+            return Ok(());
+        }
+
+        info(format!("{RUROCO_SERVICE} was NOT started: no .key file in {CONFIG_DIR_PATH} yet"));
         info("Generate key file with ruroco-client gen command");
         info(format!(
             "Save key file you just generated in 'config_dir' as defined in {CONFIG_TOML_PATH}"
@@ -47,33 +61,33 @@ impl Wizard {
              chown root:{SERVICE_GROUP} {CONFIG_DIR_PATH}/<name>.key && \
              chmod 640 {CONFIG_DIR_PATH}/<name>.key"
         ));
+        info(format!("Finally start the server: systemctl start {RUROCO_SERVICE}"));
         info("Save key you just generated in your client secure key store");
         info("=========================================");
 
         Ok(())
     }
 
-    /// Create the config dir if it doesn't exist yet, then force `mode` on it. The mode is set
-    /// explicitly instead of left to `create_dir_all`'s umask default: a root shell with
-    /// `umask 0077` would otherwise produce a 0700 dir that the `User=ruroco` server can't even
-    /// traverse to reach its key file.
+    fn has_key_file(dir: &str) -> anyhow::Result<bool> {
+        let entries =
+            fs::read_dir(dir).with_context(|| format!("Failed to read directory {dir}"))?;
+        Ok(entries
+            .flatten()
+            .map(|e| e.path())
+            .any(|p| p.is_file() && p.extension().is_some_and(|e| e == "key")))
+    }
+
     fn create_dir(path: &str, mode: u32) -> anyhow::Result<()> {
         info(format!("Creating directory {path} ..."));
         fs::create_dir_all(path).with_context(|| format!("Failed to create directory {path}"))?;
         set_permissions(path, mode)
     }
 
-    /// `root:ruroco` `0750`: the server (`User=ruroco`) has to traverse the dir to reach its key
-    /// file, but nothing else on the host has any business even listing it. Root-owned so the
-    /// server cannot add or replace files here, matching the read-only `/etc/ruroco` that
-    /// `ruroco.service`'s `ProtectSystem=strict` already gives it.
     fn init_config_dir() -> anyhow::Result<()> {
         Self::create_dir(CONFIG_DIR_PATH, 0o750)?;
         Self::set_ownership(CONFIG_DIR_PATH, SERVICE_GROUP)
     }
 
-    /// `root:ruroco` `0640`: read by both the commander (root) and the server (`User=ruroco`),
-    /// writable by neither.
     fn init_config_file() -> anyhow::Result<()> {
         info(format!("Initializing config file {CONFIG_TOML_PATH}"));
         if !Path::new(CONFIG_TOML_PATH).exists() {
@@ -84,9 +98,6 @@ impl Wizard {
         set_permissions(CONFIG_TOML_PATH, 0o640)
     }
 
-    /// `root:root` `0600`: the command set is read by the commander (root) only. The unprivileged
-    /// server must never be able to enumerate the commands it can trigger, even though this file
-    /// sits in the same dir as the keys it does read.
     fn init_commands_file() -> anyhow::Result<()> {
         info(format!("Initializing commands file {COMMANDS_TOML_PATH}"));
         if !Path::new(COMMANDS_TOML_PATH).exists() {
@@ -97,9 +108,6 @@ impl Wizard {
         set_permissions(COMMANDS_TOML_PATH, 0o600)
     }
 
-    /// Hand `path` to `root:<group>`. The wizard runs as root, so the owner is usually already
-    /// root; naming it explicitly also repairs a path that a hand-edit or an older wizard left
-    /// owned by someone else.
     fn set_ownership(path: &str, group: &str) -> anyhow::Result<()> {
         change_file_ownership(Path::new(path), "root", group)
     }
@@ -170,6 +178,41 @@ mod tests {
 
         assert!(existing.is_dir());
         assert_eq!(fs::metadata(&existing).unwrap().permissions().mode() & 0o777, 0o755);
+    }
+
+    #[test]
+    fn test_has_key_file_empty_dir() {
+        let dir = tempfile::tempdir().unwrap();
+
+        assert!(!Wizard::has_key_file(dir.path().to_str().unwrap()).unwrap());
+    }
+
+    #[test]
+    fn test_has_key_file_ignores_non_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("config.toml"), "").unwrap();
+        fs::write(dir.path().join("keyless"), "").unwrap();
+        // a directory named like a key must not count: the server only loads regular files
+        fs::create_dir(dir.path().join("nested.key")).unwrap();
+
+        assert!(!Wizard::has_key_file(dir.path().to_str().unwrap()).unwrap());
+    }
+
+    #[test]
+    fn test_has_key_file_finds_key() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("config.toml"), "").unwrap();
+        fs::write(dir.path().join("user.key"), "").unwrap();
+
+        assert!(Wizard::has_key_file(dir.path().to_str().unwrap()).unwrap());
+    }
+
+    #[test]
+    fn test_has_key_file_missing_dir() {
+        let result = Wizard::has_key_file("/no/such/ruroco/dir");
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to read directory"));
     }
 
     #[test]
