@@ -24,6 +24,13 @@ file, so disk state never ends up as a mix of old and new binaries. On a success
 update, `update()` logs a reminder to restart `ruroco-server`/`ruroco-commander`; nothing restarts
 them automatically.
 
+Every HTTP call goes through `http_agent()`, never a bare `ureq::get` or a default agent. ureq 2.x
+defaults `timeout_connect` to 30s but leaves read/write **unbounded**, so a server that accepts the
+connection and then sends nothing hangs `update` forever. The agent sets connect 10s and read/write
+30s. Those are per socket operation, not for the whole transfer, so a slow but progressing download
+of a multi-MB binary still completes while a stalled one gives up. `build_http_agent` takes the
+durations so tests can use a short one; `http_agent()` is the production wrapper.
+
 `github.rs`'s release lookup requests `per_page=100` (GitHub defaults to 30) and reports how many
 releases it searched when a `--version` isn't found. Downloads are capped at `MAX_DOWNLOAD_BYTES`
 (100 MB) in `filesystem.rs` to bound memory against a misbehaving server.

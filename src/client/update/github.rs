@@ -47,8 +47,7 @@ impl Updater {
         let separator = if releases_url.contains('?') { '&' } else { '?' };
         let paged_url = format!("{releases_url}{separator}per_page=100");
 
-        let agent = ureq::AgentBuilder::new().user_agent("rust-client").build();
-        let response_data: Vec<GithubApiData> = agent
+        let response_data: Vec<GithubApiData> = crate::client::update::http_agent()
             .get(&paged_url)
             .call()
             .map_err(|e| anyhow!("Could not get API response: {e}"))?

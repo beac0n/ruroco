@@ -19,8 +19,11 @@ impl Updater {
     }
 
     fn download_bytes(url: &str) -> anyhow::Result<Vec<u8>> {
-        let reader =
-            ureq::get(url).call().map_err(|e| anyhow!("Could not get binary: {e}"))?.into_reader();
+        let reader = crate::client::update::http_agent()
+            .get(url)
+            .call()
+            .map_err(|e| anyhow!("Could not get binary: {e}"))?
+            .into_reader();
         let mut bytes = Vec::new();
         reader
             .take(MAX_DOWNLOAD_BYTES + 1)

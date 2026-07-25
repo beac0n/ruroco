@@ -56,6 +56,33 @@ fn create_readonly_dir(parent: &Path) -> PathBuf {
     dir
 }
 
+/// Spawns a local server that accepts a connection and then never answers, so a client without a
+/// read timeout would wait on it forever.
+fn serve_nothing() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        let (_stream, _) = listener.accept().unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    });
+    port
+}
+
+#[test]
+fn test_http_agent_gives_up_on_a_stalled_connection() {
+    let port = serve_nothing();
+    let agent = crate::client::update::build_http_agent(
+        std::time::Duration::from_secs(10),
+        std::time::Duration::from_millis(300),
+    );
+
+    let started = std::time::Instant::now();
+    let result = agent.get(&format!("http://127.0.0.1:{port}/")).call();
+
+    assert!(result.is_err());
+    assert!(started.elapsed() < std::time::Duration::from_secs(2), "took {:?}", started.elapsed());
+}
+
 /// Spawns a local HTTP server that serves `payload` once, returns (port, join handle).
 fn serve_payload(payload: Vec<u8>) -> (u16, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

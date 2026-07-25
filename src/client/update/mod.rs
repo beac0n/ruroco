@@ -12,6 +12,25 @@ use anyhow::{bail, Context};
 use std::env;
 use std::env::consts::{ARCH, OS};
 use std::path::PathBuf;
+use std::time::Duration;
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+/// Per socket read/write, not for the whole transfer, so a slow but progressing download of a
+/// multi-MB release binary is fine while a stalled connection gives up.
+const IO_TIMEOUT: Duration = Duration::from_secs(30);
+
+pub(super) fn http_agent() -> ureq::Agent {
+    build_http_agent(CONNECT_TIMEOUT, IO_TIMEOUT)
+}
+
+fn build_http_agent(connect: Duration, io: Duration) -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .user_agent("rust-client")
+        .timeout_connect(connect)
+        .timeout_read(io)
+        .timeout_write(io)
+        .build()
+}
 
 #[derive(Debug)]
 pub(crate) struct Updater {
