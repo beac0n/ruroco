@@ -46,6 +46,25 @@ Gotchas:
   `handler.rs` also rejects `counter > now_nanos() + max_clock_skew_seconds` (default 3600) without
   touching the blocklist, so a future-dated packet can't permanently lock out a key.
 - `rate_limiter.rs` is in-memory only (resets on restart); it is throttling, not replay defense.
+  Two caps over a ~1s window: per-source-IP throttles one chatty or abusive peer, global bounds
+  total decrypt work under a flood of spoofed sources (which the per-IP map alone cannot stop,
+  since every spoofed address looks like a brand-new peer with a fresh counter). Ordering is
+  deliberate and load-bearing in both directions:
+  - For a **known** IP the per-IP cap is checked first, so a peer over its own limit never eats
+    global budget meant for everyone else.
+  - For an **unknown** IP the global cap is checked *before* the map entry is created. Inserting
+    first (as it did originally) meant a flood of unique spoofed IPs grew the map at packet rate
+    even while every one of those packets was being rejected, so the limiter amplified the attack
+    it exists to bound.
+  The sweep is throttled to at most once per window rather than running on every packet: a
+  per-packet `retain` is O(map), which made a flood cost O(n²). Lingering stale entries are
+  harmless because `bump` resets any slot whose window has elapsed, so a stale entry behaves
+  exactly like a fresh one. Together the two changes bound the map at roughly `2 * max_global`
+  entries (two windows' worth) instead of leaving it unbounded.
+  Both caps must be `> 0`; `ConfigServer::deserialize` rejects `0` at load. A zero cap would mean
+  "reject every packet", which is a broken config, not a mode worth supporting per-packet. It also
+  keeps `bump` honest: its window-reset branch doesn't consult `max`, so a `max` of 0 would
+  otherwise leak exactly one packet per window.
 - Strict mode only enforces src_ip when the client set `strict` and included a src_ip.
 - `signal.rs` traps SIGTERM/SIGINT into an atomic checked each loop for clean shutdown.
 - The run loop logs each successful receive at debug (not info), so a packet flood can't spam the

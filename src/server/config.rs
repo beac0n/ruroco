@@ -7,7 +7,7 @@
 //! The inherent methods that act on `config_dir` (keys, UDP socket, blocklist) are separate
 //! `impl ConfigServer` blocks in `keys.rs` and `socket.rs`.
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, ensure, Context};
 use clap::Parser;
 use serde::Deserialize;
 use std::fs;
@@ -53,13 +53,13 @@ pub struct ConfigServer {
     /// Per-source-IP cap on accepted requests per second (~1s sliding window). Throttles a single
     /// chatty or abusive peer; see `max_requests_per_second_global` for the all-sources cap that
     /// covers spoofed-IP floods. In-memory only, so it resets on restart and is throttling, not
-    /// replay defense. Defaults to 2.
+    /// replay defense. Must be > 0 (rejected at config load otherwise). Defaults to 2.
     #[serde(default = "default_max_requests_per_second")]
     pub max_requests_per_second: u32,
     /// Global cap on accepted requests per second across ALL source IPs. Bounds total work (mainly
     /// decrypt attempts) under a spoofed-source-IP flood, which the per-IP limit cannot stop because
     /// each spoofed address looks like a fresh peer. Keep comfortably above expected legitimate
-    /// aggregate traffic.
+    /// aggregate traffic. Must be > 0 (rejected at config load otherwise).
     #[serde(default = "default_max_requests_per_second_global")]
     pub max_requests_per_second_global: u32,
     /// Upper bound, in seconds, by which an accepted counter (a nanosecond timestamp) may exceed
@@ -92,7 +92,22 @@ impl ConfigServer {
     }
 
     pub(crate) fn deserialize(data: &str) -> anyhow::Result<ConfigServer> {
-        toml::from_str::<ConfigServer>(data).with_context(|| "Could not parse server config")
+        let config: ConfigServer =
+            toml::from_str(data).with_context(|| "Could not parse server config")?;
+        config.validate()?;
+        Ok(config)
+    }
+
+    fn validate(&self) -> anyhow::Result<()> {
+        ensure!(
+            self.max_requests_per_second > 0,
+            "max_requests_per_second must be > 0, a value of 0 would reject every packet"
+        );
+        ensure!(
+            self.max_requests_per_second_global > 0,
+            "max_requests_per_second_global must be > 0, a value of 0 would reject every packet"
+        );
+        Ok(())
     }
 }
 
@@ -186,6 +201,26 @@ mod tests {
     fn test_deserialize_invalid_ip() {
         let result = ConfigServer::deserialize("ips = [\"not_an_ip\"]");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_deserialize_rejects_zero_rate_limits() {
+        for field in ["max_requests_per_second", "max_requests_per_second_global"] {
+            let result = ConfigServer::deserialize(&format!("ips = [\"127.0.0.1\"]\n{field} = 0"));
+            let err = result.unwrap_err().to_string();
+            assert!(err.contains(field), "{field}: unexpected error: {err}");
+            assert!(err.contains("must be > 0"), "{field}: unexpected error: {err}");
+        }
+    }
+
+    #[test]
+    fn test_deserialize_accepts_minimal_rate_limits() {
+        let config = ConfigServer::deserialize(
+            "ips = [\"127.0.0.1\"]\nmax_requests_per_second = 1\nmax_requests_per_second_global = 1",
+        )
+        .unwrap();
+        assert_eq!(config.max_requests_per_second, 1);
+        assert_eq!(config.max_requests_per_second_global, 1);
     }
 
     #[test]
