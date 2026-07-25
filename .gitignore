@@ -8,6 +8,7 @@ ruroco*.pem
 !tests/conf_dir/*
 tests/conf_dir/blocklist.toml
 tests/conf_dir/blocklist.msgpck
+tests/conf_dir/server.lock
 
 # release signing key: private stays local, public is committed and embedded in the client
 keys/ruroco-release-ed25519.key

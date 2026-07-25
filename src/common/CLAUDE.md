@@ -25,6 +25,8 @@ Cross-cutting helpers worth knowing:
 - `instance_lock.rs`: generic single-instance guard (`InstanceLock::acquire(path, msg)`), an
   exclusive non-blocking `flock(2)` on a persistent file rather than a PID file - no stale-lock
   state to detect or clean up, a crashed process releases it automatically. Gated behind
-  `any(with-client, with-commander)`. Used by `client::lock::ClientLock` (thin wrapper, same public
-  API as before) and by the commander's `create_listener` (`<socket_dir>/commander.lock`, guards
-  against a second instance stealing the live Unix socket).
+  `any(with-client, with-commander)`, so it is also available to `with-server` (a superset of
+  `with-commander`). Used by `client::lock::ClientLock` (thin wrapper, same public API as before),
+  by the commander's `create_listener` (`<socket_dir>/commander.lock`, guards against a second
+  instance stealing the live Unix socket), and by the server's `run()`
+  (`<blocklist_dir>/server.lock`, guards against two servers sharing a blocklist).

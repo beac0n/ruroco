@@ -16,7 +16,17 @@ impl ConfigServer {
     pub(crate) fn create_blocklist(&self) -> anyhow::Result<Blocklist> {
         // Blocklist lives in `blocklist_dir` when set (a writable StateDirectory), otherwise in
         // `config_dir`. `Blocklist::get_blocklist_path` resolve_path's a relative dir for us.
-        Blocklist::create(self.blocklist_dir.as_ref().unwrap_or(&self.config_dir))
+        Blocklist::create(self.state_dir())
+    }
+
+    pub(crate) fn lock_path(&self) -> PathBuf {
+        resolve_path(self.state_dir()).join("server.lock")
+    }
+
+    /// Where the server's mutable state lives: `blocklist_dir` when set, else `config_dir`.
+    /// `config_dir` is read-only under the shipped unit, so nothing writable may assume it.
+    fn state_dir(&self) -> &PathBuf {
+        self.blocklist_dir.as_ref().unwrap_or(&self.config_dir)
     }
 
     pub(crate) fn create_crypto_handlers(

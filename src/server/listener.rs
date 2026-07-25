@@ -4,6 +4,7 @@
 
 use crate::common::crypto_handler::CryptoHandler;
 use crate::common::data_parser::DataParser;
+use crate::common::instance_lock::InstanceLock;
 use crate::common::logging::{debug, info};
 use crate::common::normalize_ip;
 use crate::common::protocol::{KEY_ID_SIZE, MSG_SIZE, PLAINTEXT_SIZE};
@@ -59,6 +60,9 @@ impl Server {
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
+        // Held for the whole loop; released by the kernel on exit or crash.
+        let _instance_lock =
+            InstanceLock::acquire(self.config.lock_path(), "Server already running")?;
         info(format!("Running server on {:?}", self.socket));
         self.socket
             .set_read_timeout(Some(Duration::from_secs(1)))
@@ -140,6 +144,7 @@ pub fn run_server(server: CliServer) -> anyhow::Result<()> {
 mod tests {
     use crate::client::gen::Generator;
     use crate::common::data_parser::DataParser;
+    use crate::common::instance_lock::InstanceLock;
     use crate::common::protocol::MSG_SIZE;
     use crate::server::config::{CliServer, ConfigServer};
     use crate::server::get_random_range;
@@ -383,6 +388,33 @@ mod tests {
         server.client_recv_data = encoded;
         let err = server.run_loop_iteration(localhost_src(8080)).unwrap_err().to_string();
         assert!(err.contains("blocklist"), "expected blocklist error, got: {err}");
+    }
+
+    #[test]
+    fn test_second_server_on_the_same_state_dir_is_refused() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dir = temp_dir.path().to_path_buf();
+        let (first, _key) = create_server_with_key_in_dir(dir.clone()).unwrap();
+        let (mut second, _key) = create_server_with_key_in_dir(dir).unwrap();
+
+        // The lock is taken by run(), so both can be constructed; only one may enter its loop.
+        let held = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let release = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let (held1, release1) = (held.clone(), release.clone());
+        let winner = std::thread::spawn(move || {
+            let _lock =
+                InstanceLock::acquire(first.config.lock_path(), "Server already running").unwrap();
+            held1.wait();
+            release1.wait();
+            first.blocklist.get().len()
+        });
+
+        held.wait();
+        let err = second.run().unwrap_err().to_string();
+        release.wait();
+        winner.join().unwrap();
+
+        assert!(err.contains("Server already running"), "unexpected error: {err}");
     }
 
     #[test]

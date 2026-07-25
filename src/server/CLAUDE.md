@@ -45,6 +45,16 @@ Gotchas:
   loudly. Don't "fix" that either; see SECURITY.md's "One key per client".
   `handler.rs` also rejects `counter > now_nanos() + max_clock_skew_seconds` (default 3600) without
   touching the blocklist, so a future-dated packet can't permanently lock out a key.
+- `run()` holds an `InstanceLock` at `<blocklist_dir or config_dir>/server.lock` for the whole
+  loop, so a second server (e.g. the systemd unit plus a manual run) can't share the blocklist:
+  two instances would keep independent in-memory replay floors and last-write-wins on save.
+  The lock lives beside the blocklist, not in `config_dir`, because the shipped unit mounts
+  `config_dir` read-only (`ProtectSystem=strict`) and only the `StateDirectory` is writable.
+  It is taken in `run()` rather than `create()` on purpose: `create()` is used in tests to build
+  and inspect servers, and `tests/conf_dir` is shared, so locking there made parallel tests flaky.
+  The residual gap is that a losing instance's `create()` still reads and rewrites the blocklist
+  before `run()` refuses it, which could roll back a counter the winner advanced in that window.
+  It self-heals: the winner keeps its in-memory state and rewrites on the next knock.
 - `rate_limiter.rs` is in-memory only (resets on restart); it is throttling, not replay defense.
   Two caps over a ~1s window: per-source-IP throttles one chatty or abusive peer, global bounds
   total decrypt work under a flood of spoofed sources (which the per-IP map alone cannot stop,
