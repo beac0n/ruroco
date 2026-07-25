@@ -29,7 +29,12 @@ Ownership scheme, and why the server can actually read its config:
 | `commands.toml` | `root:root` | `0600` | commander-only; the server must never enumerate the commands it triggers |
 
 Modes are always set explicitly rather than left to the umask: a root shell with `umask 0077` would otherwise leave
-`/etc/ruroco` at `0700`, untraversable for the `ruroco` user. Root keeps ownership of everything so a compromised
+`/etc/ruroco` at `0700`, untraversable for the `ruroco` user. `write_data` requests the final mode at `open()` time
+(`OpenOptions::mode`) *and* chmods afterwards. The `mode()` matters because `File::create` would ask for `0666`, so
+the file would sit world-readable with its full contents until the chmod landed, which for `commands.toml` is exactly
+the disclosure the `0600` exists to prevent. The trailing chmod matters because `mode()` is still masked by the umask,
+and because a config file that already exists is not rewritten at all. Unit files get `0644`; the modes live in
+`wizard_systemd.rs` next to the paths. Root keeps ownership of everything so a compromised
 server cannot rewrite its own config or drop in a key, which is the DAC-level counterpart to the read-only
 `/etc/ruroco` that `ruroco.service`'s `ProtectSystem=strict` already enforces. `set_ownership` names `root` as the
 owner explicitly rather than relying on the wizard's euid, so it also repairs a path a hand-edit or an older wizard

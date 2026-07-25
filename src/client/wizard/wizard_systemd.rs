@@ -14,6 +14,11 @@ pub(super) const RUROCO_SOCKET: &str = "ruroco.socket";
 const KEYLESS_UNITS: [&str; 2] = [COMMANDER_SERVICE, RUROCO_SOCKET];
 const ALL_UNITS: [&str; 3] = [COMMANDER_SERVICE, RUROCO_SOCKET, RUROCO_SERVICE];
 
+pub(super) const CONFIG_DIR_MODE: u32 = 0o750;
+pub(super) const CONFIG_TOML_MODE: u32 = 0o640;
+pub(super) const COMMANDS_TOML_MODE: u32 = 0o600;
+pub(super) const UNIT_FILE_MODE: u32 = 0o644;
+
 pub(super) const CONFIG_DIR_PATH: &str = "/etc/ruroco";
 pub(super) const CONFIG_TOML_PATH: &str = "/etc/ruroco/config.toml";
 pub(super) const COMMANDS_TOML_PATH: &str = "/etc/ruroco/commands.toml";

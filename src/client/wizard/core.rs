@@ -1,14 +1,16 @@
 use crate::client::util::set_permissions;
 use crate::client::wizard::wizard_systemd::{
     COMMANDER_SERVICE_FILE_DATA, COMMANDER_SERVICE_FILE_PATH, COMMANDS_TOML_FILE_DATA,
-    COMMANDS_TOML_PATH, CONFIG_DIR_PATH, CONFIG_TOML_FILE_DATA, CONFIG_TOML_PATH, RUROCO_SERVICE,
+    COMMANDS_TOML_MODE, COMMANDS_TOML_PATH, CONFIG_DIR_MODE, CONFIG_DIR_PATH,
+    CONFIG_TOML_FILE_DATA, CONFIG_TOML_MODE, CONFIG_TOML_PATH, RUROCO_SERVICE,
     RUROCO_SERVICE_FILE_DATA, RUROCO_SERVICE_FILE_PATH, SERVICE_GROUP, SERVICE_USER,
-    SOCKET_FILE_DATA, SOCKET_FILE_PATH,
+    SOCKET_FILE_DATA, SOCKET_FILE_PATH, UNIT_FILE_MODE,
 };
 use crate::common::{change_file_ownership, info};
 use anyhow::Context;
 use std::fs;
 use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
 #[derive(Debug)]
@@ -23,9 +25,9 @@ impl Wizard {
         Self::create_ruroco_user()?;
         Self::update()?;
 
-        Self::write_data(RUROCO_SERVICE_FILE_PATH, RUROCO_SERVICE_FILE_DATA)?;
-        Self::write_data(COMMANDER_SERVICE_FILE_PATH, COMMANDER_SERVICE_FILE_DATA)?;
-        Self::write_data(SOCKET_FILE_PATH, SOCKET_FILE_DATA)?;
+        Self::write_data(RUROCO_SERVICE_FILE_PATH, RUROCO_SERVICE_FILE_DATA, UNIT_FILE_MODE)?;
+        Self::write_data(COMMANDER_SERVICE_FILE_PATH, COMMANDER_SERVICE_FILE_DATA, UNIT_FILE_MODE)?;
+        Self::write_data(SOCKET_FILE_PATH, SOCKET_FILE_DATA, UNIT_FILE_MODE)?;
 
         Self::init_config_dir()?;
         Self::init_config_file()?;
@@ -84,40 +86,45 @@ impl Wizard {
     }
 
     fn init_config_dir() -> anyhow::Result<()> {
-        Self::create_dir(CONFIG_DIR_PATH, 0o750)?;
+        Self::create_dir(CONFIG_DIR_PATH, CONFIG_DIR_MODE)?;
         Self::set_ownership(CONFIG_DIR_PATH, SERVICE_GROUP)
     }
 
     fn init_config_file() -> anyhow::Result<()> {
         info(format!("Initializing config file {CONFIG_TOML_PATH}"));
         if !Path::new(CONFIG_TOML_PATH).exists() {
-            Self::write_data(CONFIG_TOML_PATH, CONFIG_TOML_FILE_DATA)?;
+            Self::write_data(CONFIG_TOML_PATH, CONFIG_TOML_FILE_DATA, CONFIG_TOML_MODE)?;
         }
 
         Self::set_ownership(CONFIG_TOML_PATH, SERVICE_GROUP)?;
-        set_permissions(CONFIG_TOML_PATH, 0o640)
+        set_permissions(CONFIG_TOML_PATH, CONFIG_TOML_MODE)
     }
 
     fn init_commands_file() -> anyhow::Result<()> {
         info(format!("Initializing commands file {COMMANDS_TOML_PATH}"));
         if !Path::new(COMMANDS_TOML_PATH).exists() {
-            Self::write_data(COMMANDS_TOML_PATH, COMMANDS_TOML_FILE_DATA)?;
+            Self::write_data(COMMANDS_TOML_PATH, COMMANDS_TOML_FILE_DATA, COMMANDS_TOML_MODE)?;
         }
 
         Self::set_ownership(COMMANDS_TOML_PATH, "root")?;
-        set_permissions(COMMANDS_TOML_PATH, 0o600)
+        set_permissions(COMMANDS_TOML_PATH, COMMANDS_TOML_MODE)
     }
 
     fn set_ownership(path: &str, group: &str) -> anyhow::Result<()> {
         change_file_ownership(Path::new(path), "root", group)
     }
 
-    fn write_data(path: &str, data: &[u8]) -> anyhow::Result<()> {
+    fn write_data(path: &str, data: &[u8], mode: u32) -> anyhow::Result<()> {
         info(format!("Creating {path} ..."));
-        let mut file =
-            fs::File::create(path).with_context(|| format!("Failed to create {path}"))?;
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(mode)
+            .open(path)
+            .with_context(|| format!("Failed to create {path}"))?;
         file.write_all(data).with_context(|| format!("Failed to write to {path}"))?;
-        Ok(())
+        set_permissions(path, mode)
     }
 }
 
@@ -135,15 +142,30 @@ mod tests {
         let path_str = file_path.to_str().unwrap();
         let data = b"hello world";
 
-        Wizard::write_data(path_str, data).unwrap();
+        Wizard::write_data(path_str, data, 0o600).unwrap();
 
-        let contents = std::fs::read(file_path).unwrap();
+        let contents = fs::read(&file_path).unwrap();
         assert_eq!(contents, data);
+        assert_eq!(fs::metadata(&file_path).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+
+    #[test]
+    fn test_write_data_never_widens_an_existing_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("commands.toml");
+        fs::write(&file_path, "old").unwrap();
+        fs::set_permissions(&file_path, Permissions::from_mode(0o644)).unwrap();
+        let path_str = file_path.to_str().unwrap();
+
+        Wizard::write_data(path_str, b"new", 0o600).unwrap();
+
+        assert_eq!(fs::read(&file_path).unwrap(), b"new");
+        assert_eq!(fs::metadata(&file_path).unwrap().permissions().mode() & 0o777, 0o600);
     }
 
     #[test]
     fn test_write_data_invalid_path() {
-        let result = Wizard::write_data("/no/such/dir/file.txt", b"data");
+        let result = Wizard::write_data("/no/such/dir/file.txt", b"data", 0o600);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Failed to create"));
     }
