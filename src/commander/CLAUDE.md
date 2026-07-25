@@ -23,7 +23,13 @@ path (`with-server` is a superset of it). It trusts the Unix socket; see the thr
   world-guessable-name) socket is connectable by anyone. Execution is sequential (no threads) with
   a timeout: stdout/stderr go to temp files (never pipes, so a chatty command can't dead-lock the
   poll loop), `try_wait` is polled every 50ms, and at the deadline the `sh` process (only, not its
-  group) gets SIGKILL and is reaped. `run_commander(CliCommander)` is the entry point. IP
+  group) gets SIGKILL and is reaped. Those temp files are opened with `create_new` (`O_EXCL`) and
+  mode `0600` via `create_output_file`, never `File::create`: the commander is root and the path
+  lives in a world-writable temp dir, so a plain create would follow a pre-planted symlink and
+  truncate whatever it points at. `O_EXCL` turns that into an error instead (fail closed, the
+  command doesn't run). The shipped unit's `PrivateTmp=true` already isolates /tmp; this covers
+  manual and non-systemd runs, which it doesn't. Exploiting it needs the attacker to guess the
+  nanosecond in the filename, so this is defence in depth rather than a live hole. `run_commander(CliCommander)` is the entry point. IP
   routability itself (which addresses may reach `$RUROCO_IP`) lives in `ip_filter::is_routable`;
   `exec.rs` just logs and gates on it.
 - `ip_filter.rs`: pure `is_routable(IpAddr) -> bool`, rejecting loopback/private/link-local/

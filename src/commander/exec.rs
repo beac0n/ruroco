@@ -8,7 +8,7 @@ use anyhow::{bail, Context};
 use nix::sys::stat::{umask, Mode};
 use std::fs::Permissions;
 use std::net::IpAddr;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::os::unix::net::UnixListener;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -124,9 +124,9 @@ impl Commander {
         stdout_path: &Path,
         stderr_path: &Path,
     ) -> anyhow::Result<CommandExit> {
-        let stdout_file = fs::File::create(stdout_path)
+        let stdout_file = Self::create_output_file(stdout_path)
             .with_context(|| format!("Could not create stdout capture {stdout_path:?}"))?;
-        let stderr_file = fs::File::create(stderr_path)
+        let stderr_file = Self::create_output_file(stderr_path)
             .with_context(|| format!("Could not create stderr capture {stderr_path:?}"))?;
 
         let mut child = Command::new("sh")
@@ -155,6 +155,12 @@ impl Commander {
                 None => thread::sleep(POLL_INTERVAL),
             }
         }
+    }
+
+    /// `create_new` (`O_EXCL|O_CREAT`) so a pre-planted path is an error instead of something root
+    /// follows and truncates; `0600` so captured output is never world-readable.
+    fn create_output_file(path: &Path) -> std::io::Result<fs::File> {
+        fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)
     }
 
     /// A unique per-invocation path in the temp dir for capturing one output stream.
@@ -191,6 +197,42 @@ mod tests {
     use std::time::Duration;
 
     const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+
+    #[test]
+    fn test_create_output_file_refuses_to_follow_a_planted_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        let victim = dir.path().join("victim");
+        std::fs::write(&victim, "precious").unwrap();
+        let planted = dir.path().join("ruroco-cmd-1-2-out");
+        std::os::unix::fs::symlink(&victim, &planted).unwrap();
+
+        let result = Commander::create_output_file(&planted);
+
+        assert!(result.is_err());
+        assert_eq!(std::fs::read_to_string(&victim).unwrap(), "precious");
+    }
+
+    #[test]
+    fn test_create_output_file_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ruroco-cmd-1-2-out");
+
+        Commander::create_output_file(&path).unwrap();
+
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+    }
+
+    #[test]
+    fn test_create_output_file_refuses_an_existing_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ruroco-cmd-1-2-out");
+        std::fs::write(&path, "already here").unwrap();
+
+        assert!(Commander::create_output_file(&path).is_err());
+    }
 
     fn create_commander(config_dir: PathBuf, allow_non_routable_ips: bool) -> Commander {
         Commander::create(
