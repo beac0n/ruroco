@@ -4,6 +4,7 @@ use crate::common::info;
 use anyhow::{ensure, Context};
 use std::process::Command;
 
+pub(super) const CONFIG_DIR_PATH: &str = "/etc/ruroco";
 pub(super) const CONFIG_TOML_PATH: &str = "/etc/ruroco/config.toml";
 pub(super) const COMMANDS_TOML_PATH: &str = "/etc/ruroco/commands.toml";
 pub(super) const RUROCO_SERVICE_FILE_PATH: &str = "/etc/systemd/system/ruroco.service";
