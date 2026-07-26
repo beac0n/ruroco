@@ -15,6 +15,12 @@ optional `blocklist_dir` (defaults to `config_dir`) so the blocklist can live in
 while `config_dir` stays read-only. `keys.rs`/`socket.rs` hang the server-only inherent methods off
 `ConfigServer` (crypto handlers, UDP socket, blocklist) via separate `impl` blocks.
 
+The recv buffer is `MSG_SIZE + 1`, deliberately one byte larger than a packet, and the loop demands
+`count == MSG_SIZE` exactly. `recv_from` truncates an oversized datagram to the buffer and reports
+what it *copied*, not the datagram's real length, so a buffer of exactly `MSG_SIZE` made every
+oversized datagram indistinguishable from a valid one: a valid 94-byte packet with junk appended
+was accepted and executed. Don't shrink the buffer back to `MSG_SIZE`.
+
 Request flow: `socket.rs` receives a 94-byte datagram (supports systemd socket activation, falls
 back to binding `[::]`) -> decrypt via `CryptoHandler` -> `RateLimiter::check` (per-IP, ~1s window,
 `max_requests_per_second`, default 2) -> deserialize `ClientData` -> validate: replay (blocklist),

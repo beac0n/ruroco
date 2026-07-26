@@ -28,7 +28,9 @@ pub struct Server {
     pub(super) config: ConfigServer,
     crypto_handlers: HashMap<[u8; KEY_ID_SIZE], CryptoHandler>,
     socket: UdpSocket,
-    client_recv_data: [u8; MSG_SIZE],
+    /// One byte larger than a packet: `recv_from` truncates to the buffer and reports what it
+    /// copied, so a buffer of exactly `MSG_SIZE` makes every oversized datagram look valid.
+    client_recv_data: [u8; MSG_SIZE + 1],
     pub(super) socket_path: PathBuf,
     pub(super) blocklist: Blocklist,
     rate_limiter: RateLimiter,
@@ -50,7 +52,7 @@ impl Server {
         Ok(Server {
             crypto_handlers,
             socket: config.create_server_udp_socket(address)?,
-            client_recv_data: [0u8; MSG_SIZE],
+            client_recv_data: [0u8; MSG_SIZE + 1],
             socket_path: config.get_commander_unix_socket_path(),
             blocklist,
             rate_limiter: RateLimiter::new(),
@@ -106,7 +108,10 @@ impl Server {
                 debug(format!("Successfully received {count} bytes from {src}"));
                 let src_ip = normalize_ip(src.ip());
                 self.check_rate_limit(src_ip)?;
-                let received_data = self.client_recv_data;
+                let received_data = *self
+                    .client_recv_data
+                    .first_chunk::<MSG_SIZE>()
+                    .ok_or_else(|| anyhow!("Receive buffer smaller than {MSG_SIZE} bytes"))?;
                 let (key_id, plaintext) = self.decrypt(&received_data)?;
                 self.validate_and_send_command(key_id, plaintext, src_ip)
             }
@@ -148,10 +153,11 @@ mod tests {
     use crate::common::protocol::MSG_SIZE;
     use crate::server::config::{CliServer, ConfigServer};
     use crate::server::get_random_range;
+    use crate::server::listener::UNSEEN_KEY_FLOOR;
     use crate::server::Server;
     use clap::error::ErrorKind::DisplayHelp;
     use clap::Parser;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
     use std::path::PathBuf;
     use std::time::Duration;
     use std::{env, fs, io};
@@ -362,8 +368,50 @@ mod tests {
         let plaintext =
             ClientData::create(cmd, strict, src_ip, dst_ip, counter).unwrap().serialize().unwrap();
         let encoded = parser.encode(&plaintext).unwrap();
-        server.client_recv_data = encoded;
+        load_recv_buffer(server, &encoded);
         encoded
+    }
+
+    /// Place a packet in the recv buffer, which is deliberately one byte larger than a packet.
+    fn load_recv_buffer(server: &mut Server, packet: &[u8; MSG_SIZE]) {
+        server.client_recv_data = [0u8; MSG_SIZE + 1];
+        server.client_recv_data[..MSG_SIZE].copy_from_slice(packet);
+    }
+
+    #[test]
+    fn test_oversized_datagram_is_rejected_before_decrypt() {
+        let (_temp_dir, mut server, key) = create_server_with_key().unwrap();
+        let localhost: IpAddr = "127.0.0.1".parse().unwrap();
+        let counter =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        // Sent over a real socket, because the fix rests on kernel behaviour: an oversized
+        // datagram is truncated to the buffer and the reported count is what was copied, so only a
+        // buffer larger than a packet can reveal the oversize at all.
+        let valid = load_encrypted_packet(
+            &mut server,
+            &key,
+            "default",
+            false,
+            Some(localhost),
+            localhost,
+            counter,
+        );
+        let mut oversized = valid.to_vec();
+        oversized.push(0xff);
+
+        let server_addr = server.socket.local_addr().unwrap();
+        server.socket.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
+        sender.send_to(&oversized, server_addr).unwrap();
+
+        let data = server.socket.recv_from(&mut server.client_recv_data);
+        let err = server.run_loop_iteration(data).unwrap_err().to_string();
+
+        assert!(err.contains("Invalid read count"), "unexpected error: {err}");
+        assert!(
+            server.blocklist.get().values().all(|counter| *counter == UNSEEN_KEY_FLOOR),
+            "an oversized datagram must not reach validation at all"
+        );
     }
 
     #[test]
@@ -385,7 +433,7 @@ mod tests {
         assert!(server.run_loop_iteration(localhost_src(8080)).is_ok());
 
         // Replay with same counter should be blocked
-        server.client_recv_data = encoded;
+        load_recv_buffer(&mut server, &encoded);
         let err = server.run_loop_iteration(localhost_src(8080)).unwrap_err().to_string();
         assert!(err.contains("blocklist"), "expected blocklist error, got: {err}");
     }
