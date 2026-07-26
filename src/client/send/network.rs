@@ -56,7 +56,7 @@ impl Sender {
         socket.connect(addr).with_context(|| Self::socket_ctx(addr))?;
         socket.send(&data_to_send).with_context(|| Self::socket_ctx(addr))?;
 
-        info(format!("Sent command {} from {bind_address} to udp://{addr}", &self.cmd.command));
+        info(format!("Sent command {} from {bind_address} to udp://{addr}", self.cmd.command));
         Ok(())
     }
 

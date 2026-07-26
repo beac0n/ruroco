@@ -84,7 +84,7 @@ impl Server {
             Ok(_) => info("Successfully sent data to commander"),
             Err(e) => error(format!(
                 "Could not send data to commander via socket {:?}: {e}",
-                &self.socket_path
+                self.socket_path
             )),
         }
     }

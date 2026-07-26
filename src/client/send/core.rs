@@ -91,9 +91,9 @@ impl Sender {
 
     /// Send data to the server to execute a predefined command
     pub fn send(&mut self) -> anyhow::Result<()> {
-        info(format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
+        info(format!("Connecting to udp://{}, using {} ...", self.cmd.address, version()));
         let destination_addrs = self.get_destination_ips()?;
-        info(format!("Found addresses {destination_addrs:?} for {}", &self.cmd.address));
+        info(format!("Found addresses {destination_addrs:?} for {}", self.cmd.address));
         self.send_to_destinations(&destination_addrs)
     }
 

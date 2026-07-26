@@ -63,7 +63,7 @@ impl Commander {
                         error(e)
                     }
                 }
-                Err(e) => error(format!("Connection for {:?} failed: {e}", &self.socket_path)),
+                Err(e) => error(format!("Connection for {:?} failed: {e}", self.socket_path)),
             }
         }
 
@@ -73,7 +73,7 @@ impl Commander {
     fn run_cycle(&self, stream: &mut UnixStream) -> anyhow::Result<()> {
         stream
             .set_read_timeout(Some(Duration::from_secs(1)))
-            .with_context(|| format!("Could not set read timeout for {:?}", &self.socket_path))?;
+            .with_context(|| format!("Could not set read timeout for {:?}", self.socket_path))?;
 
         let msg = Commander::read(stream)?;
         let cmdr_data: CommanderData = msg.into();

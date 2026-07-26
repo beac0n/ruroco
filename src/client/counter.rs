@@ -27,7 +27,7 @@ impl Counter {
             // `ruroco-client reseed` is the explicit, deliberate way to reset the counter.
             Err(e) => {
                 return Err(e)
-                    .with_context(|| format!("Could not read counter file {:?}", &counter.path));
+                    .with_context(|| format!("Could not read counter file {:?}", counter.path));
             }
         }
         Ok(counter)

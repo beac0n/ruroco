@@ -42,7 +42,7 @@ impl ConfigServer {
                 .into();
             let handler = CryptoHandler::create(&content)
                 .with_context(|| format!("load key {}", path.display()))?;
-            info(format!("loading key with id {:X?}", &handler.id));
+            info(format!("loading key with id {:X?}", handler.id));
 
             if handlers.insert(handler.id, handler).is_some() {
                 bail!("Duplicate key files detected; refusing to start");

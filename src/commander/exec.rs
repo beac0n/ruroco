@@ -32,7 +32,7 @@ impl Commander {
     pub(super) fn create_listener(&self) -> anyhow::Result<(InstanceLock, UnixListener)> {
         let socket_dir = match self.socket_path.parent() {
             Some(socket_dir) => socket_dir,
-            None => bail!("Could not get parent dir for {:?}", &self.socket_path),
+            None => bail!("Could not get parent dir for {:?}", self.socket_path),
         };
         fs::create_dir_all(socket_dir)
             .with_context(|| format!("Could not create parents for {socket_dir:?}"))?;
@@ -47,7 +47,7 @@ impl Commander {
         // and others get no write and therefore cannot. The `r` bit for others is inert for a
         // socket (read perm grants nothing on connect) and is kept only for ls/debugging clarity.
         let mode = 0o204;
-        info(format!("Binding Unix Listener on {:?} with permissions {mode:o}", &self.socket_path));
+        info(format!("Binding Unix Listener on {:?} with permissions {mode:o}", self.socket_path));
 
         // bind() creates the socket file at a permissive default (subject to umask), and we can
         // only chmod it to `mode` afterwards - leaving a window where a connectable, wide-open

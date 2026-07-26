@@ -12,7 +12,7 @@ impl<'a> Widgets<'a> {
 
     pub(crate) fn bordered(color: egui::Color32, inner_margin: f32) -> egui::Frame {
         egui::Frame::default()
-            .stroke(egui::Stroke::new(2.0, color))
+            .stroke(egui::Stroke::new(2.0_f32, color))
             .corner_radius(5.0)
             .inner_margin(inner_margin)
     }

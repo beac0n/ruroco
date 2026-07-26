@@ -74,7 +74,7 @@ pub(crate) fn resolve_path(path: &Path) -> PathBuf {
     match fs::canonicalize(&full_path) {
         Ok(p) => p,
         Err(e) => {
-            error(format!("Could not canonicalize {:?}: {e}", &full_path));
+            error(format!("Could not canonicalize {:?}: {e}", full_path));
             full_path
         }
     }

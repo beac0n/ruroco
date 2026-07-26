@@ -147,7 +147,7 @@ mod tests {
             let mut commands = HashMap::new();
             commands.insert(
                 "default".to_string(),
-                format!("echo -n $RUROCO_IP > {:?}", &self.test_file_path),
+                format!("echo -n $RUROCO_IP > {:?}", self.test_file_path),
             );
 
             thread::spawn(move || {

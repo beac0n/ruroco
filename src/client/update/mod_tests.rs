@@ -577,7 +577,7 @@ fn test_rollback_bin_reapplies_ownership_to_the_restored_binary() {
 
     let result = updater.rollback_bin("a", Some("ruroco-nonexistent-user"), true);
 
-    assert!(result.is_err(), "an unapplicable ownership restore must not pass silently");
+    assert!(result.is_err(), "an inapplicable ownership restore must not pass silently");
     assert_eq!(fs::read(dir.path().join("a")).unwrap(), b"old-a", "content is restored first");
 }
 
