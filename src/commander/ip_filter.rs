@@ -17,7 +17,29 @@ pub(crate) fn is_routable(ip: IpAddr) -> bool {
 }
 
 fn is_ipv6_rejected(v6: Ipv6Addr) -> bool {
-    v6.is_unique_local() || v6.is_unicast_link_local() || is_ipv6_documentation(v6)
+    v6.is_unique_local()
+        || v6.is_unicast_link_local()
+        || is_ipv6_documentation(v6)
+        || is_ipv6_ipv4_compatible(v6)
+        || embedded_ipv4(v6).is_some_and(is_ipv4_rejected)
+}
+
+/// Deprecated IPv4-compatible IPv6 (`::/96`), RFC 4291 §2.5.5.1. Distinct from IPv4-*mapped*
+/// (`::ffff:0:0/96`), which `common::normalize_ip` has already collapsed to a `V4` by this point.
+fn is_ipv6_ipv4_compatible(v6: Ipv6Addr) -> bool {
+    v6.segments()[..6].iter().all(|&s| s == 0)
+}
+
+/// The IPv4 address carried inside a transition address: 6to4 (`2002::/16`, RFC 3056) and Teredo
+/// (`2001:0::/32`, RFC 4380, whose client address is stored bit-inverted).
+fn embedded_ipv4(v6: Ipv6Addr) -> Option<Ipv4Addr> {
+    match v6.segments() {
+        [0x2002, hi, lo, ..] => Some(Ipv4Addr::from((u32::from(hi) << 16) | u32::from(lo))),
+        [0x2001, 0x0000, .., hi, lo] => {
+            Some(Ipv4Addr::from((u32::from(!hi) << 16) | u32::from(!lo)))
+        }
+        _ => None,
+    }
 }
 
 /// IPv6 documentation range, RFC 3849 (`2001:db8::/32`). Hand-rolled because
@@ -28,8 +50,13 @@ fn is_ipv6_documentation(v6: Ipv6Addr) -> bool {
     segments[0] == 0x2001 && segments[1] == 0x0db8
 }
 
+/// Self-contained: also used for addresses extracted from inside an IPv6 transition address, which
+/// never pass through `is_routable`'s generic unspecified/loopback/multicast checks.
 fn is_ipv4_rejected(v4: Ipv4Addr) -> bool {
-    v4.is_broadcast()
+    v4.is_unspecified()
+        || v4.is_loopback()
+        || v4.is_multicast()
+        || v4.is_broadcast()
         || v4.is_private()
         || v4.is_link_local()
         || v4.is_documentation()
@@ -109,6 +136,15 @@ mod tests {
             "198.19.255.254",  // benchmarking v4, top of range
             "240.0.0.1",       // reserved v4 (240.0.0.0/4)
             "2001:db8::1",     // documentation v6 (2001:db8::/32)
+            // Deprecated IPv4-compatible v6 (::/96): rejected wholesale, public embedded or not.
+            "::10.0.0.1",
+            "::8.8.8.8",
+            // 6to4 (2002::/16) and Teredo (2001:0::/32) wrapping a non-global IPv4.
+            "2002:0a00:0001::1",                    // 6to4 embedding 10.0.0.1
+            "2002:7f00:0001::1",                    // 6to4 embedding 127.0.0.1
+            "2002:c0a8:0101::1",                    // 6to4 embedding 192.168.1.1
+            "2001:0:4136:e378:8000:63bf:f5ff:fffe", // Teredo, client v4 !0xf5fffffe = 10.0.0.1
+            "2001:0:4136:e378:8000:63bf:8080:fefe", // Teredo, client v4 = 127.127.1.1
         ];
 
         for ip in rejected {
@@ -127,6 +163,11 @@ mod tests {
             "100.128.0.1",          // just above the CGNAT range
             "198.17.255.255",       // just below the benchmarking range (198.18.0.0/15)
             "198.20.0.1",           // just above the benchmarking range
+            // Transition addresses are only rejected for the IPv4 they carry, so legitimate ones
+            // still work: a blanket 2002::/16 or 2001:0::/32 ban would break real peers.
+            "2002:0808:0808::1",                    // 6to4 embedding 8.8.8.8
+            "2001:0:4136:e378:8000:63bf:f7f7:f7f7", // Teredo, client v4 = 8.8.8.8
+            "2001:4860:4860::8888",                 // 2001::/16 but not Teredo (second group != 0)
         ];
 
         for ip in allowed {

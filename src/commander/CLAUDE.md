@@ -35,7 +35,19 @@ path (`with-server` is a superset of it). It trusts the Unix socket; see the thr
 - `ip_filter.rs`: pure `is_routable(IpAddr) -> bool`, rejecting loopback/private/link-local/
   multicast/broadcast/documentation/CGNAT/benchmarking/reserved ranges for both v4 and v6 (a few
   of these mirror std methods still gated behind the unstable `ip` feature - see the doc comments
-  for which, and swap to std once stabilized).
+  for which, and swap to std once stabilized). Three v6 forms need special handling because they
+  carry an IPv4 address that the plain v6 range checks can't see:
+  - IPv4-*mapped* (`::ffff:0:0/96`) never reaches the v6 path at all: `common::normalize_ip`
+    collapses it to a `V4` first, so it goes through `is_ipv4_rejected`.
+  - IPv4-*compatible* (`::/96`, e.g. `::10.0.0.1`) is rejected wholesale. It is deprecated by
+    RFC 4291 §2.5.5.1, so nothing legitimate uses it, and tooling that does resolve it back to a
+    bare IPv4 makes `::10.0.0.1` an easy way to smuggle a private address into `$RUROCO_IP`.
+  - 6to4 (`2002::/16`) and Teredo (`2001:0::/32`, client address stored bit-inverted) are rejected
+    only when the IPv4 they embed is itself non-global, per RFC 3964 §4.3. Not a blanket ban:
+    these are real transition mechanisms and a peer behind a public IPv4 is legitimate.
+  Because embedded addresses skip `is_routable`'s generic unspecified/loopback/multicast checks,
+  `is_ipv4_rejected` repeats those three itself. That is redundant for a top-level v4 and load
+  bearing for an extracted one, so don't "simplify" it away.
 - `config.rs`: `ConfigCommander` (the commander's view of the shared `config.toml`: `config_dir` +
   `socket_user`/`socket_group`, ignoring the server-only fields), `ConfigCommands` (the
   `commands.toml` name -> shell map, looked up by `blake2b_u64`), and `CliCommander` (`--config` and
