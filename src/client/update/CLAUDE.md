@@ -20,7 +20,14 @@ version while it stays on the old one. If `save_bin` fails partway through `swap
 chown to the `ruroco` user fails after the write succeeded), every target applied so far -
 including the failing one itself, since its write may have already landed - is rolled back via
 `rollback_bin`: restore from `.old` if it existed before, otherwise remove the partially-applied
-file, so disk state never ends up as a mix of old and new binaries. On a successful `--server`
+file, so disk state never ends up as a mix of old and new binaries. `rollback_bin` re-applies the
+target's intended ownership after the restore, because `fs::copy` gave the `.old` the *copying*
+process's owner (root) rather than the original's: a plain rename back would leave `ruroco-server`
+root-owned `0o500` and unexecutable by `User=ruroco`, i.e. the rollback itself breaks the service
+it was meant to save. Once every target has swapped successfully, `swap_all` drops the `.old`
+files (`remove_backup`, never fatal). Leaving them behind is not just clutter: a later update whose
+target had no backup of its own would find the stale one and "roll back" to a binary from some
+earlier version. On a successful `--server`
 update, `update()` logs a reminder to restart `ruroco-server`/`ruroco-commander`; nothing restarts
 them automatically.
 

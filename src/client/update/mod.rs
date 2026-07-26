@@ -152,22 +152,27 @@ impl Updater {
         &self,
         verified: Vec<(Vec<u8>, &'static str, u32, Option<&'static str>)>,
     ) -> anyhow::Result<()> {
-        let mut applied = Vec::new();
+        let mut applied: Vec<(&'static str, Option<&'static str>)> = Vec::new();
         for (bin_bytes, target_name, mode, owner) in verified {
             if let Err(e) = self.save_bin(&bin_bytes, target_name, mode, owner) {
-                applied.push(target_name);
-                for name in applied.iter().rev() {
-                    if let Err(rollback_err) = self.rollback_bin(name) {
+                applied.push((target_name, owner));
+                for (name, name_owner) in applied.iter().rev() {
+                    if let Err(rollback_err) = self.rollback_bin(name, *name_owner) {
                         error(format!(
                             "Could not roll back {name} after failed update: {rollback_err}"
                         ));
                     }
                 }
+                let names: Vec<&str> = applied.iter().map(|(name, _)| *name).collect();
                 return Err(e).with_context(|| {
-                    format!("Update failed while applying {target_name}; rolled back {applied:?}")
+                    format!("Update failed while applying {target_name}; rolled back {names:?}")
                 });
             }
-            applied.push(target_name);
+            applied.push((target_name, owner));
+        }
+
+        for (name, _) in &applied {
+            self.remove_backup(name);
         }
         Ok(())
     }

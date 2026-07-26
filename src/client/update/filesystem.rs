@@ -1,6 +1,7 @@
 use crate::client::update::Updater;
 use crate::common::crypto::verify_ed25519;
 use crate::common::fs::write_atomic_with_mode;
+use crate::common::logging::error;
 use crate::common::{change_file_ownership, info};
 use anyhow::{anyhow, bail, Context};
 use std::fs;
@@ -102,7 +103,11 @@ impl Updater {
     /// (the target existed before this update), restore it; otherwise the target didn't exist
     /// before, so remove the partially-applied new binary. Safe to call on a target whose
     /// `save_bin` itself failed (e.g. the write succeeded but the chown didn't).
-    pub(super) fn rollback_bin(&self, bin_name: &str) -> anyhow::Result<()> {
+    pub(super) fn rollback_bin(
+        &self,
+        bin_name: &str,
+        user_and_group: Option<&str>,
+    ) -> anyhow::Result<()> {
         let target_bin_path = self.bin_path.join(bin_name);
         let backup_path = Self::old_backup_path(&target_bin_path);
 
@@ -110,12 +115,30 @@ impl Updater {
             fs::rename(&backup_path, &target_bin_path).with_context(|| {
                 format!("Could not restore {target_bin_path:?} from {backup_path:?}")
             })?;
+            // `fs::copy` gave the backup the *copying* process's owner (root), not the original's,
+            // so without this the restored ruroco-server is root:root 0o500 and `User=ruroco`
+            // can no longer execute it.
+            if let Some(ug) = user_and_group {
+                change_file_ownership(&target_bin_path, ug, ug)?
+            }
         } else if target_bin_path.exists() {
             fs::remove_file(&target_bin_path).with_context(|| {
                 format!("Could not remove partially-applied {target_bin_path:?}")
             })?;
         }
         Ok(())
+    }
+
+    /// Drop the rollback snapshot once every target has swapped successfully. Never fatal: the
+    /// update already succeeded, and a leftover `.old` must not fail it. Leaving them around also
+    /// feeds `rollback_bin` a stale backup on some *later* update.
+    pub(super) fn remove_backup(&self, bin_name: &str) {
+        let backup_path = Self::old_backup_path(&self.bin_path.join(bin_name));
+        match fs::remove_file(&backup_path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => error(format!("Could not remove backup {backup_path:?}: {e}")),
+        }
     }
 
     fn old_backup_path(target: &Path) -> PathBuf {

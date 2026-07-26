@@ -526,6 +526,75 @@ fn test_swap_all_removes_fresh_targets_with_no_prior_binary_on_failure() {
 }
 
 #[test]
+fn test_swap_all_removes_backups_after_a_successful_update() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("a"), b"old-a").unwrap();
+    fs::write(dir.path().join("b"), b"old-b").unwrap();
+    let updater = create_updater(dir.path());
+
+    updater
+        .swap_all(vec![
+            (b"new-a".to_vec(), "a", 0o755, None),
+            (b"new-b".to_vec(), "b", 0o755, None),
+        ])
+        .unwrap();
+
+    assert_eq!(fs::read(dir.path().join("a")).unwrap(), b"new-a");
+    assert_eq!(fs::read(dir.path().join("b")).unwrap(), b"new-b");
+    assert!(!dir.path().join("a.old").exists(), "backup must not survive a successful update");
+    assert!(!dir.path().join("b.old").exists(), "backup must not survive a successful update");
+}
+
+#[test]
+fn test_swap_all_does_not_restore_a_stale_backup_from_an_earlier_update() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("a"), b"current-a").unwrap();
+    let updater = create_updater(dir.path());
+
+    // First update succeeds, so it must leave no `a.old` behind for the next one to resurrect.
+    updater.swap_all(vec![(b"new-a".to_vec(), "a", 0o755, None)]).unwrap();
+    // Second update fails on its only target, which had no backup of its own.
+    let result =
+        updater.swap_all(vec![(b"newer-a".to_vec(), "a", 0o755, Some("ruroco-nonexistent-user"))]);
+
+    assert!(result.is_err());
+    assert_eq!(
+        fs::read(dir.path().join("a")).unwrap(),
+        b"new-a",
+        "rollback must restore this update's binary, not a stale one from the previous update"
+    );
+}
+
+#[test]
+fn test_rollback_bin_reapplies_ownership_to_the_restored_binary() {
+    // fs::copy makes the backup owned by the copying process, not by the original owner, so a
+    // rollback that just renames it back leaves ruroco-server root-owned and unexecutable by
+    // User=ruroco. Non-root can't chown, so assert on the failure surfacing rather than the uid.
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("a"), b"old-a").unwrap();
+    let updater = create_updater(dir.path());
+    updater.save_bin(b"new-a", "a", 0o755, None).unwrap();
+
+    let result = updater.rollback_bin("a", Some("ruroco-nonexistent-user"));
+
+    assert!(result.is_err(), "an unapplicable ownership restore must not pass silently");
+    assert_eq!(fs::read(dir.path().join("a")).unwrap(), b"old-a", "content is restored first");
+}
+
+#[test]
+fn test_rollback_bin_without_owner_restores_content() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("a"), b"old-a").unwrap();
+    let updater = create_updater(dir.path());
+    updater.save_bin(b"new-a", "a", 0o755, None).unwrap();
+
+    updater.rollback_bin("a", None).unwrap();
+
+    assert_eq!(fs::read(dir.path().join("a")).unwrap(), b"old-a");
+    assert!(!dir.path().join("a.old").exists(), "the rename consumes the backup");
+}
+
+#[test]
 fn test_create_no_bin_path_client() {
     let dir = tempfile::tempdir().unwrap();
     let bin_dir = dir.path().join(".local").join("bin");
