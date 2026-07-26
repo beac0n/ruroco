@@ -19,8 +19,15 @@ missing or invalid asset for one target can never leave another target already s
 version while it stays on the old one. If `save_bin` fails partway through `swap_all` (e.g. the
 chown to the `ruroco` user fails after the write succeeded), every target applied so far -
 including the failing one itself, since its write may have already landed - is rolled back via
-`rollback_bin`: restore from `.old` if it existed before, otherwise remove the partially-applied
-file, so disk state never ends up as a mix of old and new binaries. `rollback_bin` re-applies the
+`rollback_bin`, which decides from two facts rather than one: whether a `.old` exists, and whether
+the target existed *before this update* (`existed_before`, sampled by `swap_all` before the swap).
+That second fact cannot be inferred from the first, and the old code's guess ("no `.old` means the
+target is new, so delete it") destroyed a working install whenever the backup step itself failed:
+the target was still the untouched original. The three cases are now restore-from-backup,
+delete-what-we-created, and leave-alone (predates the update, backup never got made). The backup
+is written atomically by `backup_bin` and any `.old` from a crashed earlier run is deleted first,
+so "a `.old` exists" always means "this run made a complete one" - otherwise a rollback could
+restore a truncated binary, or one from a different update, over an intact one. `rollback_bin` re-applies the
 target's intended ownership after the restore, because `fs::copy` gave the `.old` the *copying*
 process's owner (root) rather than the original's: a plain rename back would leave `ruroco-server`
 root-owned `0o500` and unexecutable by `User=ruroco`, i.e. the rollback itself breaks the service

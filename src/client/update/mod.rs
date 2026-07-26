@@ -32,6 +32,14 @@ fn build_http_agent(connect: Duration, io: Duration) -> ureq::Agent {
         .build()
 }
 
+/// One target `swap_all` has attempted, and what rolling it back requires. `existed_before` is
+/// sampled before the swap, since it cannot be recovered afterwards.
+struct Applied {
+    name: &'static str,
+    owner: Option<&'static str>,
+    existed_before: bool,
+}
+
 #[derive(Debug)]
 pub(crate) struct Updater {
     pub(super) force: bool,
@@ -152,27 +160,37 @@ impl Updater {
         &self,
         verified: Vec<(Vec<u8>, &'static str, u32, Option<&'static str>)>,
     ) -> anyhow::Result<()> {
-        let mut applied: Vec<(&'static str, Option<&'static str>)> = Vec::new();
+        let mut applied: Vec<Applied> = Vec::new();
         for (bin_bytes, target_name, mode, owner) in verified {
+            let existed_before = self.bin_path.join(target_name).exists();
+            let attempt = Applied {
+                name: target_name,
+                owner,
+                existed_before,
+            };
+
             if let Err(e) = self.save_bin(&bin_bytes, target_name, mode, owner) {
-                applied.push((target_name, owner));
-                for (name, name_owner) in applied.iter().rev() {
-                    if let Err(rollback_err) = self.rollback_bin(name, *name_owner) {
+                applied.push(attempt);
+                for target in applied.iter().rev() {
+                    if let Err(rollback_err) =
+                        self.rollback_bin(target.name, target.owner, target.existed_before)
+                    {
                         error(format!(
-                            "Could not roll back {name} after failed update: {rollback_err}"
+                            "Could not roll back {} after failed update: {rollback_err}",
+                            target.name
                         ));
                     }
                 }
-                let names: Vec<&str> = applied.iter().map(|(name, _)| *name).collect();
+                let names: Vec<&str> = applied.iter().map(|t| t.name).collect();
                 return Err(e).with_context(|| {
                     format!("Update failed while applying {target_name}; rolled back {names:?}")
                 });
             }
-            applied.push((target_name, owner));
+            applied.push(attempt);
         }
 
-        for (name, _) in &applied {
-            self.remove_backup(name);
+        for target in &applied {
+            self.remove_backup(target.name);
         }
         Ok(())
     }

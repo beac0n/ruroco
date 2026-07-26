@@ -575,10 +575,50 @@ fn test_rollback_bin_reapplies_ownership_to_the_restored_binary() {
     let updater = create_updater(dir.path());
     updater.save_bin(b"new-a", "a", 0o755, None).unwrap();
 
-    let result = updater.rollback_bin("a", Some("ruroco-nonexistent-user"));
+    let result = updater.rollback_bin("a", Some("ruroco-nonexistent-user"), true);
 
     assert!(result.is_err(), "an unapplicable ownership restore must not pass silently");
     assert_eq!(fs::read(dir.path().join("a")).unwrap(), b"old-a", "content is restored first");
+}
+
+#[test]
+fn test_failed_backup_leaves_the_existing_binary_alone() {
+    if nix::unistd::Uid::effective().is_root() {
+        return; // root ignores the permission bits that make the backup fail
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("a");
+    fs::write(&target, b"good").unwrap();
+    let updater = create_updater(dir.path());
+    // Unreadable target: save_bin fails at the backup step, before touching anything.
+    fs::set_permissions(&target, fs::Permissions::from_mode(0o000)).unwrap();
+
+    let result = updater.swap_all(vec![(b"new".to_vec(), "a", 0o755, None)]);
+
+    fs::set_permissions(&target, fs::Permissions::from_mode(0o644)).unwrap();
+    assert!(result.is_err());
+    assert!(target.exists(), "a binary the update never touched must not be deleted");
+    assert_eq!(fs::read(&target).unwrap(), b"good");
+}
+
+#[test]
+fn test_failed_backup_does_not_restore_a_backup_from_a_crashed_earlier_update() {
+    if nix::unistd::Uid::effective().is_root() {
+        return; // root ignores the permission bits that make the backup fail
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("a");
+    fs::write(&target, b"current").unwrap();
+    // A .old only survives a completed run if that run crashed partway.
+    fs::write(dir.path().join("a.old"), b"ancient").unwrap();
+    let updater = create_updater(dir.path());
+    fs::set_permissions(&target, fs::Permissions::from_mode(0o000)).unwrap();
+
+    let result = updater.swap_all(vec![(b"new".to_vec(), "a", 0o755, None)]);
+
+    fs::set_permissions(&target, fs::Permissions::from_mode(0o644)).unwrap();
+    assert!(result.is_err());
+    assert_eq!(fs::read(&target).unwrap(), b"current", "must not revive an older binary");
 }
 
 #[test]
@@ -588,7 +628,7 @@ fn test_rollback_bin_without_owner_restores_content() {
     let updater = create_updater(dir.path());
     updater.save_bin(b"new-a", "a", 0o755, None).unwrap();
 
-    updater.rollback_bin("a", None).unwrap();
+    updater.rollback_bin("a", None, true).unwrap();
 
     assert_eq!(fs::read(dir.path().join("a")).unwrap(), b"old-a");
     assert!(!dir.path().join("a.old").exists(), "the rename consumes the backup");

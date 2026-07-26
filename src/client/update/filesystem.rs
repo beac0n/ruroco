@@ -6,6 +6,7 @@ use crate::common::{change_file_ownership, info};
 use anyhow::{anyhow, bail, Context};
 use std::fs;
 use std::io::Read;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
@@ -79,12 +80,8 @@ impl Updater {
     ) -> anyhow::Result<()> {
         let target_bin_path = self.bin_path.join(bin_name);
 
-        // Snapshot the current binary to a `.old` sibling for manual rollback. This is done
-        // before the swap while the target is still present, so a crash here never removes it.
         if target_bin_path.exists() {
-            let backup_path = Self::old_backup_path(&target_bin_path);
-            fs::copy(&target_bin_path, &backup_path)
-                .with_context(|| format!("Could not back up existing binary to {backup_path:?}"))?;
+            Self::backup_bin(&target_bin_path)?;
         }
 
         // Write the new binary (with exec bits) to a temp file in the same directory, then a
@@ -99,14 +96,14 @@ impl Updater {
         Ok(())
     }
 
-    /// Undo `save_bin` for `bin_name`, restoring the pre-update state: if a `.old` backup exists
-    /// (the target existed before this update), restore it; otherwise the target didn't exist
-    /// before, so remove the partially-applied new binary. Safe to call on a target whose
-    /// `save_bin` itself failed (e.g. the write succeeded but the chown didn't).
+    /// Undo `save_bin` for `bin_name`. `existed_before` must be sampled *before* `save_bin` ran:
+    /// whether the target predates this update cannot be inferred from the presence of a backup,
+    /// and guessing wrong deletes a working binary that was never touched.
     pub(super) fn rollback_bin(
         &self,
         bin_name: &str,
         user_and_group: Option<&str>,
+        existed_before: bool,
     ) -> anyhow::Result<()> {
         let target_bin_path = self.bin_path.join(bin_name);
         let backup_path = Self::old_backup_path(&target_bin_path);
@@ -115,18 +112,38 @@ impl Updater {
             fs::rename(&backup_path, &target_bin_path).with_context(|| {
                 format!("Could not restore {target_bin_path:?} from {backup_path:?}")
             })?;
-            // `fs::copy` gave the backup the *copying* process's owner (root), not the original's,
-            // so without this the restored ruroco-server is root:root 0o500 and `User=ruroco`
-            // can no longer execute it.
+            // The backup was written by this process, so it is root-owned rather than carrying
+            // the original's owner: without this the restored ruroco-server is root:root 0o500
+            // and `User=ruroco` can no longer execute it.
             if let Some(ug) = user_and_group {
                 change_file_ownership(&target_bin_path, ug, ug)?
             }
-        } else if target_bin_path.exists() {
+        } else if !existed_before && target_bin_path.exists() {
             fs::remove_file(&target_bin_path).with_context(|| {
                 format!("Could not remove partially-applied {target_bin_path:?}")
             })?;
         }
+        // Remaining case: the target predates this update but there is no backup, so `save_bin`
+        // failed at or before the backup step and the original is still in place, untouched.
         Ok(())
+    }
+
+    /// Snapshot the current binary to a `.old` sibling, atomically: a half-written backup must
+    /// never exist, or a later rollback would restore a truncated binary over an intact one. Any
+    /// backup left by a crashed earlier update is dropped first, so the presence of a `.old`
+    /// always means "this run made it".
+    fn backup_bin(target: &Path) -> anyhow::Result<()> {
+        let backup_path = Self::old_backup_path(target);
+        let _ = fs::remove_file(&backup_path);
+
+        let mode = fs::metadata(target)
+            .with_context(|| format!("Could not stat {target:?}"))?
+            .permissions()
+            .mode();
+        let bytes =
+            fs::read(target).with_context(|| format!("Could not read {target:?} to back it up"))?;
+        write_atomic_with_mode(&backup_path, &bytes, Some(mode))
+            .with_context(|| format!("Could not back up existing binary to {backup_path:?}"))
     }
 
     /// Drop the rollback snapshot once every target has swapped successfully. Never fatal: the
