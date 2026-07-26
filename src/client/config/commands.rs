@@ -25,7 +25,8 @@ pub struct SendCommand {
     /// Allow permissive IP validation - source IP does not have to match provided IP.
     pub permissive: bool,
     /// Optional IP address from which the command was sent. Must be a single IPv4 or IPv6
-    /// address (no CIDR/prefix notation - the wire format has no room for a prefix length).
+    /// address (no CIDR/prefix notation - the wire format has no room for a prefix length),
+    /// and not an unspecified (0.0.0.0, ::) or multicast address, since neither can be a source.
     /// To use your current IPv6 address automatically, use -6ei $(curl -s6 https://api64.ipify.org)
     #[arg(short, long)]
     pub ip: Option<String>,

@@ -210,7 +210,7 @@ Options:
   -k, --key-file <KEY_FILE>        Path to a file containing the base64 key with id (output of `ruroco-client gen` or the UI)
   -c, --command <COMMAND>          Command to send [default: default]
   -e, --permissive                 Allow permissive IP validation - source IP does not have to match provided IP
-  -i, --ip <IP>                    Optional IP address from which the command was sent. Must be a single IPv4 or IPv6 address (no CIDR/prefix notation - the wire format has no room for a prefix length). To use your current IPv6 address automatically, use -6ei $(curl -s6 https://api64.ipify.org)
+  -i, --ip <IP>                    Optional IP address from which the command was sent. Must be a single IPv4 or IPv6 address (no CIDR/prefix notation - the wire format has no room for a prefix length), and not an unspecified (0.0.0.0, ::) or multicast address, since neither can be a source. To use your current IPv6 address automatically, use -6ei $(curl -s6 https://api64.ipify.org)
   -4, --ipv4                       Connect via IPv4
   -6, --ipv6                       Connect via IPv6
   -d, --send-delay-ms <DELAY_MS>   Delay in milliseconds between sending to multiple destinations (IPv4 + IPv6) [default: 50]

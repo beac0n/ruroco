@@ -27,6 +27,8 @@ impl Sender {
             .ip
             .clone()
             .map(|ip| ip.parse().with_context(|| format!("Invalid --ip value {ip:?}")))
+            .transpose()?
+            .map(Self::validate_src_ip)
             .transpose()?;
         let key: Zeroizing<String> = std::fs::read_to_string(&cmd.key_file)
             .with_context(|| format!("Could not read key file {:?}", cmd.key_file))?
@@ -39,6 +41,22 @@ impl Sender {
             src_ip,
             counter: Counter::create_and_init(counter_path, now_nanos()?)?,
         })
+    }
+
+    /// `--ip` names the source address the server must see this knock come from, so addresses that
+    /// can never *be* a source are rejected here rather than silently doing nothing useful.
+    fn validate_src_ip(ip: IpAddr) -> anyhow::Result<IpAddr> {
+        if ip.is_unspecified() {
+            bail!(
+                "--ip {ip} is the unspecified address. `::` serializes to all-zeros, which the \
+                 server reads as \"no source IP sent\", so the strict source check would pass \
+                 without checking anything. Omit --ip if that is what you want."
+            );
+        }
+        if ip.is_multicast() {
+            bail!("--ip {ip} is a multicast address, which can never be a packet's source");
+        }
+        Ok(ip)
     }
 
     /// Normalize the destination address: a complete socket address ("1.2.3.4:80", "[::1]:80")
@@ -175,6 +193,40 @@ mod tests {
         let _conf_dir = set_test_conf_dir();
         let result = CliClient::try_parse_from(vec!["ruroco", "send", "--help"]);
         assert_eq!(result.unwrap_err().kind(), DisplayHelp);
+    }
+
+    #[test]
+    fn test_send_rejects_unusable_src_ips() {
+        // `::` is the dangerous one: it serializes to all-zeros, which the server decodes as "no
+        // source IP sent", so strict mode would pass without comparing anything. `0.0.0.0` maps to
+        // ::ffff:0.0.0.0 instead, so it is merely always-wrong rather than vacuous, but neither is
+        // ever a usable source address.
+        for ip in ["::", "0.0.0.0", "224.0.0.1", "ff02::1"] {
+            let conf_dir = set_test_conf_dir();
+            let key_file = write_key_file(conf_dir.path());
+
+            let result = Sender::create(SendCommand {
+                key_file,
+                ip: Some(ip.to_string()),
+                ..Default::default()
+            });
+
+            assert!(result.is_err(), "{ip} must be rejected");
+        }
+    }
+
+    #[test]
+    fn test_send_accepts_a_normal_src_ip() {
+        let conf_dir = set_test_conf_dir();
+        let key_file = write_key_file(conf_dir.path());
+
+        let result = Sender::create(SendCommand {
+            key_file,
+            ip: Some("192.0.2.1".to_string()),
+            ..Default::default()
+        });
+
+        assert!(result.is_ok(), "a normal address must still be accepted: {result:?}");
     }
 
     #[test]
