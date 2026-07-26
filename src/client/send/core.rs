@@ -83,7 +83,11 @@ impl Sender {
     /// hostname resolving to both an IPv4 and an IPv6 address should still reach the server over
     /// whichever address family actually works, rather than giving up on IPv6 just because IPv4
     /// failed first. Only fails if every destination did.
+    ///
+    /// The counter is advanced once for the whole knock, not per destination, so every datagram
+    /// carries the same one and the server executes at most one of them.
     fn send_to_destinations(&mut self, destination_addrs: &[SocketAddr]) -> anyhow::Result<()> {
+        self.counter.inc()?;
         let mut failures = Vec::new();
         for (i, destination_addr) in destination_addrs.iter().enumerate() {
             if i > 0 && self.cmd.send_delay_ms > 0 {
@@ -302,6 +306,49 @@ mod tests {
         let result = sender.send_to_destinations(&[unreachable, reachable]);
 
         assert!(result.is_ok(), "one working destination must be enough: {result:?}");
+    }
+
+    /// A dual-stack host resolves to both an A and an AAAA record and we send to both, so the two
+    /// datagrams must carry the *same* counter: the server accepts whichever arrives first and
+    /// rejects the other as a replay, running the command exactly once. With a per-destination
+    /// counter the second packet is strictly newer and the command runs twice.
+    #[test]
+    fn test_all_destinations_share_one_counter() {
+        let conf_dir = set_test_conf_dir();
+        let key_file = write_key_file(conf_dir.path());
+        let key = std::fs::read_to_string(&key_file).unwrap();
+        let mut sender = Sender::create(SendCommand {
+            key_file,
+            ip: Some(IP.to_string()),
+            send_delay_ms: 0,
+            ..Default::default()
+        })
+        .unwrap();
+
+        let first = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        let second = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        let destinations = [first.local_addr().unwrap(), second.local_addr().unwrap()];
+
+        sender.send_to_destinations(&destinations).unwrap();
+
+        assert_eq!(counter_of(&key, &first), counter_of(&key, &second));
+    }
+
+    /// Receive one packet and decrypt it back to its counter.
+    fn counter_of(key: &str, socket: &std::net::UdpSocket) -> u128 {
+        use crate::common::client_data::ClientData;
+        use crate::common::data_parser::DataParser;
+        use crate::common::protocol::MSG_SIZE;
+        use std::time::Duration;
+
+        let mut buf = [0u8; MSG_SIZE];
+        socket.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        socket.recv_from(&mut buf).unwrap();
+
+        let parser = DataParser::create(key.trim()).unwrap();
+        let (_key_id, encrypted) = DataParser::decode(&buf).unwrap();
+        let plaintext = parser.crypto_handler.decrypt(encrypted).unwrap();
+        ClientData::deserialize(plaintext).unwrap().counter
     }
 
     #[test]

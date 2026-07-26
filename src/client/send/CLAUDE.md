@@ -18,6 +18,16 @@ IPv6 address should still reach the server over whichever family actually works.
 (aggregating every per-destination error) if none of them worked. Sleeps `send_delay_ms` between
 destinations.
 
+The counter is advanced **once per knock, in `send_to_destinations`**, not once per destination, so
+every datagram of one send carries the same counter. That is what makes a dual-stack send execute
+exactly once: a hostname with both an A and an AAAA record produces two datagrams, and if both
+reach the server the first is accepted and the second hits the replay check (`counter >= floor`)
+and is dropped. With a per-destination counter the second packet was strictly newer, so it
+validated too and the commander ran the command twice with a different `$RUROCO_IP` - which
+silently breaks any non-idempotent command (a toggle, a restart). Do not move `inc()` back into
+`send_data`. The trade-off is one expected replay rejection logged per dual-stack knock; it carries
+no source IP, so the shipped fail2ban filter cannot ban on it.
+
 Gotchas: the counter (`<conf_dir>/counter`, seeded to `now_nanos()`) is written to disk on every
 send, so the server's replay floor advances monotonically. `permissive` is inverted into the
 packet's `strict` bool. IPv6 literal addresses need `[addr]:port`.

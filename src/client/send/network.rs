@@ -42,7 +42,6 @@ impl Sender {
     }
 
     pub(super) fn send_data(&mut self, addr: SocketAddr) -> anyhow::Result<()> {
-        self.counter.inc()?;
         let bind_address = if addr.is_ipv4() {
             "0.0.0.0:0"
         } else {
